@@ -1,3 +1,10 @@
+tint2 (0.12.11~bl1+ee9207e8-1.1) jessie-backports; urgency=medium
+
+  * Non-maintainer upload.
+  * Build for jessie-backports.
+
+ -- Jens John <dev@2ion.de>  Sat, 28 May 2016 13:57:37 +0200
+
 tint2 (0.12.10-1.1) jessie-backports; urgency=medium
 
   * Non-maintainer upload.
