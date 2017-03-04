@@ -17,7 +17,7 @@ extern GtkWidget *panel_window_name, *disable_transparency;
 extern GtkWidget *panel_mouse_effects;
 extern GtkWidget *mouse_hover_icon_opacity, *mouse_hover_icon_saturation, *mouse_hover_icon_brightness;
 extern GtkWidget *mouse_pressed_icon_opacity, *mouse_pressed_icon_saturation, *mouse_pressed_icon_brightness;
-extern GtkWidget *panel_primary_monitor_first;
+extern GtkWidget *panel_primary_monitor_first, *panel_shrink;
 
 enum {
 	itemsColName = 0,
@@ -57,6 +57,7 @@ extern GtkWidget *taskbar_name_font, *taskbar_name_font_set;
 extern GtkWidget *taskbar_active_background, *taskbar_inactive_background;
 extern GtkWidget *taskbar_name_active_background, *taskbar_name_inactive_background;
 extern GtkWidget *taskbar_distribute_size, *taskbar_sort_order, *taskbar_alignment, *taskbar_always_show_all_desktop_tasks;
+extern GtkWidget *taskbar_hide_empty;
 
 // task
 extern GtkWidget *task_mouse_left, *task_mouse_middle, *task_mouse_right, *task_mouse_scroll_up, *task_mouse_scroll_down;
@@ -118,6 +119,22 @@ extern GtkWidget *tooltip_task_show, *tooltip_show_after, *tooltip_hide_after;
 extern GtkWidget *clock_format_tooltip, *clock_tmz_tooltip;
 extern GtkWidget *tooltip_background;
 
+// Separator
+typedef struct Separator {
+	char name[256];
+	GtkWidget *container;
+	GtkWidget *page_separator;
+	GtkWidget *page_label;
+	GtkWidget *separator_background;
+	GtkWidget *separator_color;
+	GtkWidget *separator_style;
+	GtkWidget *separator_size;
+	GtkWidget *separator_padding_x;
+	GtkWidget *separator_padding_y;
+} Separator;
+
+extern GArray *separators;
+
 // Executor
 typedef struct Executor {
 	char name[256];
@@ -168,6 +185,7 @@ enum {
 	bgColFillOpacity,
 	bgColBorderColor,
 	bgColBorderOpacity,
+	bgColGradientId,
 	bgColBorderWidth,
 	bgColCornerRadius,
 	bgColText,
@@ -175,10 +193,12 @@ enum {
 	bgColFillOpacityOver,
 	bgColBorderColorOver,
 	bgColBorderOpacityOver,
+	bgColGradientIdOver,
 	bgColFillColorPress,
 	bgColFillOpacityPress,
 	bgColBorderColorPress,
 	bgColBorderOpacityPress,
+	bgColGradientIdPress,
     bgColBorderSidesTop,
     bgColBorderSidesBottom,
     bgColBorderSidesLeft,
@@ -190,10 +210,13 @@ extern GtkListStore *backgrounds;
 extern GtkWidget *current_background,
 		  *background_fill_color,
 		  *background_border_color,
+		  *background_gradient,
 		  *background_fill_color_over,
 		  *background_border_color_over,
+		  *background_gradient_over,
 		  *background_fill_color_press,
 		  *background_border_color_press,
+		  *background_gradient_press,
 		  *background_border_width,
           *background_border_sides_top,
           *background_border_sides_bottom,
@@ -201,11 +224,40 @@ extern GtkWidget *current_background,
           *background_border_sides_right,
 		  *background_corner_radius;
 
+// gradients
+enum {
+	grColPixbuf = 0,
+	grColId,
+	grColText,
+	grNumCols
+};
+
+// gradient color stops
+enum {
+	grStopColPixbuf = 0,
+	grStopNumCols
+};
+extern GtkListStore *gradient_ids, *gradient_stop_ids;
+extern GList *gradients;
+
+extern GtkWidget *current_gradient,
+	*gradient_combo_type,
+	*gradient_start_color,
+	*gradient_end_color,
+	*current_gradient_stop,
+	*gradient_stop_color,
+	*gradient_stop_offset;
+
 void background_create_new();
 void background_force_update();
 int background_index_safe(int index);
 
 GtkWidget *create_properties();
+
+void separator_create_new();
+Separator *separator_get_last();
+void separator_remove(int i);
+void separator_update_indices();
 
 void execp_create_new();
 Executor *execp_get_last();
@@ -215,5 +267,7 @@ void execp_update_indices();
 void create_please_wait(GtkWindow *parent);
 void process_events();
 void destroy_please_wait();
+
+void hex2gdk(char *hex, GdkColor *color);
 
 #endif

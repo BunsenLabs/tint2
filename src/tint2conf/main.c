@@ -225,12 +225,12 @@ int main(int argc, char **argv)
 	{
 		gchar *tint2_config_dir = g_build_filename(g_get_user_config_dir(), "tint2", NULL);
 		if (!g_file_test(tint2_config_dir, G_FILE_TEST_IS_DIR))
-			g_mkdir(tint2_config_dir, 0777);
+			g_mkdir(tint2_config_dir, 0700);
 		g_free(tint2_config_dir);
 	}
 
 	g_set_application_name(_("tint2conf"));
-	gtk_window_set_default_icon_name("taskbar");
+	gtk_window_set_default_icon_name("tint2conf");
 
 	// config file uses '.' as decimal separator
 	setlocale(LC_NUMERIC, "POSIX");
@@ -326,10 +326,10 @@ static void menuAbout()
 						  "version",
 						  VERSION_STRING,
 						  "copyright",
-						  _("Copyright 2009-2015 tint2 team\nTint2 License GNU GPL version 2\nTintwizard License GNU "
+						  _("Copyright 2009-2017 tint2 team\nTint2 License GNU GPL version 2\nTintwizard License GNU "
 							"GPL version 3"),
 						  "logo-icon-name",
-						  "taskbar",
+						  "tint2conf",
 						  "authors",
 						  authors,
 						  /* Translators: translate "translator-credits" as your name to have it appear in the credits

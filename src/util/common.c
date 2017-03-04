@@ -73,15 +73,15 @@ void copy_file(const char *path_src, const char *path_dest)
 	fclose(file_src);
 }
 
-int parse_line(const char *line, char **key, char **value)
+gboolean parse_line(const char *line, char **key, char **value)
 {
 	char *a, *b;
 
 	/* Skip useless lines */
 	if ((line[0] == '#') || (line[0] == '\n'))
-		return 0;
+		return FALSE;
 	if (!(a = strchr(line, '=')))
-		return 0;
+		return FALSE;
 
 	/* overwrite '=' with '\0' */
 	a[0] = '\0';
@@ -96,7 +96,7 @@ int parse_line(const char *line, char **key, char **value)
 
 	g_strstrip(*key);
 	g_strstrip(*value);
-	return 1;
+	return TRUE;
 }
 
 void tint_exec(const char *command)
@@ -199,43 +199,44 @@ void get_color(char *hex, double *rgb)
 	rgb[2] = (b / 255.0);
 }
 
-void extract_values(const char *value, char **value1, char **value2, char **value3)
+void extract_values(const char *str, char **value1, char **value2, char **value3)
 {
-	char *b = 0, *c = 0;
-
-	if (*value1)
-		free(*value1);
-	if (*value2)
-		free(*value2);
-	if (*value3)
-		free(*value3);
-
-	if ((b = strchr(value, ' '))) {
-		b[0] = '\0';
-		b++;
-	} else {
-		*value2 = 0;
-		*value3 = 0;
-	}
-	*value1 = strdup(value);
-	g_strstrip(*value1);
-
-	if (b) {
-		if ((c = strchr(b, ' '))) {
-			c[0] = '\0';
-			c++;
-		} else {
-			c = 0;
-			*value3 = 0;
+	*value1 = NULL;
+	*value2 = NULL;
+	*value3 = NULL;
+	char **tokens = g_strsplit(str, " ", 3);
+	if (tokens[0]) {
+		*value1 = strdup(tokens[0]);
+		if (tokens[1]) {
+			*value2 = strdup(tokens[1]);
+			if (tokens[2]) {
+				*value3 = strdup(tokens[2]);
+			}
 		}
-		*value2 = strdup(b);
-		g_strstrip(*value2);
 	}
+	g_strfreev(tokens);
+}
 
-	if (c) {
-		*value3 = strdup(c);
-		g_strstrip(*value3);
+void extract_values_4(const char *str, char **value1, char **value2, char **value3, char **value4)
+{
+	*value1 = NULL;
+	*value2 = NULL;
+	*value3 = NULL;
+	*value4 = NULL;
+	char **tokens = g_strsplit(str, " ", 4);
+	if (tokens[0]) {
+		*value1 = strdup(tokens[0]);
+		if (tokens[1]) {
+			*value2 = strdup(tokens[1]);
+			if (tokens[2]) {
+				*value3 = strdup(tokens[2]);
+				if (tokens[3]) {
+					*value4 = strdup(tokens[3]);
+				}
+			}
+		}
 	}
+	g_strfreev(tokens);
 }
 
 void adjust_asb(DATA32 *data, int w, int h, float alpha_adjust, float satur_adjust, float bright_adjust)
@@ -617,7 +618,7 @@ void get_text_size2(PangoFontDescription *font,
 	XFreePixmap(server.display, pmap);
 }
 
-#if !GLIB_CHECK_VERSION(2, 33, 4)
+#if !GLIB_CHECK_VERSION(2, 34, 0)
 GList *g_list_copy_deep(GList *list, GCopyFunc func, gpointer user_data)
 {
 	list = g_list_copy(list);
@@ -672,4 +673,14 @@ GSList *slist_remove_duplicates(GSList *list, GCompareFunc eq, GDestroyNotify fr
 	g_slist_free_full(list, fr);
 
 	return new_list;
+}
+
+gint cmp_ptr(gconstpointer a, gconstpointer b)
+{
+	if (a < b)
+		return -1;
+	else if (a == b)
+		return 0;
+	else
+		return 1;
 }

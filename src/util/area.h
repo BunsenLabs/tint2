@@ -11,6 +11,9 @@
 #include <cairo.h>
 #include <cairo-xlib.h>
 
+#include "color.h"
+#include "gradient.h"
+
 // DATA ORGANISATION
 //
 // Areas in tint2 are similar to widgets in a GUI.
@@ -117,13 +120,6 @@
 //   The caller takes ownership of the pointer.
 //   The Area's _get_tooltip_text member must point to this function.
 
-typedef struct Color {
-	// Values are in [0, 1], with 0 meaning no intensity.
-	double rgb[3];
-	// Values are in [0, 1], with 0 meaning fully transparent, 1 meaning fully opaque.
-	double alpha;
-} Color;
-
 typedef enum BorderMask {
 	BORDER_TOP     = 1 << 0,
 	BORDER_BOTTOM  = 1 << 1,
@@ -144,6 +140,8 @@ typedef struct Border {
 	int mask;
 } Border;
 
+typedef enum MouseState { MOUSE_NORMAL = 0, MOUSE_OVER = 1, MOUSE_DOWN = 2, MOUSE_STATE_COUNT } MouseState;
+
 typedef struct Background {
 	// Normal state
 	Color fill_color;
@@ -154,6 +152,8 @@ typedef struct Background {
 	// On mouse press
 	Color fill_color_pressed;
 	Color border_color_pressed;
+	// Pointer to a GradientClass or NULL, no ownership
+	GradientClass *gradients[MOUSE_STATE_COUNT];
 } Background;
 
 typedef enum Layout {
@@ -167,8 +167,6 @@ typedef enum Alignment {
 	ALIGN_RIGHT = 2,
 } Alignment;
 
-typedef enum MouseState { MOUSE_NORMAL = 0, MOUSE_OVER = 1, MOUSE_DOWN = 2, MOUSE_STATE_COUNT } MouseState;
-
 struct Panel;
 
 typedef struct Area {
@@ -176,7 +174,12 @@ typedef struct Area {
 	int posx, posy;
 	// Size, including borders
 	int width, height;
+	int old_width, old_height;
 	Background *bg;
+	// Each element is a GradientInstance attached to this Area (list can be empty)
+	GList *gradient_instances_by_state[MOUSE_STATE_COUNT];
+	// Each element is a GradientInstance that depends on this Area's geometry (position or size)
+	GList *dependent_gradients;
 	// List of children, each one a pointer to Area
 	GList *children;
 	// Pointer to the parent Area or NULL
@@ -219,6 +222,10 @@ typedef struct Area {
 	// Returns 1 if the new size is different than the previous size.
 	gboolean (*_resize)(void *obj);
 
+	// Called before resize, obj = pointer to the Area
+	// Returns the desired size of the Area
+	int (*_compute_desired_size)(void *obj);
+
 	// Implemented only to override the default layout algorithm for this widget.
 	// For example, if this widget is a cell in a table, its position and size should be computed here.
 	void (*_on_change_layout)(void *obj);
@@ -252,6 +259,9 @@ void relayout(Area *a);
 // Distributes the Area's size to its children, repositioning them as needed.
 // If maximum_size > 0, it is an upper limit for the child size.
 int relayout_with_constraint(Area *a, int maximum_size);
+
+int compute_desired_size(Area *a);
+int container_compute_desired_size(Area *a);
 
 int left_border_width(Area *a);
 int right_border_width(Area *a);
@@ -309,9 +319,15 @@ gboolean area_is_under_mouse(void *obj, int x, int y);
 // they are outside the drawing area of the button.
 gboolean full_width_area_is_under_mouse(void *obj, int x, int y);
 
+void instantiate_area_gradients(Area *area);
+void free_area_gradient_instances(Area *area);
+
 void area_dump_geometry(Area *area, int indent);
 
 void mouse_over(Area *area, int pressed);
 void mouse_out();
+
+void update_gradient(GradientInstance *gi);
+void update_dependent_gradients(Area *a);
 
 #endif

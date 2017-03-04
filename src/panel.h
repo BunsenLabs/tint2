@@ -22,6 +22,7 @@
 #include "launcher.h"
 #include "freespace.h"
 #include "execplugin.h"
+#include "separator.h"
 
 #ifdef ENABLE_BATTERY
 #include "battery.h"
@@ -78,15 +79,19 @@ extern gboolean panel_autohide;
 extern int panel_autohide_show_timeout;
 extern int panel_autohide_hide_timeout;
 extern int panel_autohide_height; // for vertical panels this is of course the width
+extern gboolean panel_shrink;
 extern Strut panel_strut_policy;
 extern char *panel_items_order;
 extern int max_tick_urgent;
 extern GArray *backgrounds;
+extern GArray *gradients;
 extern Imlib_Image default_icon;
 #define DEFAULT_FONT "sans 10"
 extern char *default_font;
 extern XSettingsClient *xsettings_client;
 extern gboolean debug_geometry;
+extern gboolean debug_fps;
+extern gboolean debug_frames;
 
 typedef struct Panel {
 	Area area;
@@ -98,6 +103,7 @@ typedef struct Panel {
 	int posx, posy;
 	int marginx, marginy;
 	gboolean fractional_width, fractional_height;
+	int max_size;
 	int monitor;
 	int font_shadow;
 	gboolean mouse_effects;
@@ -126,7 +132,8 @@ typedef struct Panel {
 #endif
 
 	Launcher launcher;
-	FreeSpace freespace;
+	GList *freespace_list;
+	GList *separator_list;
 	GList *execp_list;
 
 	// Autohide
@@ -153,11 +160,16 @@ void init_panel();
 void init_panel_size_and_position(Panel *panel);
 gboolean resize_panel(void *obj);
 void render_panel(Panel *panel);
+void shrink_panel(Panel *panel);
+void _schedule_panel_redraw(const char *file, const char *function, const int line);
+#define schedule_panel_redraw() _schedule_panel_redraw(__FILE__, __FUNCTION__, __LINE__)
 
 void set_panel_items_order(Panel *p);
 void place_panel_all_desktops(Panel *p);
 void replace_panel_all_desktops(Panel *p);
 void set_panel_properties(Panel *p);
+void set_panel_window_geometry(Panel *panel);
+void set_panel_layer(Panel *p, Layer layer);
 
 // draw background panel
 void set_panel_background(Panel *p);

@@ -31,8 +31,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <glib/gstdio.h>
-#include <pango/pangocairo.h>
-#include <pango/pangoxft.h>
+#include <pango/pango-font.h>
 #include <Imlib2.h>
 
 #include "config.h"
@@ -52,6 +51,7 @@
 #include "window.h"
 #include "tooltip.h"
 #include "timer.h"
+#include "separator.h"
 #include "execplugin.h"
 
 #ifdef ENABLE_BATTERY
@@ -202,6 +202,15 @@ void load_launcher_app_dir(const char *path)
 	g_list_free(files);
 }
 
+Separator *get_or_create_last_separator()
+{
+	if (!panel_config.separator_list) {
+		fprintf(stderr, "Warning: separator items should shart with 'separator = new'\n");
+		panel_config.separator_list = g_list_append(panel_config.separator_list, create_separator());
+	}
+	return (Separator *)g_list_last(panel_config.separator_list)->data;
+}
+
 Execp *get_or_create_last_execp()
 {
 	if (!panel_config.execp_list) {
@@ -233,10 +242,10 @@ void add_entry(char *key, char *value)
 		init_background(&bg);
 		bg.border.radius = atoi(value);
 		g_array_append_val(backgrounds, bg);
-		read_bg_color_hover = 0;
-		read_border_color_hover = 0;
-		read_bg_color_press = 0;
-		read_border_color_press = 0;
+		read_bg_color_hover = FALSE;
+		read_border_color_hover = FALSE;
+		read_bg_color_press = FALSE;
+		read_border_color_press = FALSE;
 	} else if (strcmp(key, "border_width") == 0) {
 		g_array_index(backgrounds, Background, backgrounds->len - 1).border.width = atoi(value);
 	} else if (strcmp(key, "border_sides") == 0) {
@@ -304,6 +313,59 @@ void add_entry(char *key, char *value)
 		else
 			bg->border_color_pressed.alpha = 0.5;
 		read_border_color_press = 1;
+	} else if (strcmp(key, "gradient_id") == 0) {
+		Background *bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
+		int id = atoi(value);
+		id = (id < gradients->len && id >= 0) ? id : -1;
+		if (id >= 0)
+			bg->gradients[MOUSE_NORMAL] = &g_array_index(gradients, GradientClass, id);
+	} else if (strcmp(key, "gradient_id_hover") == 0 || strcmp(key, "hover_gradient_id") == 0) {
+		Background *bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
+		int id = atoi(value);
+		id = (id < gradients->len && id >= 0) ? id : -1;
+		if (id >= 0)
+			bg->gradients[MOUSE_OVER] = &g_array_index(gradients, GradientClass, id);
+	} else if (strcmp(key, "gradient_id_pressed") == 0 || strcmp(key, "pressed_gradient_id") == 0) {
+		Background *bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
+		int id = atoi(value);
+		id = (id < gradients->len && id >= 0) ? id : -1;
+		if (id >= 0)
+			bg->gradients[MOUSE_DOWN] = &g_array_index(gradients, GradientClass, id);
+	}
+
+	/* Gradients */
+	else if (strcmp(key, "gradient") == 0) {
+		// Create a new gradient
+		GradientClass g;
+		init_gradient(&g, gradient_type_from_string(value));
+		g_array_append_val(gradients, g);
+	} else if (strcmp(key, "start_color") == 0) {
+		GradientClass *g = &g_array_index(gradients, GradientClass, gradients->len - 1);
+		extract_values(value, &value1, &value2, &value3);
+		get_color(value1, g->start_color.rgb);
+		if (value2)
+			g->start_color.alpha = (atoi(value2) / 100.0);
+		else
+			g->start_color.alpha = 0.5;
+	} else if (strcmp(key, "end_color") == 0) {
+		GradientClass *g = &g_array_index(gradients, GradientClass, gradients->len - 1);
+		extract_values(value, &value1, &value2, &value3);
+		get_color(value1, g->end_color.rgb);
+		if (value2)
+			g->end_color.alpha = (atoi(value2) / 100.0);
+		else
+			g->end_color.alpha = 0.5;
+	} else if (strcmp(key, "color_stop") == 0) {
+		GradientClass *g = &g_array_index(gradients, GradientClass, gradients->len - 1);
+		extract_values(value, &value1, &value2, &value3);
+		ColorStop *color_stop = (ColorStop *) calloc(1, sizeof(ColorStop));
+		color_stop->offset = atof(value1) / 100.0;
+		get_color(value2, color_stop->color.rgb);
+		if (value3)
+			color_stop->color.alpha = (atoi(value3) / 100.0);
+		else
+			color_stop->color.alpha = 0.5;
+		g->extra_color_stops = g_list_append(g->extra_color_stops, color_stop);
 	}
 
 	/* Panel */
@@ -311,6 +373,8 @@ void add_entry(char *key, char *value)
 		panel_config.monitor = config_get_monitor(value);
 	} else if (strcmp(key, "primary_monitor_first") == 0) {
 		primary_monitor_first = atoi(value);
+	} else if (strcmp(key, "panel_shrink") == 0) {
+		panel_shrink = atoi(value);
 	} else if (strcmp(key, "panel_size") == 0) {
 		extract_values(value, &value1, &value2, &value3);
 
@@ -525,6 +589,45 @@ void add_entry(char *key, char *value)
 #ifdef ENABLE_BATTERY
 		battery_tooltip_enabled = atoi(value);
 #endif
+	}
+
+	/* Separator */
+	else if (strcmp(key, "separator") == 0) {
+		panel_config.separator_list = g_list_append(panel_config.separator_list, create_separator());
+	} else if (strcmp(key, "separator_background_id") == 0) {
+		Separator *separator = get_or_create_last_separator();
+		int id = atoi(value);
+		id = (id < backgrounds->len && id >= 0) ? id : 0;
+		separator->area.bg = &g_array_index(backgrounds, Background, id);
+	} else if (strcmp(key, "separator_color") == 0) {
+		Separator *separator = get_or_create_last_separator();
+		extract_values(value, &value1, &value2, &value3);
+		get_color(value1, separator->color.rgb);
+		if (value2)
+			separator->color.alpha = (atoi(value2) / 100.0);
+		else
+			separator->color.alpha = 0.5;
+	} else if (strcmp(key, "separator_style") == 0) {
+		Separator *separator = get_or_create_last_separator();
+		if (g_str_equal(value, "empty"))
+			separator->style = SEPARATOR_EMPTY;
+		else if (g_str_equal(value, "line"))
+			separator->style = SEPARATOR_LINE;
+		else if (g_str_equal(value, "dots"))
+			separator->style = SEPARATOR_DOTS;
+		else
+			fprintf(stderr, RED "Invalid separator_style value: %s" RESET "\n", value);
+	} else if (strcmp(key, "separator_size") == 0) {
+		Separator *separator = get_or_create_last_separator();
+		separator->thickness = atoi(value);
+	} else if (strcmp(key, "separator_padding") == 0) {
+		Separator *separator = get_or_create_last_separator();
+		extract_values(value, &value1, &value2, &value3);
+		separator->area.paddingxlr = separator->area.paddingx = atoi(value1);
+		if (value2)
+			separator->area.paddingy = atoi(value2);
+		if (value3)
+			separator->area.paddingx = atoi(value3);
 	}
 
 	/* Execp */
@@ -771,6 +874,8 @@ void add_entry(char *key, char *value)
 		hide_inactive_tasks = atoi(value);
 	} else if (strcmp(key, "taskbar_hide_different_monitor") == 0) {
 		hide_task_diff_monitor = atoi(value);
+	} else if (strcmp(key, "taskbar_hide_if_empty") == 0) {
+		hide_taskbar_if_empty = atoi(value);
 	} else if (strcmp(key, "taskbar_always_show_all_desktop_tasks") == 0) {
 		always_show_all_desktop_tasks = atoi(value);
 	} else if (strcmp(key, "taskbar_sort_order") == 0) {

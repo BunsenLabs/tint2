@@ -1,4 +1,4 @@
-# TINT2 1 "2016-05-22"
+# TINT2 1 "2017-03-04"
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -36,6 +36,8 @@ Goals:
 
   * [Backgrounds and borders](#backgrounds-and-borders)
 
+  * [Gradients](#gradients)
+
   * [Panel](#panel)
 
   * [Launcher](#launcher)
@@ -55,6 +57,8 @@ Goals:
   * [Battery](#battery)
 
   * [Executor](#executor)
+
+  * [Separator](#separator)
 
   * [Example configuration](#example-configuration)
 
@@ -134,6 +138,102 @@ clock_background_id = 0
 
 Identifier 0 refers to a special background which is fully transparent, identifier 1 applies the first background defined in the config file etc.
 
+### Gradients
+
+(Available since 0.13.0)
+
+Backgrounds also allow specifying gradient layers
+that are drawn on top of the solid color background.
+
+First the user must define one or more gradients in the config file,
+each starting with `gradient = TYPE`. These must be added before backgrounds.
+
+Then gradients can be added by index to backgrounds,
+using the `gradient_id = INDEX`, `gradient_id_hover = INDEX` and
+`gradient_id_pressed = INDEX`, where `INDEX` is
+the gradient index, starting from 1.
+
+#### Gradient types
+
+Gradients vary the color between fixed control points:
+* vertical gradients: top-to-bottom;
+* horizontal gradients: left-to-right;
+* radial gradients: center-to-corners.
+
+The user must specify the start and end colors, and can optionally add extra color stops in between
+using the `color_stop` option, as explained below.
+
+##### Vertical gradient, with color varying from the top edge to the bottom edge, two colors
+
+```
+gradient = vertical
+start_color = #rrggbb opacity
+end_color = #rrggbb opacity
+```
+
+##### Horizontal gradient, with color varying from the left edge to the right edge, two colors
+
+```
+gradient = horizontal
+start_color = #rrggbb opacity
+end_color = #rrggbb opacity
+```
+
+##### Radial gradient, with color varying from the center to the corner, two colors:
+
+```
+gradient = radial
+start_color = #rrggbb opacity
+end_color = #rrggbb opacity
+```
+
+##### Adding extra color stops (0% and 100% remain fixed, more colors at x% between the start and end control points)
+
+```
+color_stop = percentage #rrggbb opacity
+```
+
+#### Gradient examples
+
+```
+# Gradient 1: thin film effect
+gradient = horizontal
+start_color = #111122 30
+end_color = #112211 30
+color_stop = 60 #221111 30
+
+# Gradient 2: radial glow
+gradient = radial
+start_color = #ffffff 20
+end_color = #ffffff 0
+
+# Gradient 3: elegant black
+gradient = vertical
+start_color = #444444 100
+end_color = #222222 100
+
+# Gradient 4: elegant black
+gradient = horizontal
+start_color = #111111 100
+end_color = #222222 100
+
+# Background 1: Active desktop name
+rounded = 2
+border_width = 1
+border_sides = TBLR
+background_color = #555555 10
+border_color = #ffffff 60
+background_color_hover = #555555 10
+border_color_hover = #ffffff 60
+background_color_pressed = #555555 10
+border_color_pressed = #ffffff 60
+gradient_id = 3
+gradient_id_hover = 4
+gradient_id_pressed = 2
+
+[...]
+```
+
 ### Panel
 
   * `panel_items = LTSBC` defines the items tint2 will show and the order of those items. Each letter refers to an item, defined as:
@@ -142,8 +242,9 @@ Identifier 0 refers to a special background which is fully transparent, identifi
     * `S` shows the Systray (also called notification area)
     * `B` shows the Battery status
     * `C` shows the Clock
-    * `F` adds an extensible spacer (freespace). Has no effect if `T` is also present. *(since 0.12)*
+    * `F` adds an extensible spacer (freespace). You can specify more than one. Has no effect if `T` is also present. *(since 0.12)*
     * `E` adds an executor plugin. You can specify more than one. *(since 0.12.4)*
+    * `:` adds a separator. You can specify more than one. *(since 0.13.0)*
 
     For example, `panel_items = STC` will show the systray, the taskbar and the clock (from left to right).
 
@@ -168,6 +269,8 @@ Identifier 0 refers to a special background which is fully transparent, identifi
 # The panel's width is 94% the size of the monitor, the height is 30 pixels:
 panel_size = 94% 30
 ```
+
+  * `panel_shrink = boolean (0 or 1)` : If set to 1, the panel will shrink to a compact size dynamically. *(since 0.13)*
 
   * `panel_margin = horizontal_margin vertical_margin` : The margins define the distance between the panel and the horizontal/vertical monitor edge. Use `0` to obtain a panel with the same size as the edge of the monitor (no margin).
 
@@ -241,7 +344,9 @@ panel_size = 94% 30
       * You can drag-and-drop tasks between virtual desktops;
       * You can switch between virtual desktops.
 
-  * `taskbar_distribute_size = boolean (0 or 1)` :  If enabled, in multi-desktop mode distributes between taskbars the available size proportionally to the number of tasks. Default: disabled. *(since 0.12)*
+  * `taskbar_hide_if_empty = boolean (0 or 1)` : If enabled, in multi-desktop mode the taskbars corresponding to empty desktops different from the current desktop are hidden. *(since 0.13)*
+
+  * `taskbar_distribute_size = boolean (0 or 1)` : If enabled, in multi-desktop mode distributes between taskbars the available size proportionally to the number of tasks. Default: disabled. *(since 0.12)*
 
   * `taskbar_padding = horizontal_padding vertical_padding spacing`
 
@@ -563,6 +668,20 @@ execp_command = stdbuf -oL bwm-ng -o csv -t 1000 | awk -F ';' '/total/ { printf 
 execp_continuous = 1
 execp_interval = 1
 ```
+
+### Separator
+
+  * `separator = new` : Begins the configuration of a new separator. Multiple such plugins are supported; just use multiple `:`s in `panel_items`. *(since 0.13.0)*
+
+  * `separator_background_id = integer` : Which background to use. *(since 0.13.0)*
+
+  * `separator_color = color opacity` : The foreground color. *(since 0.13.0)*
+
+  * `separator_style = [empty | line | dots]` : The separator style. *(since 0.13.0)*
+
+  * `separator_size = integer` : The thickness of the separator. Does not include the border and padding. For example, if the style is `line`, this is the line thickness; if the style is `dots`, this is the dot's diameter. *(since 0.13.0)*
+
+  * `separator_padding = side_padding cap_padding` : The padding to add to the sides of the separator, in pixels. *(since 0.13.0)*
 
 ### Example configuration
 

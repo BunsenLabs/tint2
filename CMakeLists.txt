@@ -1,5 +1,5 @@
 project( tint2 )
-cmake_minimum_required( VERSION 2.6 )
+cmake_minimum_required( VERSION 2.8.5 )
 
 option( ENABLE_BATTERY "Enable battery status plugin" ON )
 option( ENABLE_TINT2CONF "Enable tint2conf build, a GTK+2 theme configurator for tint2" ON )
@@ -12,6 +12,14 @@ option( ENABLE_BACKTRACE_ON_SIGNAL "Dump a backtrace also when receiving signals
 if( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
   option( ENABLE_UEVENT "Kernel event handling support" ON )
 endif( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+
+include( GNUInstallDirs )
+if(NOT docdir)
+  set(docdir ${CMAKE_INSTALL_DOCDIR})
+endif()
+if(NOT htmldir)
+  set(htmldir ${docdir}/html)
+endif()
 
 include( FindPkgConfig )
 include( CheckLibraryExists )
@@ -87,6 +95,7 @@ include_directories( ${PROJECT_BINARY_DIR}
                      src/util
                      src/execplugin
                      src/freespace
+                     src/separator
                      ${X11_INCLUDE_DIRS}
                      ${PANGOCAIRO_INCLUDE_DIRS}
                      ${PANGO_INCLUDE_DIRS}
@@ -114,11 +123,14 @@ set( SOURCES src/config.c
              src/tooltip/tooltip.c
              src/execplugin/execplugin.c
              src/freespace/freespace.c
+             src/separator/separator.c
              src/util/area.c
              src/util/common.c
              src/util/strnatcmp.c
              src/util/timer.c
              src/util/cache.c
+             src/util/color.c
+             src/util/gradient.c
              src/util/window.c )
 
 if( ENABLE_BATTERY )
@@ -190,16 +202,11 @@ endif( ENABLE_TINT2CONF )
 
 if( ENABLE_ASAN )
   SET(ASAN_C_FLAGS " -O0 -g3 -gdwarf-2 -fsanitize=address -fno-common -fno-omit-frame-pointer -rdynamic -Wshadow")
-  SET(ASAN_L_FLAGS " -O0 -g3 -gdwarf-2 -fsanitize=address -fno-common -fno-omit-frame-pointer -rdynamic ")
+  SET(ASAN_L_FLAGS " -O0 -g3 -gdwarf-2 -fsanitize=address -fno-common -fno-omit-frame-pointer -rdynamic -fuse-ld=gold ")
 else()
   SET(ASAN_C_FLAGS "")
   SET(ASAN_L_FLAGS "")
 endif()
-
-set( MANDIR share/man CACHE PATH "Directory for man pages" )
-set( DATADIR share CACHE PATH "Directory for shared data" )
-set( SYSCONFDIR /etc CACHE PATH "Directory for configuration files" )
-set( DOCDIR share/doc/tint2 CACHE PATH "Directory for documentation files" )
 
 add_custom_target( version ALL "${PROJECT_SOURCE_DIR}/get_version.sh" "\"${PROJECT_SOURCE_DIR}\"" )
 
@@ -239,14 +246,14 @@ set_target_properties( tint2 PROPERTIES COMPILE_FLAGS "-Wall -Wpointer-arith -fn
 set_target_properties( tint2 PROPERTIES LINK_FLAGS "-pthread -fno-strict-aliasing ${ASAN_L_FLAGS} ${BACKTRACE_L_FLAGS}" )
 
 install( TARGETS tint2 DESTINATION bin )
-install( FILES tint2.svg DESTINATION ${DATADIR}/icons/hicolor/scalable/apps )
-install( FILES tint2.desktop DESTINATION ${DATADIR}/applications )
-install( CODE "execute_process(COMMAND gtk-update-icon-cache -f -t ${DATADIR}/icons/hicolor WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})" )
-install( FILES themes/tint2rc DESTINATION ${SYSCONFDIR}/xdg/tint2 )
-install( FILES default_icon.png DESTINATION ${DATADIR}/tint2 )
-install( FILES AUTHORS ChangeLog README.md doc/tint2.md doc/manual.html doc/readme.html DESTINATION ${DOCDIR} )
-install( DIRECTORY doc/images DESTINATION ${DOCDIR} )
-install( FILES doc/tint2.1 DESTINATION ${MANDIR}/man1 )
+install( FILES tint2.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps )
+install( FILES tint2.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications )
+install( FILES themes/tint2rc DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/tint2 )
+install( FILES default_icon.png DESTINATION ${CMAKE_INSTALL_DATADIR}/tint2 )
+install( FILES AUTHORS ChangeLog README.md doc/tint2.md DESTINATION ${docdir} )
+install( FILES doc/manual.html doc/readme.html DESTINATION ${htmldir} )
+install( DIRECTORY doc/images DESTINATION ${htmldir} )
+install( FILES doc/tint2.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 if( ENABLE_EXTRA_THEMES )
   add_subdirectory(themes)
 endif( ENABLE_EXTRA_THEMES )

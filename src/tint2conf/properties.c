@@ -17,21 +17,9 @@
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **************************************************************************/
 
-#include <limits.h>
-#include <stdlib.h>
-
-#include "main.h"
-#include "properties.h"
-#include "properties_rw.h"
-#include "../launcher/apps-common.h"
-#include "../launcher/icon-theme-common.h"
-#include "../util/common.h"
-#include "strnatcmp.h"
-
-#define ROW_SPACING 10
-#define COL_SPACING 8
-#define DEFAULT_HOR_SPACING 5
-
+#include "gui.h"
+#include "background_gui.h"
+#include "gradient_gui.h"
 
 GtkWidget *panel_width, *panel_height, *panel_margin_x, *panel_margin_y, *panel_padding_x, *panel_padding_y, *panel_spacing;
 GtkWidget *panel_wm_menu, *panel_dock, *panel_autohide, *panel_autohide_show_time, *panel_autohide_hide_time, *panel_autohide_size;
@@ -40,7 +28,7 @@ GtkWidget *panel_window_name, *disable_transparency;
 GtkWidget *panel_mouse_effects;
 GtkWidget *mouse_hover_icon_opacity, *mouse_hover_icon_saturation, *mouse_hover_icon_brightness;
 GtkWidget *mouse_pressed_icon_opacity, *mouse_pressed_icon_saturation, *mouse_pressed_icon_brightness;
-GtkWidget *panel_primary_monitor_first;
+GtkWidget *panel_primary_monitor_first, *panel_shrink;
 
 GtkListStore *panel_items, *all_items;
 GtkWidget *panel_items_view, *all_items_view;
@@ -59,6 +47,7 @@ GtkWidget *taskbar_name_font, *taskbar_name_font_set;
 GtkWidget *taskbar_active_background, *taskbar_inactive_background;
 GtkWidget *taskbar_name_active_background, *taskbar_name_inactive_background;
 GtkWidget *taskbar_distribute_size, *taskbar_sort_order, *taskbar_alignment, *taskbar_always_show_all_desktop_tasks;
+GtkWidget *taskbar_hide_empty;
 
 // task
 GtkWidget *task_mouse_left, *task_mouse_middle, *task_mouse_right, *task_mouse_scroll_up, *task_mouse_scroll_down;
@@ -120,6 +109,9 @@ GtkWidget *tooltip_task_show, *tooltip_show_after, *tooltip_hide_after;
 GtkWidget *clock_format_tooltip, *clock_tmz_tooltip;
 GtkWidget *tooltip_background;
 
+// Separators
+GArray *separators;
+
 // Executors
 GArray *executors;
 
@@ -138,34 +130,10 @@ IconThemeWrapper *icon_theme;
 GtkWidget *launcher_tooltip;
 GtkWidget *launcher_icon_theme_override;
 
-GtkListStore *backgrounds;
-GtkWidget *current_background,
-		  *background_fill_color,
-		  *background_border_color,
-		  *background_fill_color_over,
-		  *background_border_color_over,
-		  *background_fill_color_press,
-		  *background_border_color_press,
-		  *background_border_width,
-		  *background_corner_radius,
-          *background_border_sides_top,
-          *background_border_sides_bottom,
-          *background_border_sides_left,
-          *background_border_sides_right;
-
-
 GtkWidget *addScrollBarToWidget(GtkWidget *widget);
 gboolean gtk_tree_model_iter_prev_tint2(GtkTreeModel *model, GtkTreeIter *iter);
 
-void change_paragraph(GtkWidget *widget);
 void create_general(GtkWidget *parent);
-void create_background(GtkWidget *parent);
-void background_duplicate(GtkWidget *widget, gpointer data);
-void background_delete(GtkWidget *widget, gpointer data);
-void background_update_image(int index);
-void background_update(GtkWidget *widget, gpointer data);
-void current_background_changed(GtkWidget *widget, gpointer data);
-void background_combo_changed(GtkWidget *widget, gpointer data);
 void create_panel(GtkWidget *parent);
 void create_panel_items(GtkWidget *parent);
 void create_launcher(GtkWidget *parent, GtkWindow *window);
@@ -185,6 +153,7 @@ void create_task_status(GtkWidget *notebook,
 						GtkWidget **task_status_icon_brightness,
 						GtkWidget **task_status_background,
 						GtkWidget **task_status_background_set);
+void create_separator(GtkWidget *parent, int i);
 void create_execp(GtkWidget *parent, int i);
 void create_clock(GtkWidget *parent);
 void create_systemtray(GtkWidget *parent);
@@ -195,7 +164,7 @@ void panel_remove_item(GtkWidget *widget, gpointer data);
 void panel_move_item_down(GtkWidget *widget, gpointer data);
 void panel_move_item_up(GtkWidget *widget, gpointer data);
 
-static gint compare_strings(gconstpointer a, gconstpointer b)
+gint compare_strings(gconstpointer a, gconstpointer b)
 {
    return strnatcasecmp((const char*)a, (const char*)b);
 }
@@ -250,12 +219,13 @@ GtkWidget *create_properties()
 	GtkWidget *view, *dialog_vbox3, *button;
 	GtkTooltips *tooltips;
 	GtkWidget *page_panel, *page_panel_items, *page_launcher, *page_taskbar, *page_battery, *page_clock,
-			  *page_tooltip, *page_systemtray, *page_task, *page_background;
+			  *page_tooltip, *page_systemtray, *page_task, *page_background, *page_gradient;
 	GtkWidget *label;
 
 	tooltips = gtk_tooltips_new();
 	(void) tooltips;
 
+	separators = g_array_new(FALSE, TRUE, sizeof(Separator));
 	executors = g_array_new(FALSE, TRUE, sizeof(Executor));
 
 	// global layer
@@ -294,6 +264,14 @@ GtkWidget *create_properties()
 	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
 
 	// notebook
+	label = gtk_label_new(_("Gradients"));
+	gtk_widget_show(label);
+	page_gradient = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
+	gtk_container_set_border_width(GTK_CONTAINER(page_gradient), 10);
+	gtk_widget_show(page_gradient);
+	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), addScrollBarToWidget(page_gradient), label);
+	create_gradient(page_gradient);
+
 	label = gtk_label_new(_("Backgrounds"));
 	gtk_widget_show(label);
 	page_background = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
@@ -386,94 +364,6 @@ void change_paragraph(GtkWidget *widget)
 	gtk_container_set_border_width(GTK_CONTAINER(hbox), 6);
 }
 
-GtkWidget *create_background_combo(const char *label)
-{
-	GtkWidget *combo = gtk_combo_box_new_with_model(GTK_TREE_MODEL(backgrounds));
-	GtkCellRenderer *renderer = gtk_cell_renderer_pixbuf_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "pixbuf", bgColPixbuf, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	g_object_set(renderer, "wrap-mode", PANGO_WRAP_WORD, NULL);
-	g_object_set(renderer, "wrap-width", 300, NULL);
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", bgColText, NULL);
-	g_signal_connect(G_OBJECT(combo), "changed", G_CALLBACK(background_combo_changed), (void*)label);
-	return combo;
-}
-
-void background_combo_changed(GtkWidget *widget, gpointer data)
-{
-	gchar *combo_text = (gchar*)data;
-	if (!combo_text || g_str_equal(combo_text, ""))
-		return;
-	int selected_index = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-
-	int index;
-	for (index = 0; ; index++) {
-		GtkTreePath *path;
-		GtkTreeIter iter;
-
-		path = gtk_tree_path_new_from_indices(index, -1);
-		gboolean found = gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-		gtk_tree_path_free(path);
-
-		if (!found) {
-			break;
-		}
-
-		gchar *text;
-		gtk_tree_model_get(GTK_TREE_MODEL(backgrounds), &iter,
-						   bgColText, &text,
-						   -1);
-		gchar **parts = g_strsplit(text, ", ", -1);
-		int ifound;
-		for (ifound = 0; parts[ifound]; ifound++) {
-			if (g_str_equal(parts[ifound], combo_text))
-				break;
-		}
-		if (parts[ifound] && index != selected_index) {
-			for (; parts[ifound+1]; ifound++) {
-				gchar *tmp = parts[ifound];
-				parts[ifound] = parts[ifound+1];
-				parts[ifound+1] = tmp;
-			}
-			g_free(parts[ifound]);
-			parts[ifound] = NULL;
-			text = g_strjoinv(", ", parts);
-			g_strfreev(parts);
-			gtk_list_store_set(backgrounds, &iter,
-							   bgColText, text,
-							   -1);
-			g_free(text);
-		} else if (!parts[ifound] && index == selected_index) {
-			if (!ifound) {
-				text = g_strdup(combo_text);
-			} else {
-				for (ifound = 0; parts[ifound]; ifound++) {
-					if (compare_strings(combo_text, parts[ifound]) < 0)
-						break;
-				}
-				if (parts[ifound]) {
-					gchar *tmp = parts[ifound];
-					parts[ifound] = g_strconcat(combo_text, ", ", tmp, NULL);
-					g_free(tmp);
-				} else {
-					ifound--;
-					gchar *tmp = parts[ifound];
-					parts[ifound] = g_strconcat(tmp, ", ", combo_text, NULL);
-					g_free(tmp);
-				}
-				text = g_strjoinv(", ", parts);
-				g_strfreev(parts);
-			}
-			gtk_list_store_set(backgrounds, &iter,
-							   bgColText, text,
-							   -1);
-			g_free(text);
-		}
-	}
-}
-
 void gdkColor2CairoColor(GdkColor color, double *red, double *green, double *blue)
 {
 	*red = color.red / (double)0xffff;
@@ -487,229 +377,6 @@ void cairoColor2GdkColor(double red, double green, double blue, GdkColor *color)
 	color->red = red * 0xffff;
 	color->green = green * 0xffff;
 	color->blue = blue * 0xffff;
-}
-
-void create_background(GtkWidget *parent)
-{
-	backgrounds = gtk_list_store_new(bgNumCols,
-									 GDK_TYPE_PIXBUF,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-									 GTK_TYPE_INT,
-									 GTK_TYPE_INT,
-									 GTK_TYPE_STRING,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-									 GDK_TYPE_COLOR,
-									 GTK_TYPE_INT,
-                                     GTK_TYPE_BOOL,
-                                     GTK_TYPE_BOOL,
-                                     GTK_TYPE_BOOL,
-                                     GTK_TYPE_BOOL);
-
-	GtkWidget *table, *label, *button;
-	int row, col;
-	GtkTooltips *tooltips = gtk_tooltips_new();
-
-	table = gtk_table_new(1, 4, FALSE);
-	gtk_widget_show(table);
-	gtk_box_pack_start(GTK_BOX(parent), table, FALSE, FALSE, 0);
-	gtk_table_set_row_spacings(GTK_TABLE(table), ROW_SPACING);
-	gtk_table_set_col_spacings(GTK_TABLE(table), COL_SPACING);
-
-	row = 0, col = 0;
-	label = gtk_label_new(_("<b>Background</b>"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	current_background = create_background_combo(NULL);
-	gtk_widget_show(current_background);
-	gtk_table_attach(GTK_TABLE(table), current_background, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, current_background, _("Selects the background you would like to modify"), NULL);
-
-	button = gtk_button_new_from_stock("gtk-add");
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(background_duplicate), NULL);
-	gtk_widget_show(button);
-	gtk_table_attach(GTK_TABLE(table), button, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, button, _("Creates a copy of the current background"), NULL);
-
-	button = gtk_button_new_from_stock("gtk-remove");
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", GTK_SIGNAL_FUNC(background_delete), NULL);
-	gtk_widget_show(button);
-	gtk_table_attach(GTK_TABLE(table), button, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, button, _("Deletes the current background"), NULL);
-
-	table = gtk_table_new(4, 4, FALSE);
-	gtk_widget_show(table);
-	gtk_box_pack_start(GTK_BOX(parent), table, FALSE, FALSE, 0);
-	gtk_table_set_row_spacings(GTK_TABLE(table), ROW_SPACING);
-	gtk_table_set_col_spacings(GTK_TABLE(table), COL_SPACING);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Fill color"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_fill_color = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_fill_color), TRUE);
-	gtk_widget_show(background_fill_color);
-	gtk_table_attach(GTK_TABLE(table), background_fill_color, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_fill_color, _("The fill color of the current background"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Border color"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_border_color = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_border_color), TRUE);
-	gtk_widget_show(background_border_color);
-	gtk_table_attach(GTK_TABLE(table), background_border_color, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_border_color, _("The border color of the current background"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Fill color (mouse over)"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_fill_color_over = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_fill_color_over), TRUE);
-	gtk_widget_show(background_fill_color_over);
-	gtk_table_attach(GTK_TABLE(table), background_fill_color_over, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_fill_color_over, _("The fill color of the current background on mouse over"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Border color (mouse over)"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_border_color_over = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_border_color_over), TRUE);
-	gtk_widget_show(background_border_color_over);
-	gtk_table_attach(GTK_TABLE(table), background_border_color_over, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_border_color_over, _("The border color of the current background on mouse over"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Fill color (pressed)"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_fill_color_press = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_fill_color_press), TRUE);
-	gtk_widget_show(background_fill_color_press);
-	gtk_table_attach(GTK_TABLE(table), background_fill_color_press, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_fill_color_press, _("The fill color of the current background on mouse button press"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Border color (pressed)"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_border_color_press = gtk_color_button_new();
-	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(background_border_color_press), TRUE);
-	gtk_widget_show(background_border_color_press);
-	gtk_table_attach(GTK_TABLE(table), background_border_color_press, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_border_color_press, _("The border color of the current background on mouse button press"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Border width"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_border_width = gtk_spin_button_new_with_range(0, 100, 1);
-	gtk_widget_show(background_border_width);
-	gtk_table_attach(GTK_TABLE(table), background_border_width, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_border_width, _("The width of the border of the current background, in pixels"), NULL);
-
-	row++, col = 2;
-	label = gtk_label_new(_("Corner radius"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	gtk_widget_show(label);
-	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-
-	background_corner_radius = gtk_spin_button_new_with_range(0, 100, 1);
-	gtk_widget_show(background_corner_radius);
-	gtk_table_attach(GTK_TABLE(table), background_corner_radius, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-	col++;
-	gtk_tooltips_set_tip(tooltips, background_corner_radius, _("The corner radius of the current background"), NULL);
-
-    row++;
-    col = 2;
-    label = gtk_label_new(_("Border sides"));
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-    gtk_widget_show(label);
-    gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-    col++;
-
-	background_border_sides_top = gtk_check_button_new_with_label(_("Top"));
-    gtk_widget_show(background_border_sides_top);
-    gtk_table_attach(GTK_TABLE(table), background_border_sides_top, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-    col++;
-
-	background_border_sides_bottom = gtk_check_button_new_with_label(_("Bottom"));
-    gtk_widget_show(background_border_sides_bottom);
-    gtk_table_attach(GTK_TABLE(table), background_border_sides_bottom, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-    col++;
-
-	background_border_sides_left = gtk_check_button_new_with_label(_("Left"));
-    gtk_widget_show(background_border_sides_left);
-    gtk_table_attach(GTK_TABLE(table), background_border_sides_left, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-    col++;
-
-	background_border_sides_right = gtk_check_button_new_with_label(_("Right"));
-    gtk_widget_show(background_border_sides_right);
-    gtk_table_attach(GTK_TABLE(table), background_border_sides_right, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
-    col++;
-
-	g_signal_connect(G_OBJECT(current_background), "changed", G_CALLBACK(current_background_changed), NULL);
-	g_signal_connect(G_OBJECT(background_fill_color), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_border_color), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_fill_color_over), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_border_color_over), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_fill_color_press), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_border_color_press), "color-set", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_border_width), "value-changed", G_CALLBACK(background_update), NULL);
-	g_signal_connect(G_OBJECT(background_corner_radius), "value-changed", G_CALLBACK(background_update), NULL);
-    g_signal_connect(G_OBJECT(background_border_sides_top), "toggled", G_CALLBACK(background_update), NULL);
-    g_signal_connect(G_OBJECT(background_border_sides_bottom), "toggled", G_CALLBACK(background_update), NULL);
-    g_signal_connect(G_OBJECT(background_border_sides_left), "toggled", G_CALLBACK(background_update), NULL);
-    g_signal_connect(G_OBJECT(background_border_sides_right), "toggled", G_CALLBACK(background_update), NULL);
-
-	change_paragraph(parent);
 }
 
 int get_model_length(GtkTreeModel *model)
@@ -729,436 +396,6 @@ int get_model_length(GtkTreeModel *model)
 	}
 }
 
-int background_index_safe(int index)
-{
-	if (index <= 0)
-		index = 0;
-	if (index >= get_model_length(GTK_TREE_MODEL(backgrounds)))
-		index = 0;
-	return index;
-}
-
-void background_create_new()
-{
-	int r = 0;
-	int b = 0;
-    gboolean sideTop = TRUE;
-    gboolean sideBottom = TRUE;
-    gboolean sideLeft = TRUE;
-    gboolean sideRight = TRUE;
-	GdkColor fillColor;
-	cairoColor2GdkColor(0, 0, 0, &fillColor);
-	int fillOpacity = 0;
-	GdkColor borderColor;
-	cairoColor2GdkColor(0, 0, 0, &borderColor);
-	int borderOpacity = 0;
-
-	GdkColor fillColorOver;
-	cairoColor2GdkColor(0, 0, 0, &fillColorOver);
-	int fillOpacityOver = 0;
-	GdkColor borderColorOver;
-	cairoColor2GdkColor(0, 0, 0, &borderColorOver);
-	int borderOpacityOver = 0;
-
-	GdkColor fillColorPress;
-	cairoColor2GdkColor(0, 0, 0, &fillColorPress);
-	int fillOpacityPress = 0;
-	GdkColor borderColorPress;
-	cairoColor2GdkColor(0, 0, 0, &borderColorPress);
-	int borderOpacityPress = 0;
-
-	int index = 0;
-	GtkTreeIter iter;
-
-	gtk_list_store_append(backgrounds, &iter);
-	gtk_list_store_set(backgrounds, &iter,
-					   bgColPixbuf, NULL,
-					   bgColFillColor, &fillColor,
-					   bgColFillOpacity, fillOpacity,
-					   bgColBorderColor, &borderColor,
-					   bgColBorderOpacity, borderOpacity,
-					   bgColBorderWidth, b,
-					   bgColCornerRadius, r,
-					   bgColText, "",
-					   bgColFillColorOver, &fillColorOver,
-					   bgColFillOpacityOver, fillOpacityOver,
-					   bgColBorderColorOver, &borderColorOver,
-					   bgColBorderOpacityOver, borderOpacityOver,
-					   bgColFillColorPress, &fillColorPress,
-					   bgColFillOpacityPress, fillOpacityPress,
-					   bgColBorderColorPress, &borderColorPress,
-					   bgColBorderOpacityPress, borderOpacityPress,
-                       bgColBorderSidesTop, sideTop,
-                       bgColBorderSidesBottom, sideBottom,
-                       bgColBorderSidesLeft, sideLeft,
-                       bgColBorderSidesRight, sideRight,
-					   -1);
-
-	background_update_image(index);
-	gtk_combo_box_set_active(GTK_COMBO_BOX(current_background), get_model_length(GTK_TREE_MODEL(backgrounds)) - 1);
-	current_background_changed(0, 0);
-}
-
-void background_duplicate(GtkWidget *widget, gpointer data)
-{
-	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(current_background));
-	if (index < 0) {
-		background_create_new();
-		return;
-	}
-
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	path = gtk_tree_path_new_from_indices(index, -1);
-	gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-	gtk_tree_path_free(path);
-
-	int r;
-	int b;
-    gboolean sideTop;
-    gboolean sideBottom;
-    gboolean sideLeft;
-    gboolean sideRight;
-	GdkColor *fillColor;
-	int fillOpacity;
-	GdkColor *borderColor;
-	int borderOpacity;
-	GdkColor *fillColorOver;
-	int fillOpacityOver;
-	GdkColor *borderColorOver;
-	int borderOpacityOver;
-	GdkColor *fillColorPress;
-	int fillOpacityPress;
-	GdkColor *borderColorPress;
-	int borderOpacityPress;
-
-	gtk_tree_model_get(GTK_TREE_MODEL(backgrounds), &iter,
-					   bgColFillColor, &fillColor,
-					   bgColFillOpacity, &fillOpacity,
-					   bgColBorderColor, &borderColor,
-					   bgColBorderOpacity, &borderOpacity,
-					   bgColFillColorOver, &fillColorOver,
-					   bgColFillOpacityOver, &fillOpacityOver,
-					   bgColBorderColorOver, &borderColorOver,
-					   bgColBorderOpacityOver, &borderOpacityOver,
-					   bgColFillColorPress, &fillColorPress,
-					   bgColFillOpacityPress, &fillOpacityPress,
-					   bgColBorderColorPress, &borderColorPress,
-					   bgColBorderOpacityPress, &borderOpacityPress,
-					   bgColBorderWidth, &b,
-					   bgColCornerRadius, &r,
-                       bgColBorderSidesTop, &sideTop,
-                       bgColBorderSidesBottom, &sideBottom,
-                       bgColBorderSidesLeft, &sideLeft,
-                       bgColBorderSidesRight, &sideRight,
-					   -1);
-
-	gtk_list_store_append(backgrounds, &iter);
-	gtk_list_store_set(backgrounds, &iter,
-					   bgColPixbuf, NULL,
-					   bgColFillColor, fillColor,
-					   bgColFillOpacity, fillOpacity,
-					   bgColBorderColor, borderColor,
-					   bgColBorderOpacity, borderOpacity,
-					   bgColText, "",
-					   bgColFillColorOver, fillColorOver,
-					   bgColFillOpacityOver, fillOpacityOver,
-					   bgColBorderColorOver, borderColorOver,
-					   bgColBorderOpacityOver, borderOpacityOver,
-					   bgColFillColorPress, fillColorPress,
-					   bgColFillOpacityPress, fillOpacityPress,
-					   bgColBorderColorPress, borderColorPress,
-					   bgColBorderOpacityPress, borderOpacityPress,
-					   bgColBorderWidth, b,
-					   bgColCornerRadius, r,
-                       bgColBorderSidesTop, sideTop,
-                       bgColBorderSidesBottom, sideBottom,
-                       bgColBorderSidesLeft, sideLeft,
-                       bgColBorderSidesRight, sideRight,
-					   -1);
-	g_boxed_free(GDK_TYPE_COLOR, fillColor);
-	g_boxed_free(GDK_TYPE_COLOR, borderColor);
-	g_boxed_free(GDK_TYPE_COLOR, fillColorOver);
-	g_boxed_free(GDK_TYPE_COLOR, borderColorOver);
-	g_boxed_free(GDK_TYPE_COLOR, fillColorPress);
-	g_boxed_free(GDK_TYPE_COLOR, borderColorPress);
-	background_update_image(get_model_length(GTK_TREE_MODEL(backgrounds)) - 1);
-	gtk_combo_box_set_active(GTK_COMBO_BOX(current_background), get_model_length(GTK_TREE_MODEL(backgrounds)) - 1);
-}
-
-void background_delete(GtkWidget *widget, gpointer data)
-{
-	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(current_background));
-	if (index < 0)
-		return;
-
-	if (get_model_length(GTK_TREE_MODEL(backgrounds)) <= 1)
-		return;
-
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	path = gtk_tree_path_new_from_indices(index, -1);
-	gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-	gtk_tree_path_free(path);
-
-	gtk_list_store_remove(backgrounds, &iter);
-
-	if (index == get_model_length(GTK_TREE_MODEL(backgrounds)))
-		index--;
-	gtk_combo_box_set_active(GTK_COMBO_BOX(current_background), index);
-}
-
-void background_update_image(int index)
-{
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	path = gtk_tree_path_new_from_indices(index, -1);
-	gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-	gtk_tree_path_free(path);
-
-	int w = 70;
-	int h = 30;
-	int r;
-	int b;
-	GdkPixbuf *pixbuf;
-	GdkColor *fillColor;
-	int fillOpacity = 50;
-	GdkColor *borderColor;
-	int borderOpacity = 100;
-
-	gtk_tree_model_get(GTK_TREE_MODEL(backgrounds), &iter,
-					   bgColFillColor, &fillColor,
-					   bgColFillOpacity, &fillOpacity,
-					   bgColBorderColor, &borderColor,
-					   bgColBorderOpacity, &borderOpacity,
-					   bgColBorderWidth, &b,
-					   bgColCornerRadius, &r,
-					   -1);
-
-	double bg_r, bg_g, bg_b, bg_a;
-	gdkColor2CairoColor(*fillColor, &bg_r, &bg_g, &bg_b);
-	bg_a = fillOpacity / 100.0;
-	double b_r, b_g, b_b, b_a;
-	gdkColor2CairoColor(*borderColor, &b_r, &b_g, &b_b);
-	b_a = borderOpacity / 100.0;
-
-	g_boxed_free(GDK_TYPE_COLOR, fillColor);
-	g_boxed_free(GDK_TYPE_COLOR, borderColor);
-
-	GdkPixmap *pixmap = gdk_pixmap_new(NULL, w, h, 24);
-
-	cairo_t *cr = gdk_cairo_create(pixmap);
-	cairo_set_line_width(cr, b);
-
-	cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
-	cairo_rectangle(cr, 0, 0, w, h);
-	cairo_fill(cr);
-
-	double degrees = 3.1415926 / 180.0;
-
-	cairo_new_sub_path(cr);
-	cairo_arc(cr, w - r - b, r + b, r, -90 * degrees, 0 * degrees);
-	cairo_arc(cr, w - r - b, h - r - b, r, 0 * degrees, 90 * degrees);
-	cairo_arc(cr, r + b, h - r - b, r, 90 * degrees, 180 * degrees);
-	cairo_arc(cr, r + b, r + b, r, 180 * degrees, 270 * degrees);
-	cairo_close_path(cr);
-
-	cairo_set_source_rgba(cr, bg_r, bg_g, bg_b, bg_a);
-	cairo_fill_preserve(cr);
-	cairo_set_source_rgba(cr, b_r, b_g, b_b, b_a);
-	cairo_set_line_width(cr, b);
-	cairo_stroke(cr);
-	cairo_destroy(cr);
-	cr = NULL;
-
-	pixbuf = gdk_pixbuf_get_from_drawable(NULL, pixmap, gdk_colormap_get_system(), 0, 0, 0, 0, w, h);
-	if (pixmap)
-		g_object_unref(pixmap);
-
-	gtk_list_store_set(backgrounds, &iter,
-					   bgColPixbuf, pixbuf,
-					   -1);
-	if (pixbuf)
-		g_object_unref(pixbuf);
-}
-
-void background_force_update()
-{
-	background_update(NULL, NULL);
-}
-
-static gboolean background_updates_disabled = FALSE;
-void background_update(GtkWidget *widget, gpointer data)
-{
-	if (background_updates_disabled)
-		return;
-	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(current_background));
-	if (index < 0)
-		return;
-
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	path = gtk_tree_path_new_from_indices(index, -1);
-	gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-	gtk_tree_path_free(path);
-
-	int r;
-	int b;
-
-	r = gtk_spin_button_get_value(GTK_SPIN_BUTTON(background_corner_radius));
-	b = gtk_spin_button_get_value(GTK_SPIN_BUTTON(background_border_width));
-
-    gboolean sideTop = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(background_border_sides_top));
-    gboolean sideBottom = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(background_border_sides_bottom));
-    gboolean sideLeft = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(background_border_sides_left));
-    gboolean sideRight = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(background_border_sides_right));
-
-	GdkColor fillColor;
-	int fillOpacity;
-	GdkColor borderColor;
-	int borderOpacity;
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_fill_color), &fillColor);
-	fillOpacity = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_fill_color)) * 100.0 / 0xffff);
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_border_color), &borderColor);
-	borderOpacity = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_border_color)) * 100.0 / 0xffff);
-
-	GdkColor fillColorOver;
-	int fillOpacityOver;
-	GdkColor borderColorOver;
-	int borderOpacityOver;
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_fill_color_over), &fillColorOver);
-	fillOpacityOver = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_fill_color_over)) * 100.0 / 0xffff);
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_border_color_over), &borderColorOver);
-	borderOpacityOver = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_border_color_over)) * 100.0 / 0xffff);
-
-	GdkColor fillColorPress;
-	int fillOpacityPress;
-	GdkColor borderColorPress;
-	int borderOpacityPress;
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_fill_color_press), &fillColorPress);
-	fillOpacityPress = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_fill_color_press)) * 100.0 / 0xffff);
-	gtk_color_button_get_color(GTK_COLOR_BUTTON(background_border_color_press), &borderColorPress);
-	borderOpacityPress = MIN(100, 0.5 + gtk_color_button_get_alpha(GTK_COLOR_BUTTON(background_border_color_press)) * 100.0 / 0xffff);
-
-	gtk_list_store_set(backgrounds, &iter,
-					   bgColPixbuf, NULL,
-					   bgColFillColor, &fillColor,
-					   bgColFillOpacity, fillOpacity,
-					   bgColBorderColor, &borderColor,
-					   bgColBorderOpacity, borderOpacity,
-					   bgColFillColorOver, &fillColorOver,
-					   bgColFillOpacityOver, fillOpacityOver,
-					   bgColBorderColorOver, &borderColorOver,
-					   bgColBorderOpacityOver, borderOpacityOver,
-					   bgColFillColorPress, &fillColorPress,
-					   bgColFillOpacityPress, fillOpacityPress,
-					   bgColBorderColorPress, &borderColorPress,
-					   bgColBorderOpacityPress, borderOpacityPress,
-					   bgColBorderWidth, b,
-					   bgColCornerRadius, r,
-                       bgColBorderSidesTop, sideTop,
-                       bgColBorderSidesBottom, sideBottom,
-                       bgColBorderSidesLeft, sideLeft,
-                       bgColBorderSidesRight, sideRight,
-					   -1);
-	background_update_image(index);
-}
-
-void current_background_changed(GtkWidget *widget, gpointer data)
-{
-	int index = gtk_combo_box_get_active(GTK_COMBO_BOX(current_background));
-	if (index < 0)
-		return;
-
-	background_updates_disabled = TRUE;
-
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	path = gtk_tree_path_new_from_indices(index, -1);
-	gtk_tree_model_get_iter(GTK_TREE_MODEL(backgrounds), &iter, path);
-	gtk_tree_path_free(path);
-
-	int r;
-	int b;
-
-    gboolean sideTop;
-    gboolean sideBottom;
-    gboolean sideLeft;
-    gboolean sideRight;
-
-	GdkColor *fillColor;
-	int fillOpacity;
-	GdkColor *borderColor;
-	int borderOpacity;
-	GdkColor *fillColorOver;
-	int fillOpacityOver;
-	GdkColor *borderColorOver;
-	int borderOpacityOver;
-	GdkColor *fillColorPress;
-	int fillOpacityPress;
-	GdkColor *borderColorPress;
-	int borderOpacityPress;
-
-
-	gtk_tree_model_get(GTK_TREE_MODEL(backgrounds), &iter,
-					   bgColFillColor, &fillColor,
-					   bgColFillOpacity, &fillOpacity,
-					   bgColBorderColor, &borderColor,
-					   bgColBorderOpacity, &borderOpacity,
-					   bgColFillColorOver, &fillColorOver,
-					   bgColFillOpacityOver, &fillOpacityOver,
-					   bgColBorderColorOver, &borderColorOver,
-					   bgColBorderOpacityOver, &borderOpacityOver,
-					   bgColFillColorPress, &fillColorPress,
-					   bgColFillOpacityPress, &fillOpacityPress,
-					   bgColBorderColorPress, &borderColorPress,
-					   bgColBorderOpacityPress, &borderOpacityPress,
-					   bgColBorderWidth, &b,
-					   bgColCornerRadius, &r,
-                       bgColBorderSidesTop, &sideTop,
-                       bgColBorderSidesBottom, &sideBottom,
-                       bgColBorderSidesLeft, &sideLeft,
-                       bgColBorderSidesRight, &sideRight,
-					   -1);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(background_border_sides_top), sideTop);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(background_border_sides_bottom), sideBottom);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(background_border_sides_left), sideLeft);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(background_border_sides_right), sideRight);
-
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_fill_color), fillColor);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_fill_color), (fillOpacity*0xffff)/100);
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_border_color), borderColor);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_border_color), (borderOpacity*0xffff)/100);
-
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_fill_color_over), fillColorOver);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_fill_color_over), (fillOpacityOver*0xffff)/100);
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_border_color_over), borderColorOver);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_border_color_over), (borderOpacityOver*0xffff)/100);
-
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_fill_color_press), fillColorPress);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_fill_color_press), (fillOpacityPress*0xffff)/100);
-	gtk_color_button_set_color(GTK_COLOR_BUTTON(background_border_color_press), borderColorPress);
-	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(background_border_color_press), (borderOpacityPress*0xffff)/100);
-
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_border_width), b);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_corner_radius), r);
-
-	g_boxed_free(GDK_TYPE_COLOR, fillColor);
-	g_boxed_free(GDK_TYPE_COLOR, borderColor);
-	g_boxed_free(GDK_TYPE_COLOR, fillColorOver);
-	g_boxed_free(GDK_TYPE_COLOR, borderColorOver);
-	g_boxed_free(GDK_TYPE_COLOR, fillColorPress);
-	g_boxed_free(GDK_TYPE_COLOR, borderColorPress);
-
-	background_updates_disabled = FALSE;
-	background_update_image(index);
-}
 
 void create_panel(GtkWidget *parent)
 {
@@ -1289,6 +526,19 @@ void create_panel(GtkWidget *parent)
 	gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_width_type), _("Pixels"));
 	gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_width_type), 0);
 	gtk_tooltips_set_tip(tooltips, panel_combo_width_type, _("The units used to specify the length of the panel: pixels or percentage of the monitor size"), NULL);
+
+	row++;
+	col = 2;
+	label = gtk_label_new(_("Compact"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	panel_shrink = gtk_check_button_new();
+	gtk_widget_show(panel_shrink);
+	gtk_table_attach(GTK_TABLE(table), panel_shrink, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
 
 	row++;
 	col = 2;
@@ -1790,6 +1040,11 @@ void create_panel_items(GtkWidget *parent)
 					   -1);
 	gtk_list_store_append(all_items, &iter);
 	gtk_list_store_set(all_items, &iter,
+					  itemsColName, _("Separator"),
+					  itemsColValue, ":",
+					  -1);
+	gtk_list_store_append(all_items, &iter);
+	gtk_list_store_set(all_items, &iter,
 					   itemsColName, _("Executor"),
 					   itemsColValue, "E",
 					   -1);
@@ -1951,7 +1206,9 @@ void set_panel_items(const char *items)
 {
 	gtk_list_store_clear(panel_items);
 
+	int separator_index = -1;
 	int execp_index = -1;
+
 	for (; items && *items; items++) {
 		const char *value = NULL;
 		const char *name = NULL;
@@ -1976,6 +1233,12 @@ void set_panel_items(const char *items)
 		} else if (v == 'F') {
 			value = "F";
 			name = _("Free space");
+		} else if (v == ':') {
+			separator_index++;
+			buffer[0] = 0;
+			sprintf(buffer, "%s %d", _("Separator"), separator_index + 1);
+			name = buffer;
+			value = ":";
 		} else if (v == 'E') {
 			execp_index++;
 			buffer[0] = 0;
@@ -2009,18 +1272,21 @@ void panel_add_item(GtkWidget *widget, gpointer data)
 						   itemsColValue, &value,
 						   -1);
 
-		if (!panel_contains(value) || g_str_equal(value, "E")) {
+		if (!panel_contains(value) || g_str_equal(value, ":") || g_str_equal(value, "E") || g_str_equal(value, "F")) {
 			GtkTreeIter iter;
 			gtk_list_store_append(panel_items, &iter);
 			gtk_list_store_set(panel_items, &iter,
 							   itemsColName, g_strdup(name),
 							   itemsColValue, g_strdup(value),
 							   -1);
-			if (g_str_equal(value, "E")) {
+			if (g_str_equal(value, ":")) {
+				separator_create_new();
+			} else if (g_str_equal(value, "E")) {
 				execp_create_new();
 			}
 		}
 	}
+	separator_update_indices();
 	execp_update_indices();
 }
 
@@ -2038,7 +1304,15 @@ void panel_remove_item(GtkWidget *widget, gpointer data)
 						   itemsColValue, &value,
 						   -1);
 
-		if (g_str_equal(value, "E")) {
+		if (g_str_equal(value, ":")) {
+			for (int i = 0; i < separators->len; i++) {
+				Separator *separator = &g_array_index(separators, Separator, i);
+				if (g_str_equal(name, separator->name)) {
+					separator_remove(i);
+					break;
+				}
+			}
+		} else if (g_str_equal(value, "E")) {
 			for (int i = 0; i < executors->len; i++) {
 				Executor *executor = &g_array_index(executors, Executor, i);
 				if (g_str_equal(name, executor->name)) {
@@ -2051,6 +1325,7 @@ void panel_remove_item(GtkWidget *widget, gpointer data)
 		gtk_list_store_remove(panel_items, &iter);
 	}
 
+	separator_update_indices();
 	execp_update_indices();
 }
 
@@ -2075,7 +1350,22 @@ void panel_move_item_down(GtkWidget *widget, gpointer data)
 							   itemsColValue, &value2,
 							   -1);
 
-			if (g_str_equal(value1, "E") && g_str_equal(value2, "E")) {
+			if (g_str_equal(value1, ":") && g_str_equal(value2, ":")) {
+				Separator *separator1 = NULL;
+				Separator *separator2 = NULL;
+				for (int i = 0; i < separators->len; i++) {
+					Separator *separator = &g_array_index(separators, Separator, i);
+					if (g_str_equal(name1, separator->name)) {
+						separator1 = separator;
+					}
+					if (g_str_equal(name2, separator->name)) {
+						separator2 = separator;
+					}
+				}
+				Separator tmp = *separator1;
+				*separator1 = *separator2;
+				*separator2 = tmp;
+			} else if (g_str_equal(value1, "E") && g_str_equal(value2, "E")) {
 				Executor *executor1 = NULL;
 				Executor *executor2 = NULL;
 				for (int i = 0; i < executors->len; i++) {
@@ -2095,6 +1385,7 @@ void panel_move_item_down(GtkWidget *widget, gpointer data)
 			gtk_list_store_swap(panel_items, &iter, &next);
 		}
 	}
+	separator_update_indices();
 	execp_update_indices();
 }
 
@@ -2120,7 +1411,22 @@ void panel_move_item_up(GtkWidget *widget, gpointer data)
 								   itemsColValue, &value2,
 								   -1);
 
-				if (g_str_equal(value1, "E") && g_str_equal(value2, "E")) {
+				if (g_str_equal(value1, ":") && g_str_equal(value2, ":")) {
+					Separator *separator1 = NULL;
+					Separator *separator2 = NULL;
+					for (int i = 0; i < separators->len; i++) {
+						Separator *separator = &g_array_index(separators, Separator, i);
+						if (g_str_equal(name1, separator->name)) {
+							separator1 = separator;
+						}
+						if (g_str_equal(name2, separator->name)) {
+							separator2 = separator;
+						}
+					}
+					Separator tmp = *separator1;
+					*separator1 = *separator2;
+					*separator2 = tmp;
+				} else if (g_str_equal(value1, "E") && g_str_equal(value2, "E")) {
 					Executor *executor1 = NULL;
 					Executor *executor2 = NULL;
 					for (int i = 0; i < executors->len; i++) {
@@ -2141,6 +1447,7 @@ void panel_move_item_up(GtkWidget *widget, gpointer data)
 			}
 		}
 	}
+	separator_update_indices();
 	execp_update_indices();
 }
 
@@ -3062,6 +2369,19 @@ void create_taskbar(GtkWidget *parent)
 
 	col = 2;
 	row++;
+	label = gtk_label_new(_("Hide taskbars for empty desktops"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	taskbar_hide_empty = gtk_check_button_new();
+	gtk_widget_show(taskbar_hide_empty);
+	gtk_table_attach(GTK_TABLE(table), taskbar_hide_empty, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	col = 2;
+	row++;
 	label = gtk_label_new(_("Distribute size between taskbars"));
 	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
 	gtk_widget_show(label);
@@ -3503,7 +2823,7 @@ void create_task(GtkWidget *parent)
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Close"));
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Toggle"));
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Iconify"));
-	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("sShade"));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Shade"));
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Toggle or iconify"));
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Maximize or restore"));
 	gtk_combo_box_append_text(GTK_COMBO_BOX(task_mouse_middle), _("Desktop left"));
@@ -4340,6 +3660,130 @@ void create_clock(GtkWidget *parent)
 	change_paragraph(parent);
 }
 
+void create_separator(GtkWidget *notebook, int i)
+{
+	GtkWidget *label;
+	GtkWidget *table;
+	int row, col;
+	Separator *separator = &g_array_index(separators, Separator, i);
+
+	separator->name[0] = 0;
+	sprintf(separator->name, "%s %d", _("Separator"), i + 1);
+	separator->page_label = gtk_label_new(separator->name);
+	gtk_widget_show(separator->page_label);
+	separator->page_separator = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
+	separator->container = addScrollBarToWidget(separator->page_separator);
+	gtk_container_set_border_width(GTK_CONTAINER(separator->page_separator), 10);
+	gtk_widget_show(separator->page_separator);
+	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), separator->container, separator->page_label);
+
+	GtkWidget *parent = separator->page_separator;
+
+	table = gtk_table_new(1, 2, FALSE);
+	gtk_widget_show(table);
+	gtk_box_pack_start(GTK_BOX(parent), table, FALSE, FALSE, 0);
+	gtk_table_set_row_spacings(GTK_TABLE(table), ROW_SPACING);
+	gtk_table_set_col_spacings(GTK_TABLE(table), COL_SPACING);
+	row = 0, col = 2;
+
+	label = gtk_label_new(_("<b>Appearance</b>"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+	gtk_widget_show(label);
+	gtk_box_pack_start(GTK_BOX(parent), label, FALSE, FALSE, 0);
+
+	table = gtk_table_new(3, 10, FALSE);
+	gtk_widget_show(table);
+	gtk_box_pack_start(GTK_BOX(parent), table, FALSE, FALSE, 0);
+	gtk_table_set_row_spacings(GTK_TABLE(table), ROW_SPACING);
+	gtk_table_set_col_spacings(GTK_TABLE(table), COL_SPACING);
+	row = 0, col = 2;
+
+	label = gtk_label_new(_("Background"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_background = create_background_combo(_("Separator"));
+	gtk_widget_show(separator->separator_background);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_background, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	row++, col = 2;
+	label = gtk_label_new(_("Foreground color"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_color = gtk_color_button_new();
+	gtk_color_button_set_use_alpha(GTK_COLOR_BUTTON(separator->separator_color), TRUE);
+	gtk_widget_show(separator->separator_color);
+	GdkColor color;
+	hex2gdk("#777777", &color);
+	gtk_color_button_set_color(GTK_COLOR_BUTTON(separator->separator_color), &color);
+	gtk_color_button_set_alpha(GTK_COLOR_BUTTON(separator_get_last()->separator_color), (90*65535)/100);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_color, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	row++, col = 2;
+	label = gtk_label_new(_("Style"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_style = gtk_combo_box_new_text();
+	gtk_widget_show(separator->separator_style);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_style, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+	gtk_combo_box_append_text(GTK_COMBO_BOX(separator->separator_style), _("Empty"));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(separator->separator_style), _("Line"));
+	gtk_combo_box_append_text(GTK_COMBO_BOX(separator->separator_style), _("Dots"));
+	gtk_combo_box_set_active(GTK_COMBO_BOX(separator->separator_style), 2);
+
+	row++, col = 2;
+	label = gtk_label_new(_("Size"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_size = gtk_spin_button_new_with_range(0, 10000, 1);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(separator->separator_size), 3);
+	gtk_widget_show(separator->separator_size);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_size, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	row++, col = 2;
+	label = gtk_label_new(_("Horizontal padding"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_padding_x = gtk_spin_button_new_with_range(0, 500, 1);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(separator->separator_padding_x), 1);
+	gtk_widget_show(separator->separator_padding_x);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_padding_x, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	row++, col = 2;
+	label = gtk_label_new(_("Vertical padding"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_widget_show(label);
+	gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	separator->separator_padding_y = gtk_spin_button_new_with_range(0, 500, 1);
+	gtk_widget_show(separator->separator_padding_y);
+	gtk_table_attach(GTK_TABLE(table), separator->separator_padding_y, col, col+1, row, row+1, GTK_FILL, 0, 0, 0);
+	col++;
+
+	change_paragraph(parent);
+}
+
 void create_execp(GtkWidget *notebook, int i)
 {
 	GtkWidget *label;
@@ -4716,10 +4160,23 @@ void create_execp(GtkWidget *notebook, int i)
 	change_paragraph(parent);
 }
 
+void separator_create_new()
+{
+	g_array_set_size(separators, separators->len + 1);
+	create_separator(notebook, separators->len - 1);
+}
+
 void execp_create_new()
 {
 	g_array_set_size(executors, executors->len + 1);
 	create_execp(notebook, executors->len - 1);
+}
+
+Separator *separator_get_last()
+{
+	if (separators->len <= 0)
+		separator_create_new();
+	return &g_array_index(separators, Separator, separators->len - 1);
 }
 
 Executor *execp_get_last()
@@ -4727,6 +4184,21 @@ Executor *execp_get_last()
 	if (executors->len <= 0)
 		execp_create_new();
 	return &g_array_index(executors, Executor, executors->len - 1);
+}
+
+void separator_remove(int i)
+{
+	Separator *separator = &g_array_index(separators, Separator, i);
+
+	for (int i_page = 0; i_page < gtk_notebook_get_n_pages(GTK_NOTEBOOK(notebook)); i_page++) {
+		GtkWidget *page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(notebook), i_page);
+		if (page == separator->container) {
+			gtk_widget_hide(page);
+			gtk_notebook_remove_page(GTK_NOTEBOOK(notebook), i_page);
+		}
+	}
+
+	separators = g_array_remove_index(separators, i);
 }
 
 void execp_remove(int i)
@@ -4742,6 +4214,43 @@ void execp_remove(int i)
 	}
 
 	executors = g_array_remove_index(executors, i);
+}
+
+void separator_update_indices()
+{
+	for (int i = 0; i < separators->len; i++) {
+		Separator *separator = &g_array_index(separators, Separator, i);
+		sprintf(separator->name, "%s %d", _("Separator"), i + 1);
+		gtk_label_set_text(GTK_LABEL(separator->page_label), separator->name);
+	}
+
+	GtkTreeModel *model = GTK_TREE_MODEL(panel_items);
+	GtkTreeIter iter;
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+	int separator_index = -1;
+	while (1) {
+		gchar *name;
+		gchar *value;
+		gtk_tree_model_get(model, &iter,
+						   itemsColName, &name,
+						   itemsColValue, &value,
+						   -1);
+
+		if (g_str_equal(value, ":")) {
+			separator_index++;
+			char buffer[256];
+			buffer[0] = 0;
+			sprintf(buffer, "%s %d", _("Separator"), separator_index + 1);
+
+			gtk_list_store_set(panel_items, &iter,
+							   itemsColName, buffer,
+							   -1);
+		}
+
+		if (!gtk_tree_model_iter_next(model, &iter))
+			break;
+	}
 }
 
 void execp_update_indices()

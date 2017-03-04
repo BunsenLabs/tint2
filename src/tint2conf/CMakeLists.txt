@@ -26,10 +26,13 @@ set(SOURCES ../util/common.c
             ../server.c
             ../launcher/apps-common.c
             ../launcher/icon-theme-common.c
+            md4.c
             main.c
             properties.c
             properties_rw.c
-            theme_view.c )
+            theme_view.c
+            background_gui.c
+            gradient_gui.c )
 
 add_definitions( -DTINT2CONF )
 
@@ -57,12 +60,8 @@ target_link_libraries( tint2conf ${X11_T2C_LIBRARIES}
                                  ${GTK2_LIBRARIES}
                                  ${RSVG_LIBRARIES} )
 
-if ( NOT DATADIR )
-  set(DATADIR share)
-endif( NOT DATADIR )
-
 add_definitions( -DINSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\" )
-add_definitions( -DLOCALEDIR=\"${CMAKE_INSTALL_PREFIX}/${DATADIR}/locale\" )
+add_definitions( -DLOCALEDIR=\"${CMAKE_INSTALL_FULL_LOCALEDIR}\" )
 add_definitions( -DGETTEXT_PACKAGE=\"tint2conf\" )
 set_target_properties( tint2conf PROPERTIES COMPILE_FLAGS "-Wall -pthread -std=c99" )
 set_target_properties( tint2conf PROPERTIES LINK_FLAGS "-pthread" )
@@ -70,6 +69,5 @@ set_target_properties( tint2conf PROPERTIES LINK_FLAGS "-pthread" )
 add_subdirectory(po)
 
 install( TARGETS tint2conf DESTINATION bin )
-install( FILES tint2conf.svg DESTINATION ${DATADIR}/icons/hicolor/scalable/apps )
-install( FILES tint2conf.desktop DESTINATION ${DATADIR}/applications )
-install( CODE "execute_process(COMMAND gtk-update-icon-cache -f -t ${DATADIR}/icons/hicolor WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})" )
+install( FILES tint2conf.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps )
+install( FILES tint2conf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications )

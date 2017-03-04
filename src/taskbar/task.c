@@ -39,6 +39,7 @@ timeout *urgent_timeout;
 GSList *urgent_list;
 
 void task_dump_geometry(void *obj, int indent);
+int task_compute_desired_size(void *obj);
 
 char *task_get_tooltip(void *obj)
 {
@@ -108,6 +109,7 @@ Task *add_task(Window win)
 		task_instance->area.has_mouse_press_effect = panel_config.mouse_effects;
 		task_instance->area._dump_geometry = task_dump_geometry;
 		task_instance->area._is_under_mouse = full_width_area_is_under_mouse;
+		task_instance->area._compute_desired_size = task_compute_desired_size;
 		task_instance->win = task_template.win;
 		task_instance->desktop = task_template.desktop;
 		task_instance->win_x = task_template.win_x;
@@ -149,6 +151,9 @@ Task *add_task(Window win)
 	if (window_is_urgent(win)) {
 		add_urgent((Task *)g_ptr_array_index(task_buttons, 0));
 	}
+
+	if (hide_taskbar_if_empty)
+		update_all_taskbars_visibility();
 
 	return (Task *)g_ptr_array_index(task_buttons, 0);
 }
@@ -204,6 +209,8 @@ void remove_task(Task *task)
 		free(task2);
 	}
 	g_hash_table_remove(win_to_task, &win);
+	if (hide_taskbar_if_empty)
+		update_all_taskbars_visibility();
 }
 
 gboolean task_update_title(Task *task)
@@ -268,21 +275,26 @@ void task_update_icon(Task *task)
 
 	Imlib_Image img = NULL;
 
-	int i;
-	gulong *data = server_get_property(task->win, server.atom._NET_WM_ICON, XA_CARDINAL, &i);
-	if (data) {
-		// get ARGB icon
-		int w, h;
-		gulong *tmp_data;
+	if (!img) {
+		int i;
+		gulong *data = server_get_property(task->win, server.atom._NET_WM_ICON, XA_CARDINAL, &i);
+		if (data) {
+			// get ARGB icon
+			int w, h;
+			gulong *tmp_data;
 
-		tmp_data = get_best_icon(data, get_icon_count(data, i), i, &w, &h, panel->g_task.icon_size1);
-		DATA32 icon_data[w * h];
-		for (int j = 0; j < w * h; ++j)
-			icon_data[j] = tmp_data[j];
-		img = imlib_create_image_using_copied_data(w, h, icon_data);
-		XFree(data);
-	} else {
-		// get Pixmap icon
+			tmp_data = get_best_icon(data, get_icon_count(data, i), i, &w, &h, panel->g_task.icon_size1);
+			DATA32 icon_data[w * h];
+			for (int j = 0; j < w * h; ++j)
+				icon_data[j] = tmp_data[j];
+			img = imlib_create_image_using_copied_data(w, h, icon_data);
+			if (img)
+				fprintf(stderr, "%s: Got %dx%d icon via _NET_WM_ICON for %s\n", __FUNCTION__, w, h, task->title ? task->title : "task");
+			XFree(data);
+		}
+	}
+
+	if (!img) {
 		XWMHints *hints = XGetWMHints(server.display, task->win);
 		if (hints) {
 			if (hints->flags & IconPixmapHint && hints->icon_pixmap != 0) {
@@ -292,17 +304,20 @@ void task_update_icon(Task *task)
 				uint border_width, bpp;
 				uint w, h;
 
-				// printf("  get pixmap\n");
 				XGetGeometry(server.display, hints->icon_pixmap, &root, &icon_x, &icon_y, &w, &h, &border_width, &bpp);
 				imlib_context_set_drawable(hints->icon_pixmap);
 				img = imlib_create_image_from_drawable(hints->icon_mask, 0, 0, w, h, 0);
+				if (img)
+					fprintf(stderr, "%s: Got %dx%d pixmap icon via WM_HINTS for %s\n", __FUNCTION__, w, h, task->title ? task->title : "task");
 			}
 			XFree(hints);
 		}
 	}
+
 	if (img == NULL) {
 		imlib_context_set_image(default_icon);
 		img = imlib_clone_image();
+		fprintf(stderr, "%s: Using default icon for %s\n", __FUNCTION__, task->title ? task->title : "task");
 	}
 
 	// transform icons
@@ -348,7 +363,7 @@ void task_update_icon(Task *task)
 
 	GPtrArray *task_buttons = get_task_buttons(task->win);
 	if (task_buttons) {
-		for (i = 0; i < task_buttons->len; ++i) {
+		for (int i = 0; i < task_buttons->len; ++i) {
 			Task *task2 = g_ptr_array_index(task_buttons, i);
 			task2->icon_width = task->icon_width;
 			task2->icon_height = task->icon_height;
@@ -455,6 +470,14 @@ void task_dump_geometry(void *obj, int indent)
 			task->_icon_x,
 			task->_icon_y,
 			panel->g_task.icon_size1);
+}
+
+int task_compute_desired_size(void *obj)
+{
+	Task *task = (Task *)obj;
+	Panel *panel = (Panel *)task->area.panel;
+	int size = panel_horizontal ? panel->g_task.maximum_width : panel->g_task.maximum_height;
+	return size;
 }
 
 void on_change_task(void *obj)
@@ -587,6 +610,8 @@ void set_task_state(Task *task, TaskState state)
 				Task *task1 = g_ptr_array_index(task_buttons, i);
 				task1->current_state = state;
 				task1->area.bg = panels[0].g_task.background[state];
+				free_area_gradient_instances(&task1->area);
+				instantiate_area_gradients(&task1->area);
 				schedule_redraw(&task1->area);
 				if (state == TASK_ACTIVE && g_slist_find(urgent_list, task1))
 					del_urgent(task1);
@@ -615,7 +640,7 @@ void set_task_state(Task *task, TaskState state)
 					p->area.resize_needed = TRUE;
 				}
 			}
-			panel_refresh = TRUE;
+			schedule_panel_redraw();
 		}
 	}
 }
@@ -633,7 +658,7 @@ void blink_urgent(void *arg)
 		}
 		urgent_task = urgent_task->next;
 	}
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void add_urgent(Task *task)

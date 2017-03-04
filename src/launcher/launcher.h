@@ -18,20 +18,22 @@ typedef struct Launcher {
 	GSList *list_apps;  // List of char*, each is a path to a app.desktop file
 	GSList *list_icons; // List of LauncherIcon*
 	IconThemeWrapper *icon_theme_wrapper;
+	int icon_size;
 } Launcher;
 
 typedef struct LauncherIcon {
 	// always start with area
 	Area area;
+	char *config_path;
 	Imlib_Image image;
 	Imlib_Image image_hover;
 	Imlib_Image image_pressed;
 	char *cmd;
+	char *cwd;
 	char *icon_name;
 	char *icon_path;
 	char *icon_tooltip;
 	int icon_size;
-	int is_app_desktop;
 	int x, y;
 } LauncherIcon;
 
@@ -46,6 +48,7 @@ extern char *icon_theme_name_config;
 extern int launcher_icon_theme_override;
 extern int startup_notifications;
 extern Background *launcher_icon_bg;
+extern GList *launcher_icon_gradients;
 
 // default global data
 void default_launcher();

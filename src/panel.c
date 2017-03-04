@@ -56,11 +56,13 @@ gboolean panel_refresh;
 gboolean task_dragged;
 char *panel_window_name = NULL;
 gboolean debug_geometry;
+gboolean debug_gradients;
 
 gboolean panel_autohide;
 int panel_autohide_show_timeout;
 int panel_autohide_hide_timeout;
 int panel_autohide_height;
+gboolean panel_shrink;
 Strut panel_strut_policy;
 char *panel_items_order;
 
@@ -73,6 +75,7 @@ Panel *panels;
 int num_panels;
 
 GArray *backgrounds;
+GArray *gradients;
 
 Imlib_Image default_icon;
 char *default_font = NULL;
@@ -90,6 +93,7 @@ void default_panel()
 	panel_autohide_show_timeout = 0;
 	panel_autohide_hide_timeout = 0;
 	panel_autohide_height = 5; // for vertical panels this is of course the width
+	panel_shrink = FALSE;
 	panel_strut_policy = STRUT_FOLLOW_SIZE;
 	panel_dock = FALSE;         // default not in the dock
 	panel_layer = BOTTOM_LAYER; // default is bottom layer
@@ -98,6 +102,7 @@ void default_panel()
 	max_tick_urgent = 14;
 	mouse_left = TOGGLE_ICONIFY;
 	backgrounds = g_array_new(0, 0, sizeof(Background));
+	gradients = g_array_new(0, 0, sizeof(GradientClass));
 
 	memset(&panel_config, 0, sizeof(Panel));
 	snprintf(panel_config.area.name, sizeof(panel_config.area.name), "Panel");
@@ -113,6 +118,9 @@ void default_panel()
 	Background transparent_bg;
 	init_background(&transparent_bg);
 	g_array_append_val(backgrounds, transparent_bg);
+	GradientClass transparent_gradient;
+	init_gradient(&transparent_gradient, GRADIENT_VERTICAL);
+	g_array_append_val(gradients, transparent_gradient);
 }
 
 void cleanup_panel()
@@ -136,6 +144,7 @@ void cleanup_panel()
 			XDestroyWindow(server.display, p->main_win);
 		p->main_win = 0;
 		stop_timeout(p->autohide_timeout);
+		cleanup_freespace(p);
 	}
 
 	free(panel_items_order);
@@ -144,9 +153,17 @@ void cleanup_panel()
 	panel_window_name = NULL;
 	free(panels);
 	panels = NULL;
-	if (backgrounds)
-		g_array_free(backgrounds, 1);
+
+	free_area(&panel_config.area);
+
+	g_array_free(backgrounds, TRUE);
 	backgrounds = NULL;
+	if (gradients) {
+		for (guint i = 0; i < gradients->len; i++)
+			cleanup_gradient(&g_array_index(gradients, GradientClass, i));
+		g_array_free(gradients, TRUE);
+	}
+	gradients = NULL;
 	pango_font_description_free(panel_config.g_task.font_desc);
 	panel_config.g_task.font_desc = NULL;
 	pango_font_description_free(panel_config.taskbarname_font_desc);
@@ -171,6 +188,7 @@ void init_panel()
 	init_battery();
 #endif
 	init_taskbar();
+	init_separator();
 	init_execp();
 
 	// number of panels (one monitor or 'all' monitors)
@@ -204,7 +222,9 @@ void init_panel()
 		p->area.size_mode = LAYOUT_DYNAMIC;
 		p->area._resize = resize_panel;
 		p->area._clear = panel_clear_background;
+		p->separator_list = NULL;
 		init_panel_size_and_position(p);
+		instantiate_area_gradients(&p->area);
 		// add children according to panel_items
 		for (int k = 0; k < strlen(panel_items_order); k++) {
 			if (panel_items_order[k] == 'L')
@@ -223,6 +243,8 @@ void init_panel()
 				init_clock_panel(p);
 			if (panel_items_order[k] == 'F' && !strstr(panel_items_order, "T"))
 				init_freespace_panel(p);
+			if (panel_items_order[k] == ':')
+				init_separator_panel(p);
 			if (panel_items_order[k] == 'E')
 				init_execp_panel(p);
 		}
@@ -269,17 +291,15 @@ void init_panel()
 
 		if (panel_autohide)
 			autohide_trigger_hide(p);
-
-		update_taskbar_visibility(p);
 	}
 
 	taskbar_refresh_tasklist();
 	reset_active_task();
+	update_all_taskbars_visibility();
 }
 
-void init_panel_size_and_position(Panel *panel)
+void panel_compute_size(Panel *panel)
 {
-	// detect panel size
 	if (panel_horizontal) {
 		if (panel->area.width == 0) {
 			panel->fractional_width = TRUE;
@@ -332,6 +352,11 @@ void init_panel_size_and_position(Panel *panel)
 	if (panel->area.height + panel->marginy > server.monitors[panel->monitor].height)
 		panel->area.height = server.monitors[panel->monitor].height - panel->marginy;
 
+	panel->max_size = panel_horizontal ? panel->area.width : panel->area.height;
+}
+
+void panel_compute_position(Panel *panel)
+{
 	// panel position determined here
 	if (panel_position & LEFT) {
 		panel->posx = server.monitors[panel->monitor].x + panel->marginx;
@@ -372,6 +397,12 @@ void init_panel_size_and_position(Panel *panel)
 	// panel->area.height);
 }
 
+void init_panel_size_and_position(Panel *panel)
+{
+	panel_compute_size(panel);
+	panel_compute_position(panel);
+}
+
 gboolean resize_panel(void *obj)
 {
 	Panel *panel = (Panel *)obj;
@@ -383,94 +414,118 @@ gboolean resize_panel(void *obj)
 		int width = panel->taskbar[server.desktop].area.width;
 		int height = panel->taskbar[server.desktop].area.height;
 		for (int i = 0; i < panel->num_desktops; i++) {
+			panel->taskbar[i].area.resize_needed =
+			    panel->taskbar[i].area.width != width || panel->taskbar[i].area.height != height;
 			panel->taskbar[i].area.width = width;
 			panel->taskbar[i].area.height = height;
-			panel->taskbar[i].area.resize_needed = 1;
 		}
-	}
-	if (taskbar_mode == MULTI_DESKTOP && taskbar_enabled && taskbar_distribute_size) {
-		// Distribute the available space between taskbars
-
-		// Compute the total available size, and the total size requested by the taskbars
-		int total_size = 0;
-		int total_name_size = 0;
-		int total_items = 0;
+	} else if (taskbar_mode == MULTI_DESKTOP && taskbar_enabled && taskbar_distribute_size) {
 		for (int i = 0; i < panel->num_desktops; i++) {
-			if (panel_horizontal) {
-				total_size += panel->taskbar[i].area.width;
-			} else {
-				total_size += panel->taskbar[i].area.height;
-			}
-
 			Taskbar *taskbar = &panel->taskbar[i];
-			GList *l;
-			for (l = taskbar->area.children; l; l = l->next) {
+			taskbar->area.old_width = taskbar->area.width;
+			taskbar->area.old_height = taskbar->area.height;
+		}
+
+		// The total available size
+		int total_size = 0;
+		for (int i = 0; i < panel->num_desktops; i++) {
+			Taskbar *taskbar = &panel->taskbar[i];
+			if (!taskbar->area.on_screen)
+				continue;
+			total_size += panel_horizontal ? taskbar->area.width : taskbar->area.height;
+		}
+
+		// Reserve size for padding, taskbarname and spacings
+		for (int i = 0; i < panel->num_desktops; i++) {
+			Taskbar *taskbar = &panel->taskbar[i];
+			if (!taskbar->area.on_screen)
+				continue;
+			if (!taskbar->area.children)
+				continue;
+			if (panel_horizontal)
+				taskbar->area.width = 2 * taskbar->area.paddingxlr;
+			else
+				taskbar->area.height = 2 * taskbar->area.paddingxlr;
+			if (taskbarname_enabled && taskbar->area.children) {
+				Area *name = (Area *)taskbar->area.children->data;
+				if (name->on_screen) {
+					if (panel_horizontal)
+						taskbar->area.width += name->width;
+					else
+						taskbar->area.height += name->height;
+				}
+			}
+			gboolean first_child = TRUE;
+			for (GList *l = taskbar->area.children; l; l = l->next) {
 				Area *child = (Area *)l->data;
 				if (!child->on_screen)
 					continue;
-				total_items++;
-			}
-			if (taskbarname_enabled) {
-				if (taskbar->area.children) {
-					total_items--;
-					Area *name = (Area *)taskbar->area.children->data;
-					if (panel_horizontal) {
-						total_name_size += name->width;
-					} else {
-						total_name_size += name->height;
-					}
+				if (!first_child) {
+					if (panel_horizontal)
+						taskbar->area.width += taskbar->area.paddingx;
+					else
+						taskbar->area.height += taskbar->area.paddingy;
 				}
+				first_child = FALSE;
+			}
+			total_size -= panel_horizontal ? taskbar->area.width : taskbar->area.height;
+		}
+
+		// Compute the total number of tasks
+		int num_tasks = 0;
+		for (int i = 0; i < panel->num_desktops; i++) {
+			Taskbar *taskbar = &panel->taskbar[i];
+			if (!taskbar->area.on_screen)
+				continue;
+			for (GList *l = taskbar->area.children; l; l = l->next) {
+				Area *child = (Area *)l->data;
+				if (!child->on_screen)
+					continue;
+				if (taskbarname_enabled && l == taskbar->area.children)
+					continue;
+				num_tasks++;
 			}
 		}
-		// Distribute the space proportionally to the requested size (that is, to the
-		// number of tasks in each taskbar)
-		if (total_items) {
-			int actual_name_size;
-			if (total_name_size <= total_size) {
-				actual_name_size = total_name_size / panel->num_desktops;
-			} else {
-				actual_name_size = total_size / panel->num_desktops;
-			}
-			total_size -= total_name_size;
 
+		// Distribute the remaining size between tasks
+		if (num_tasks > 0) {
+			int task_size = total_size / num_tasks;
 			for (int i = 0; i < panel->num_desktops; i++) {
 				Taskbar *taskbar = &panel->taskbar[i];
-
-				int requested_size = (panel_horizontal ? left_right_border_width(&taskbar->area)
-				                                       : top_bottom_border_width(&taskbar->area)) +
-									 2 * taskbar->area.paddingxlr;
-				int items = 0;
-				GList *l = taskbar->area.children;
-				if (taskbarname_enabled)
-					l = l->next;
-				for (; l; l = l->next) {
+				if (!taskbar->area.on_screen)
+					continue;
+				for (GList *l = taskbar->area.children; l; l = l->next) {
 					Area *child = (Area *)l->data;
 					if (!child->on_screen)
 						continue;
-					items++;
-					if (panel_horizontal) {
-						requested_size += child->width + taskbar->area.paddingy;
-					} else {
-						requested_size += child->height + taskbar->area.paddingx;
-					}
+					if (taskbarname_enabled && l == taskbar->area.children)
+						continue;
+					if (panel_horizontal)
+						taskbar->area.width += task_size;
+					else
+						taskbar->area.height += task_size;
 				}
-				if (panel_horizontal) {
-					requested_size -= taskbar->area.paddingy;
-				} else {
-					requested_size -= taskbar->area.paddingx;
-				}
-
-				if (panel_horizontal) {
-					taskbar->area.width = actual_name_size + items / (float)total_items * total_size;
-				} else {
-					taskbar->area.height = actual_name_size + items / (float)total_items * total_size;
-				}
-				taskbar->area.resize_needed = 1;
+			}
+		} else {
+			// No tasks => expand the first visible taskbar
+			for (int i = 0; i < panel->num_desktops; i++) {
+				Taskbar *taskbar = &panel->taskbar[i];
+				if (!taskbar->area.on_screen)
+					continue;
+				if (panel_horizontal)
+					taskbar->area.width += total_size;
+				else
+					taskbar->area.height += total_size;
 			}
 		}
+		for (int i = 0; i < panel->num_desktops; i++) {
+			Taskbar *taskbar = &panel->taskbar[i];
+			taskbar->area.resize_needed =
+			    taskbar->area.old_width != taskbar->area.width || taskbar->area.old_height != taskbar->area.height;
+		}
 	}
-	if (panel->freespace.area.on_screen)
-		resize_freespace(&panel->freespace);
+	for (GList *l = panel->freespace_list; l; l = g_list_next(l))
+		resize_freespace(l->data);
 	return FALSE;
 }
 
@@ -491,7 +546,7 @@ void update_strut(Panel *p)
 	long struts[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	if (panel_horizontal) {
 		int height = p->area.height + p->marginy;
-		if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && p->is_hidden))
+		if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide))
 			height = p->hidden_height;
 		if (panel_position & TOP) {
 			struts[2] = height + monitor.y;
@@ -506,7 +561,7 @@ void update_strut(Panel *p)
 		}
 	} else {
 		int width = p->area.width + p->marginx;
-		if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && p->is_hidden))
+		if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide))
 			width = p->hidden_width;
 		if (panel_position & LEFT) {
 			struts[0] = width + monitor.x;
@@ -547,6 +602,8 @@ void set_panel_items_order(Panel *p)
 	}
 
 	int i_execp = 0;
+	int i_separator = 0;
+	int i_freespace = 0;
 	for (int k = 0; k < strlen(panel_items_order); k++) {
 		if (panel_items_order[k] == 'L') {
 			p->area.children = g_list_append(p->area.children, &p->launcher);
@@ -566,8 +623,18 @@ void set_panel_items_order(Panel *p)
 		}
 		if (panel_items_order[k] == 'C')
 			p->area.children = g_list_append(p->area.children, &p->clock);
-		if (panel_items_order[k] == 'F')
-			p->area.children = g_list_append(p->area.children, &p->freespace);
+		if (panel_items_order[k] == 'F') {
+			GList *item = g_list_nth(p->freespace_list, i_freespace);
+			i_freespace++;
+			if (item)
+				p->area.children = g_list_append(p->area.children, (Area *)item->data);
+		}
+		if (panel_items_order[k] == ':') {
+			GList *item = g_list_nth(p->separator_list, i_separator);
+			i_separator++;
+			if (item)
+				p->area.children = g_list_append(p->area.children, (Area *)item->data);
+		}
 		if (panel_items_order[k] == 'E') {
 			GList *item = g_list_nth(p->execp_list, i_execp);
 			i_execp++;
@@ -589,13 +656,16 @@ void place_panel_all_desktops(Panel *p)
 	                PropModeReplace,
 	                (unsigned char *)&val,
 	                1);
+}
 
+void set_panel_layer(Panel *p, Layer layer)
+{
 	Atom state[4];
 	state[0] = server.atom._NET_WM_STATE_SKIP_PAGER;
 	state[1] = server.atom._NET_WM_STATE_SKIP_TASKBAR;
 	state[2] = server.atom._NET_WM_STATE_STICKY;
-	state[3] = panel_layer == BOTTOM_LAYER ? server.atom._NET_WM_STATE_BELOW : server.atom._NET_WM_STATE_ABOVE;
-	int num_atoms = panel_layer == NORMAL_LAYER ? 3 : 4;
+	state[3] = layer == BOTTOM_LAYER ? server.atom._NET_WM_STATE_BELOW : server.atom._NET_WM_STATE_ABOVE;
+	int num_atoms = layer == NORMAL_LAYER ? 3 : 4;
 	XChangeProperty(server.display,
 	                p->main_win,
 	                server.atom._NET_WM_STATE,
@@ -619,6 +689,58 @@ void replace_panel_all_desktops(Panel *p)
 	m.data.l[0] = ALL_DESKTOPS;
 	XSendEvent(server.display, server.root_win, False, SubstructureRedirectMask | SubstructureNotifyMask, (XEvent *)&m);
 	XSync(server.display, False);
+}
+
+void set_panel_window_geometry(Panel *panel)
+{
+	update_strut(panel);
+
+	// Fixed position and non-resizable window
+	// Allow panel move and resize when tint2 reload config file
+	int minwidth = panel_autohide ? panel->hidden_width : panel->area.width;
+	int minheight = panel_autohide ? panel->hidden_height : panel->area.height;
+	XSizeHints size_hints;
+	size_hints.flags = PPosition | PMinSize | PMaxSize;
+	size_hints.min_width = minwidth;
+	size_hints.max_width = panel->area.width;
+	size_hints.min_height = minheight;
+	size_hints.max_height = panel->area.height;
+	XSetWMNormalHints(server.display, panel->main_win, &size_hints);
+
+	if (!panel->is_hidden) {
+		if (panel_horizontal) {
+			XMoveResizeWindow(server.display,
+			                  panel->main_win,
+			                  panel->posx,
+			                  panel->posy,
+			                  panel->area.width,
+			                  panel->area.height);
+		} else {
+			XMoveResizeWindow(server.display,
+			                  panel->main_win,
+			                  panel->posx,
+			                  panel->posy,
+			                  panel->area.width,
+			                  panel->area.height);
+		}
+	} else {
+		int diff = (panel_horizontal ? panel->area.height : panel->area.width) - panel_autohide_height;
+		if (panel_horizontal) {
+			XMoveResizeWindow(server.display,
+			                  panel->main_win,
+			                  panel->posx,
+			                  panel->posy + diff,
+			                  panel->hidden_width,
+			                  panel->hidden_height);
+		} else {
+			XMoveResizeWindow(server.display,
+			                  panel->main_win,
+			                  panel->posx + diff,
+			                  panel->posy,
+			                  panel->hidden_width,
+			                  panel->hidden_height);
+		}
+	}
 }
 
 void set_panel_properties(Panel *p)
@@ -660,6 +782,7 @@ void set_panel_properties(Panel *p)
 	                1);
 
 	place_panel_all_desktops(p);
+	set_panel_layer(p, panel_layer);
 
 	XWMHints wmhints;
 	memset(&wmhints, 0, sizeof(wmhints));
@@ -697,26 +820,14 @@ void set_panel_properties(Panel *p)
 	                (unsigned char *)&version,
 	                1);
 
-	update_strut(p);
-
-	// Fixed position and non-resizable window
-	// Allow panel move and resize when tint2 reload config file
-	int minwidth = panel_autohide ? p->hidden_width : p->area.width;
-	int minheight = panel_autohide ? p->hidden_height : p->area.height;
-	XSizeHints size_hints;
-	size_hints.flags = PPosition | PMinSize | PMaxSize;
-	size_hints.min_width = minwidth;
-	size_hints.max_width = p->area.width;
-	size_hints.min_height = minheight;
-	size_hints.max_height = p->area.height;
-	XSetWMNormalHints(server.display, p->main_win, &size_hints);
-
 	// Set WM_CLASS
 	XClassHint *classhint = XAllocClassHint();
 	classhint->res_name = (char *)"tint2";
 	classhint->res_class = (char *)"Tint2";
 	XSetClassHint(server.display, p->main_win, classhint);
 	XFree(classhint);
+
+	set_panel_window_geometry(p);
 }
 
 void panel_clear_background(void *obj)
@@ -854,68 +965,22 @@ void autohide_show(void *p)
 	Panel *panel = (Panel *)p;
 	stop_autohide_timeout(panel);
 	panel->is_hidden = 0;
-
 	XMapSubwindows(server.display, panel->main_win); // systray windows
-	if (panel_horizontal) {
-		if (panel_position & TOP)
-			XResizeWindow(server.display, panel->main_win, panel->area.width, panel->area.height);
-		else
-			XMoveResizeWindow(server.display,
-			                  panel->main_win,
-			                  panel->posx,
-			                  panel->posy,
-			                  panel->area.width,
-			                  panel->area.height);
-	} else {
-		if (panel_position & LEFT)
-			XResizeWindow(server.display, panel->main_win, panel->area.width, panel->area.height);
-		else
-			XMoveResizeWindow(server.display,
-			                  panel->main_win,
-			                  panel->posx,
-			                  panel->posy,
-			                  panel->area.width,
-			                  panel->area.height);
-	}
-	if (panel_strut_policy == STRUT_FOLLOW_SIZE)
-		update_strut(panel);
+	set_panel_window_geometry(panel);
+	set_panel_layer(panel, TOP_LAYER);
 	refresh_systray = TRUE; // ugly hack, because we actually only need to call XSetBackgroundPixmap
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void autohide_hide(void *p)
 {
 	Panel *panel = (Panel *)p;
 	stop_autohide_timeout(panel);
+	set_panel_layer(panel, panel_layer);
 	panel->is_hidden = TRUE;
-	if (panel_strut_policy == STRUT_FOLLOW_SIZE)
-		update_strut(panel);
-
 	XUnmapSubwindows(server.display, panel->main_win); // systray windows
-	int diff = (panel_horizontal ? panel->area.height : panel->area.width) - panel_autohide_height;
-	// printf("autohide_hide : diff %d, w %d, h %d\n", diff, panel->hidden_width, panel->hidden_height);
-	if (panel_horizontal) {
-		if (panel_position & TOP)
-			XResizeWindow(server.display, panel->main_win, panel->hidden_width, panel->hidden_height);
-		else
-			XMoveResizeWindow(server.display,
-			                  panel->main_win,
-			                  panel->posx,
-			                  panel->posy + diff,
-			                  panel->hidden_width,
-			                  panel->hidden_height);
-	} else {
-		if (panel_position & LEFT)
-			XResizeWindow(server.display, panel->main_win, panel->hidden_width, panel->hidden_height);
-		else
-			XMoveResizeWindow(server.display,
-			                  panel->main_win,
-			                  panel->posx + diff,
-			                  panel->posy,
-			                  panel->hidden_width,
-			                  panel->hidden_height);
-	}
-	panel_refresh = TRUE;
+	set_panel_window_geometry(panel);
+	schedule_panel_redraw();
 }
 
 void autohide_trigger_show(Panel *p)
@@ -940,11 +1005,40 @@ void autohide_trigger_hide(Panel *p)
 	change_timeout(&p->autohide_timeout, panel_autohide_hide_timeout, 0, autohide_hide, p);
 }
 
+void shrink_panel(Panel *panel)
+{
+	if (!panel_shrink)
+		return;
+	int size = MIN(compute_desired_size(&panel->area), panel->max_size);
+	gboolean update = FALSE;
+	if (panel_horizontal) {
+		if (panel->area.width != size) {
+			panel->area.width = size;
+			update = TRUE;
+		}
+	} else {
+		if (panel->area.height != size) {
+			panel->area.height = size;
+			update = TRUE;
+		}
+	}
+	if (update) {
+		panel_compute_position(panel);
+		set_panel_window_geometry(panel);
+		set_panel_background(panel);
+		panel->area.resize_needed = TRUE;
+		systray.area.resize_needed = TRUE;
+		schedule_redraw(&systray.area);
+		refresh_systray = TRUE;
+	}
+}
+
 void render_panel(Panel *panel)
 {
 	relayout(&panel->area);
 	if (debug_geometry)
 		area_dump_geometry(&panel->area, 0);
+	update_dependent_gradients(&panel->area);
 	draw_tree(&panel->area);
 }
 
@@ -970,4 +1064,12 @@ void default_font_changed()
 	taskbar_default_font_changed();
 	taskbarname_default_font_changed();
 	tooltip_default_font_changed();
+}
+
+void _schedule_panel_redraw(const char *file, const char *function, const int line)
+{
+	panel_refresh = TRUE;
+	if (debug_fps) {
+		fprintf(stderr, YELLOW "%s %s %d: triggering panel redraw" RESET "\n", file, function, line);
+	}
 }

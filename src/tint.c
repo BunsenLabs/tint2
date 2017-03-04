@@ -18,6 +18,7 @@
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **************************************************************************/
 
+#include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -36,10 +37,10 @@
 #include <pwd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 
 #ifdef HAVE_SN
 #include <libsn/sn.h>
-#include <sys/wait.h>
 #endif
 
 #include <version.h>
@@ -77,6 +78,86 @@ XSettingsClient *xsettings_client = NULL;
 
 timeout *detect_compositor_timer = NULL;
 int detect_compositor_timer_counter = 0;
+
+gboolean debug_fps = FALSE;
+gboolean debug_frames = FALSE;
+float *fps_distribution = NULL;
+int frame = 0;
+
+void create_fps_distribution()
+{
+	// measure FPS with resolution:
+	// 0-59: 1		   (60 samples)
+	// 60-199: 10      (14)
+	// 200-1,999: 25   (72)
+	// 1k-19,999: 1000 (19)
+	// 20x+: inf       (1)
+	// => 166 samples
+	if (fps_distribution)
+		return;
+	fps_distribution = calloc(170, sizeof(float));
+}
+
+void cleanup_fps_distribution()
+{
+	free(fps_distribution);
+	fps_distribution = NULL;
+}
+
+void sample_fps(double fps)
+{
+	int fps_rounded = (int)(fps + 0.5);
+	int i = 1;
+	if (fps_rounded < 60) {
+		i += fps_rounded;
+	} else {
+		i += 60;
+		if (fps_rounded < 200) {
+			i += (fps_rounded - 60) / 10;
+		} else {
+			i += 14;
+			if (fps_rounded < 2000) {
+				i += (fps_rounded - 200) / 25;
+			} else {
+				i += 72;
+				if (fps_rounded < 20000) {
+					i += (fps_rounded - 2000) / 1000;
+				} else {
+					i += 20;
+				}
+			}
+		}
+	}
+	// fprintf(stderr, "fps = %.0f => i = %d\n", fps, i);
+	fps_distribution[i] += 1.;
+	fps_distribution[0] += 1.;
+}
+
+void fps_compute_stats(double *low, double *median, double *high, double *samples)
+{
+	*median = *low = *high = *samples = -1;
+	if (!fps_distribution || fps_distribution[0] < 1)
+		return;
+	float total = fps_distribution[0];
+	*samples = (double) fps_distribution[0];
+	float cum_low = 0.05f * total;
+	float cum_median = 0.5f * total;
+	float cum_high = 0.95f * total;
+	float cum = 0;
+	for (int i = 1; i <= 166; i++) {
+		double value =
+			(i < 60) ? i : (i < 74) ? (60 + (i - 60) * 10) : (i < 146) ? (200 + (i - 74) * 25)
+																	  : (i < 165) ? (2000 + (i - 146) * 1000) : 20000;
+		// fprintf(stderr, "%6.0f (i = %3d) : %.0f | ", value, i, (double)fps_distribution[i]);
+		cum += fps_distribution[i];
+		if (*low < 0 && cum >= cum_low)
+			*low = value;
+		if (*median < 0 && cum >= cum_median)
+			*median = value;
+		if (*high < 0 && cum >= cum_high)
+			*high = value;
+	}
+}
 
 void detect_compositor(void *arg)
 {
@@ -343,7 +424,20 @@ void init(int argc, char *argv[])
 			}
 		} else if (i + 1 == argc) {
 			config_path = strdup(argv[i]);
-		} else {
+		}
+#ifdef ENABLE_BATTERY
+		  else if (strcmp(argv[i], "--battery-sys-prefix") == 0) {
+			if (i + 1 < argc) {
+				i++;
+				battery_sys_prefix = strdup(argv[i]);
+			} else {
+				error = 1;
+			}
+		}
+#endif
+
+
+		else {
 			error = 1;
 		}
 		if (error) {
@@ -374,10 +468,15 @@ void init(int argc, char *argv[])
 #endif
 
 	debug_geometry = getenv("DEBUG_GEOMETRY") != NULL;
+	debug_gradients = getenv("DEBUG_GRADIENTS") != NULL;
+	debug_fps = getenv("DEBUG_FPS") != NULL;
+	debug_frames = getenv("DEBUG_FRAMES") != NULL;
+	if (debug_fps)
+		create_fps_distribution();
 }
 
-static int sn_pipe_valid = 0;
-static int sn_pipe[2];
+static int sigchild_pipe_valid = FALSE;
+static int sigchild_pipe[2];
 
 #ifdef HAVE_SN
 static int error_trap_depth = 0;
@@ -397,49 +496,40 @@ static void error_trap_pop(SnDisplay *display, Display *xdisplay)
 	XSync(xdisplay, False); /* get all errors out of the queue */
 	--error_trap_depth;
 }
+#endif // HAVE_SN
 
 static void sigchld_handler(int sig)
 {
-	if (!startup_notifications)
+	if (!sigchild_pipe_valid)
 		return;
-	if (!sn_pipe_valid)
-		return;
-	ssize_t wur = write(sn_pipe[1], "x", 1);
-	(void)wur;
-	fsync(sn_pipe[1]);
+	int savedErrno = errno;
+	ssize_t unused = write(sigchild_pipe[1], "x", 1);
+	(void)unused;
+	fsync(sigchild_pipe[1]);
+	errno = savedErrno;
 }
 
 static void sigchld_handler_async()
 {
-	if (!startup_notifications)
-		return;
 	// Wait for all dead processes
 	pid_t pid;
-	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
-		SnLauncherContext *ctx;
-		ctx = (SnLauncherContext *)g_tree_lookup(server.pids, GINT_TO_POINTER(pid));
+	int status;
+	while ((pid = waitpid(-1, &status, WNOHANG)) != -1 && pid != 0) {
+#ifdef HAVE_SN
+		SnLauncherContext *ctx = (SnLauncherContext *)g_tree_lookup(server.pids, GINT_TO_POINTER(pid));
 		if (ctx) {
 			g_tree_remove(server.pids, GINT_TO_POINTER(pid));
 			sn_launcher_context_complete(ctx);
 			sn_launcher_context_unref(ctx);
 		}
+#endif
+		for (GList *l = panel_config.execp_list; l; l = l->next) {
+			Execp *execp = (Execp *)l->data;
+			if (g_tree_lookup(execp->backend->cmd_pids, GINT_TO_POINTER(pid)))
+				execp_cmd_completed(execp, pid);
+		}
 	}
 }
-
-static gint cmp_ptr(gconstpointer a, gconstpointer b)
-{
-	if (a < b)
-		return -1;
-	else if (a == b)
-		return 0;
-	else
-		return 1;
-}
-#else
-static void sigchld_handler_async()
-{
-}
-#endif // HAVE_SN
 
 void init_X11_pre_config()
 {
@@ -473,27 +563,37 @@ void init_X11_pre_config()
 
 void init_X11_post_config()
 {
+	if (primary_monitor_first)
+		sort_monitors();
+
 	server_init_visual();
 
+	gboolean need_sigchld = FALSE;
 #ifdef HAVE_SN
 	// Initialize startup-notification
 	if (startup_notifications) {
 		server.sn_display = sn_display_new(server.display, error_trap_push, error_trap_pop);
 		server.pids = g_tree_new(cmp_ptr);
+		need_sigchld = TRUE;
+	}
+#endif // HAVE_SN
+	if (panel_config.execp_list)
+		need_sigchld = TRUE;
+
+	if (need_sigchld) {
 		// Setup a handler for child termination
-		if (pipe(sn_pipe) != 0) {
+		if (pipe(sigchild_pipe) != 0) {
 			fprintf(stderr, "Creating pipe failed.\n");
 		} else {
-			fcntl(sn_pipe[0], F_SETFL, O_NONBLOCK | fcntl(sn_pipe[0], F_GETFL));
-			fcntl(sn_pipe[1], F_SETFL, O_NONBLOCK | fcntl(sn_pipe[1], F_GETFL));
-			sn_pipe_valid = 1;
-			struct sigaction act = {.sa_handler = sigchld_handler, .sa_flags = SA_NOCLDWAIT | SA_RESTART};
+			fcntl(sigchild_pipe[0], F_SETFL, O_NONBLOCK | fcntl(sigchild_pipe[0], F_GETFL));
+			fcntl(sigchild_pipe[1], F_SETFL, O_NONBLOCK | fcntl(sigchild_pipe[1], F_GETFL));
+			sigchild_pipe_valid = 1;
+			struct sigaction act = {.sa_handler = sigchld_handler, .sa_flags = SA_RESTART};
 			if (sigaction(SIGCHLD, &act, 0)) {
 				perror("sigaction");
 			}
 		}
 	}
-#endif // HAVE_SN
 
 	imlib_context_set_display(server.display);
 	imlib_context_set_visual(server.visual);
@@ -509,8 +609,8 @@ void init_X11_post_config()
 	}
 	if (!default_icon) {
 		fprintf(stderr,
-				RED "Could not load default_icon.png. Please check that tint2 has been installed correctly!" RESET
-					"\n");
+		        RED "Could not load default_icon.png. Please check that tint2 has been installed correctly!" RESET
+		            "\n");
 	}
 }
 
@@ -543,32 +643,18 @@ void cleanup()
 		XCloseDisplay(server.display);
 	server.display = NULL;
 
-#ifdef HAVE_SN
-	if (startup_notifications) {
-		if (sn_pipe_valid) {
-			sn_pipe_valid = 0;
-			close(sn_pipe[1]);
-			close(sn_pipe[0]);
-		}
+	if (sigchild_pipe_valid) {
+		sigchild_pipe_valid = FALSE;
+		close(sigchild_pipe[1]);
+		close(sigchild_pipe[0]);
 	}
-#endif
 
 	uevent_cleanup();
+	cleanup_fps_distribution();
 }
 
-void get_snapshot(const char *path)
+void dump_panel_to_file(const Panel *panel, const char *path)
 {
-	Panel *panel = &panels[0];
-
-	if (panel->area.width > server.monitors[0].width)
-		panel->area.width = server.monitors[0].width;
-
-	panel->temp_pmap =
-		XCreatePixmap(server.display, server.root_win, panel->area.width, panel->area.height, server.depth);
-	render_panel(panel);
-
-	XSync(server.display, False);
-
 	imlib_context_set_drawable(panel->temp_pmap);
 	Imlib_Image img = imlib_create_image_from_drawable(0, 0, 0, panel->area.width, panel->area.height, 1);
 
@@ -577,7 +663,7 @@ void get_snapshot(const char *path)
 			XGetImage(server.display, panel->temp_pmap, 0, 0, panel->area.width, panel->area.height, AllPlanes, ZPixmap);
 
 		if (ximg) {
-			DATA32 *pixels = calloc(panel->area.width * panel->area.height, sizeof(DATA32));
+			DATA32 *pixels = (DATA32 *)calloc(panel->area.width * panel->area.height, sizeof(DATA32));
 			for (int x = 0; x < panel->area.width; x++) {
 				for (int y = 0; y < panel->area.height; y++) {
 					DATA32 xpixel = XGetPixel(ximg, x, y);
@@ -606,6 +692,22 @@ void get_snapshot(const char *path)
 		imlib_save_image(path);
 		imlib_free_image();
 	}
+}
+
+void get_snapshot(const char *path)
+{
+	Panel *panel = &panels[0];
+
+	if (panel->area.width > server.monitors[0].width)
+		panel->area.width = server.monitors[0].width;
+
+	panel->temp_pmap =
+	    XCreatePixmap(server.display, server.root_win, panel->area.width, panel->area.height, server.depth);
+	render_panel(panel);
+
+	XSync(server.display, False);
+
+	dump_panel_to_file(panel, path);
 }
 
 void window_action(Task *task, MouseAction action)
@@ -676,8 +778,8 @@ int tint2_handles_click(Panel *panel, XButtonEvent *e)
 	Task *task = click_task(panel, e->x, e->y);
 	if (task) {
 		if ((e->button == 1 && mouse_left != 0) || (e->button == 2 && mouse_middle != 0) ||
-			(e->button == 3 && mouse_right != 0) || (e->button == 4 && mouse_scroll_up != 0) ||
-			(e->button == 5 && mouse_scroll_down != 0)) {
+		    (e->button == 3 && mouse_right != 0) || (e->button == 4 && mouse_scroll_up != 0) ||
+		    (e->button == 5 && mouse_scroll_down != 0)) {
 			return 1;
 		} else
 			return 0;
@@ -696,8 +798,8 @@ int tint2_handles_click(Panel *panel, XButtonEvent *e)
 		return 1;
 	if (click_clock(panel, e->x, e->y)) {
 		if ((e->button == 1 && clock_lclick_command) || (e->button == 2 && clock_mclick_command) ||
-			(e->button == 3 && clock_rclick_command) || (e->button == 4 && clock_uwheel_command) ||
-			(e->button == 5 && clock_dwheel_command))
+		    (e->button == 3 && clock_rclick_command) || (e->button == 4 && clock_uwheel_command) ||
+		    (e->button == 5 && clock_dwheel_command))
 			return 1;
 		else
 			return 0;
@@ -705,8 +807,8 @@ int tint2_handles_click(Panel *panel, XButtonEvent *e)
 #ifdef ENABLE_BATTERY
 	if (click_battery(panel, e->x, e->y)) {
 		if ((e->button == 1 && battery_lclick_command) || (e->button == 2 && battery_mclick_command) ||
-			(e->button == 3 && battery_rclick_command) || (e->button == 4 && battery_uwheel_command) ||
-			(e->button == 5 && battery_dwheel_command))
+		    (e->button == 3 && battery_rclick_command) || (e->button == 4 && battery_uwheel_command) ||
+		    (e->button == 5 && battery_dwheel_command))
 			return 1;
 		else
 			return 0;
@@ -775,7 +877,7 @@ void event_button_motion_notify(XEvent *e)
 					task_iter->data = drag_iter->data;
 					drag_iter->data = temp;
 					event_taskbar->area.resize_needed = 1;
-					panel_refresh = TRUE;
+					schedule_panel_redraw();
 					task_dragged = 1;
 				}
 			}
@@ -806,7 +908,7 @@ void event_button_motion_notify(XEvent *e)
 		event_taskbar->area.resize_needed = 1;
 		drag_taskbar->area.resize_needed = 1;
 		task_dragged = 1;
-		panel_refresh = TRUE;
+		schedule_panel_redraw();
 		panel->area.resize_needed = 1;
 	}
 }
@@ -906,7 +1008,7 @@ void event_button_release(XEvent *e)
 	if (taskbar_mode == MULTI_DESKTOP) {
 		gboolean diff_desktop = FALSE;
 		if (taskbar->desktop != server.desktop && action != CLOSE && action != DESKTOP_LEFT &&
-			action != DESKTOP_RIGHT) {
+		    action != DESKTOP_RIGHT) {
 			diff_desktop = TRUE;
 			change_desktop(taskbar->desktop);
 		}
@@ -961,7 +1063,7 @@ void update_desktop_names()
 	for (GSList *l = list; l; l = l->next)
 		g_free(l->data);
 	g_slist_free(list);
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void update_task_desktop(Task *task)
@@ -971,7 +1073,7 @@ void update_task_desktop(Task *task)
 	remove_task(task);
 	task = add_task(win);
 	reset_active_task();
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void event_property_notify(XEvent *e)
@@ -1005,8 +1107,8 @@ void event_property_notify(XEvent *e)
 		}
 		// Change desktops
 		else if (at == server.atom._NET_NUMBER_OF_DESKTOPS || at == server.atom._NET_DESKTOP_GEOMETRY ||
-				 at == server.atom._NET_DESKTOP_VIEWPORT || at == server.atom._NET_WORKAREA ||
-				 at == server.atom._NET_CURRENT_DESKTOP) {
+		         at == server.atom._NET_DESKTOP_VIEWPORT || at == server.atom._NET_WORKAREA ||
+		         at == server.atom._NET_CURRENT_DESKTOP) {
 			if (debug)
 				fprintf(stderr, "%s %d: win = root, atom = ?? desktops changed\n", __FUNCTION__, __LINE__);
 			if (!taskbar_enabled)
@@ -1015,7 +1117,7 @@ void event_property_notify(XEvent *e)
 			int old_desktop = server.desktop;
 			server_get_number_of_desktops();
 			server.desktop = get_current_desktop();
-			if (old_num_desktops != server.num_desktops) {
+			if (old_num_desktops != server.num_desktops) { // If number of desktop changed
 				if (server.num_desktops <= server.desktop) {
 					server.desktop = server.num_desktops - 1;
 				}
@@ -1024,13 +1126,16 @@ void event_property_notify(XEvent *e)
 				for (int i = 0; i < num_panels; i++) {
 					init_taskbar_panel(&panels[i]);
 					set_panel_items_order(&panels[i]);
-					update_taskbar_visibility(&panels[i]);
 					panels[i].area.resize_needed = 1;
 				}
 				taskbar_refresh_tasklist();
 				reset_active_task();
-				panel_refresh = TRUE;
+				update_all_taskbars_visibility();
+				if (old_desktop != server.desktop)
+					tooltip_trigger_hide();
+				schedule_panel_redraw();
 			} else if (old_desktop != server.desktop) {
+				tooltip_trigger_hide();
 				for (int i = 0; i < num_panels; i++) {
 					Panel *panel = &panels[i];
 					set_taskbar_state(&panel->taskbar[old_desktop], TASKBAR_NORMAL);
@@ -1047,7 +1152,7 @@ void event_property_notify(XEvent *e)
 							if (task->desktop == ALL_DESKTOPS) {
 								task->area.on_screen = always_show_all_desktop_tasks;
 								taskbar->area.resize_needed = 1;
-								panel_refresh = TRUE;
+								schedule_panel_redraw();
 								if (taskbar_mode == MULTI_DESKTOP)
 									panel->area.resize_needed = 1;
 							}
@@ -1097,14 +1202,15 @@ void event_property_notify(XEvent *e)
 			if (debug)
 				fprintf(stderr, "%s %d: win = root, atom = _NET_CLIENT_LIST\n", __FUNCTION__, __LINE__);
 			taskbar_refresh_tasklist();
-			panel_refresh = TRUE;
+			update_all_taskbars_visibility();
+			schedule_panel_redraw();
 		}
 		// Change active
 		else if (at == server.atom._NET_ACTIVE_WINDOW) {
 			if (debug)
 				fprintf(stderr, "%s %d: win = root, atom = _NET_ACTIVE_WINDOW\n", __FUNCTION__, __LINE__);
 			reset_active_task();
-			panel_refresh = TRUE;
+			schedule_panel_redraw();
 		} else if (at == server.atom._XROOTPMAP_ID || at == server.atom._XROOTMAP_ID) {
 			if (debug)
 				fprintf(stderr, "%s %d: win = root, atom = _XROOTPMAP_ID\n", __FUNCTION__, __LINE__);
@@ -1112,7 +1218,7 @@ void event_property_notify(XEvent *e)
 			for (int i = 0; i < num_panels; i++) {
 				set_panel_background(&panels[i]);
 			}
-			panel_refresh = TRUE;
+			schedule_panel_redraw();
 		}
 	} else {
 		TrayWindow *traywin = systray_find_icon(win);
@@ -1125,12 +1231,12 @@ void event_property_notify(XEvent *e)
 		if (debug) {
 			char *atom_name = XGetAtomName(server.display, at);
 			fprintf(stderr,
-					"%s %d: win = %ld, task = %s, atom = %s\n",
-					__FUNCTION__,
-					__LINE__,
-					win,
-					task ? (task->title ? task->title : "??") : "null",
-					atom_name);
+			        "%s %d: win = %ld, task = %s, atom = %s\n",
+			        __FUNCTION__,
+			        __LINE__,
+			        win,
+			        task ? (task->title ? task->title : "??") : "null",
+			        atom_name);
 			XFree(atom_name);
 		}
 		if (!task) {
@@ -1143,7 +1249,7 @@ void event_property_notify(XEvent *e)
 				XGetWindowAttributes(server.display, win, &wa);
 				if (wa.map_state == IsViewable && !window_is_skip_taskbar(win)) {
 					if ((task = add_task(win)))
-						panel_refresh = TRUE;
+						schedule_panel_redraw();
 				}
 			}
 			return;
@@ -1159,7 +1265,7 @@ void event_property_notify(XEvent *e)
 				}
 				if (taskbar_sort_method == TASKBAR_SORT_TITLE)
 					sort_taskbar_for_win(win);
-				panel_refresh = TRUE;
+				schedule_panel_redraw();
 			}
 		}
 		// Demand attention
@@ -1179,7 +1285,7 @@ void event_property_notify(XEvent *e)
 			}
 			if (window_is_skip_taskbar(win)) {
 				remove_task(task);
-				panel_refresh = TRUE;
+				schedule_panel_redraw();
 			}
 		} else if (at == server.atom.WM_STATE) {
 			// Iconic state
@@ -1187,12 +1293,12 @@ void event_property_notify(XEvent *e)
 			if (window_is_iconified(win))
 				state = TASK_ICONIFIED;
 			set_task_state(task, state);
-			panel_refresh = TRUE;
+			schedule_panel_redraw();
 		}
 		// Window icon changed
 		else if (at == server.atom._NET_WM_ICON) {
 			task_update_icon(task);
-			panel_refresh = TRUE;
+			schedule_panel_redraw();
 		}
 		// Window desktop changed
 		else if (at == server.atom._NET_WM_DESKTOP) {
@@ -1208,6 +1314,8 @@ void event_property_notify(XEvent *e)
 				add_urgent(task);
 			}
 			XFree(wmhints);
+			task_update_icon(task);
+			schedule_panel_redraw();
 		}
 
 		if (!server.got_root_win)
@@ -1222,7 +1330,7 @@ void event_expose(XEvent *e)
 	if (!panel)
 		return;
 	// TODO : one panel_refresh per panel ?
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void event_configure_notify(XEvent *e)
@@ -1232,19 +1340,19 @@ void event_configure_notify(XEvent *e)
 	if (0) {
 		Task *task = get_task(win);
 		fprintf(stderr,
-				"%s %d: win = %ld, task = %s\n",
-				__FUNCTION__,
-				__LINE__,
-				win,
-				task ? (task->title ? task->title : "??") : "null");
+		        "%s %d: win = %ld, task = %s\n",
+		        __FUNCTION__,
+		        __LINE__,
+		        win,
+		        task ? (task->title ? task->title : "??") : "null");
 	}
 
 	// change in root window (xrandr)
 	if (win == server.root_win) {
 		fprintf(stderr,
-				YELLOW "%s %d: triggering tint2 restart due to configuration change in the root window" RESET "\n",
-				__FILE__,
-				__LINE__);
+		        YELLOW "%s %d: triggering tint2 restart due to configuration change in the root window" RESET "\n",
+		        __FILE__,
+		        __LINE__);
 		signal_pending = SIGUSR1;
 		return;
 	}
@@ -1262,15 +1370,15 @@ void event_configure_notify(XEvent *e)
 			Panel *p = task->area.panel;
 			int monitor = get_window_monitor(win);
 			if ((hide_task_diff_monitor && p->monitor != monitor && task->area.on_screen) ||
-				(hide_task_diff_monitor && p->monitor == monitor && !task->area.on_screen) ||
-				(p->monitor != monitor && num_panels > 1)) {
+			    (hide_task_diff_monitor && p->monitor == monitor && !task->area.on_screen) ||
+			    (p->monitor != monitor && num_panels > 1)) {
 				remove_task(task);
 				task = add_task(win);
 				if (win == get_active_window()) {
 					set_task_state(task, TASK_ACTIVE);
 					active_task = task;
 				}
-				panel_refresh = TRUE;
+				schedule_panel_redraw();
 			}
 		}
 	}
@@ -1319,17 +1427,17 @@ struct Property read_property(Display *disp, Window w, Atom property)
 		if (ret != 0)
 			XFree(ret);
 		XGetWindowProperty(disp,
-						   w,
-						   property,
-						   0,
-						   read_bytes,
-						   False,
-						   AnyPropertyType,
-						   &actual_type,
-						   &actual_format,
-						   &nitems,
-						   &bytes_after,
-						   &ret);
+		                   w,
+		                   property,
+		                   0,
+		                   read_bytes,
+		                   False,
+		                   AnyPropertyType,
+		                   &actual_type,
+		                   &actual_format,
+		                   &nitems,
+		                   &bytes_after,
+		                   &ret);
 		read_bytes *= 2;
 	} while (bytes_after != 0);
 
@@ -1485,18 +1593,18 @@ void dnd_drop(XClientMessageEvent *e)
 	if (dnd_target_window && dnd_launcher_exec) {
 		if (dnd_version >= 1) {
 			XConvertSelection(server.display,
-							  server.atom.XdndSelection,
-							  XA_STRING,
-							  dnd_selection,
-							  dnd_target_window,
-							  e->data.l[2]);
+			                  server.atom.XdndSelection,
+			                  XA_STRING,
+			                  dnd_selection,
+			                  dnd_target_window,
+			                  e->data.l[2]);
 		} else {
 			XConvertSelection(server.display,
-							  server.atom.XdndSelection,
-							  XA_STRING,
-							  dnd_selection,
-							  dnd_target_window,
-							  CurrentTime);
+			                  server.atom.XdndSelection,
+			                  XA_STRING,
+			                  dnd_selection,
+			                  dnd_target_window,
+			                  CurrentTime);
 		}
 	} else {
 		// The source is sending anyway, despite instructions to the contrary.
@@ -1524,8 +1632,8 @@ start:
 
 	if (!config_read()) {
 		fprintf(stderr,
-				"Could not read config file.\n"
-				"Usage: tint2 [[-c] <config_file>]\n");
+		        "Could not read config file.\n"
+		        "Usage: tint2 [[-c] <config_file>]\n");
 		cleanup();
 		exit(1);
 	}
@@ -1558,69 +1666,74 @@ start:
 	int ufd = uevent_init();
 	int hidden_dnd = 0;
 
+	double ts_event_read = 0;
+	double ts_event_processed = 0;
+	double ts_render_finished = 0;
+	double ts_flush_finished = 0;
+	gboolean first_render = TRUE;
 	while (1) {
 		if (panel_refresh) {
+			if (debug_fps)
+				ts_event_processed = get_time();
 			if (systray_profile)
 				fprintf(stderr,
-						BLUE "[%f] %s:%d redrawing panel" RESET "\n",
-						profiling_get_time(),
-						__FUNCTION__,
-						__LINE__);
+				        BLUE "[%f] %s:%d redrawing panel" RESET "\n",
+				        profiling_get_time(),
+				        __FUNCTION__,
+				        __LINE__);
 			panel_refresh = FALSE;
 
 			for (int i = 0; i < num_panels; i++) {
 				Panel *panel = &panels[i];
+				if (!first_render)
+					shrink_panel(panel);
+
+				if (!panel->is_hidden || panel->area.resize_needed) {
+					if (panel->temp_pmap)
+						XFreePixmap(server.display, panel->temp_pmap);
+					panel->temp_pmap = XCreatePixmap(server.display,
+					                                 server.root_win,
+					                                 panel->area.width,
+					                                 panel->area.height,
+					                                 server.depth);
+					render_panel(panel);
+				}
 
 				if (panel->is_hidden) {
 					if (!panel->hidden_pixmap) {
 						panel->hidden_pixmap = XCreatePixmap(server.display,
-															 server.root_win,
-															 panel->hidden_width,
-															 panel->hidden_height,
-															 server.depth);
+						                                     server.root_win,
+						                                     panel->hidden_width,
+						                                     panel->hidden_height,
+						                                     server.depth);
 						int xoff = 0, yoff = 0;
 						if (panel_horizontal && panel_position & BOTTOM)
 							yoff = panel->area.height - panel->hidden_height;
 						else if (!panel_horizontal && panel_position & RIGHT)
 							xoff = panel->area.width - panel->hidden_width;
 						XCopyArea(server.display,
-								  panel->area.pix,
-								  panel->hidden_pixmap,
-								  server.gc,
-								  xoff,
-								  yoff,
-								  panel->hidden_width,
-								  panel->hidden_height,
-								  0,
-								  0);
+						          panel->area.pix,
+						          panel->hidden_pixmap,
+						          server.gc,
+						          xoff,
+						          yoff,
+						          panel->hidden_width,
+						          panel->hidden_height,
+						          0,
+						          0);
 					}
 					XCopyArea(server.display,
-							  panel->hidden_pixmap,
-							  panel->main_win,
-							  server.gc,
-							  0,
-							  0,
-							  panel->hidden_width,
-							  panel->hidden_height,
-							  0,
-							  0);
+					          panel->hidden_pixmap,
+					          panel->main_win,
+					          server.gc,
+					          0,
+					          0,
+					          panel->hidden_width,
+					          panel->hidden_height,
+					          0,
+					          0);
 					XSetWindowBackgroundPixmap(server.display, panel->main_win, panel->hidden_pixmap);
 				} else {
-					if (panel->temp_pmap)
-						XFreePixmap(server.display, panel->temp_pmap);
-					panel->temp_pmap = XCreatePixmap(server.display,
-													 server.root_win,
-													 panel->area.width,
-													 panel->area.height,
-													 server.depth);
-					render_panel(panel);
-					if (panel == (Panel *)systray.area.panel) {
-						if (refresh_systray && panel && !panel->is_hidden) {
-							refresh_systray = FALSE;
-							XSetWindowBackgroundPixmap(server.display, panel->main_win, panel->temp_pmap);
-							refresh_systray_icons();
-						}
-					}
 					XCopyArea(server.display,
 							  panel->temp_pmap,
 							  panel->main_win,
@@ -1631,9 +1744,54 @@ start:
 							  panel->area.height,
 							  0,
 							  0);
+					if (panel == (Panel *)systray.area.panel) {
+						if (refresh_systray && panel && !panel->is_hidden) {
+							refresh_systray = FALSE;
+							XSetWindowBackgroundPixmap(server.display, panel->main_win, panel->temp_pmap);
+							refresh_systray_icons();
+						}
+					}
 				}
 			}
+			if (first_render) {
+				first_render = FALSE;
+				if (panel_shrink)
+					schedule_panel_redraw();
+			}
+			if (debug_fps)
+				ts_render_finished = get_time();
 			XFlush(server.display);
+			if (debug_fps && ts_event_read > 0) {
+				ts_flush_finished = get_time();
+				double period = ts_flush_finished - ts_event_read;
+				double fps = 1.0 / period;
+				sample_fps(fps);
+				double proc_ratio = (ts_event_processed - ts_event_read) / period;
+				double render_ratio = (ts_render_finished - ts_event_processed) / period;
+				double flush_ratio = (ts_flush_finished - ts_render_finished) / period;
+				double fps_low, fps_median, fps_high, fps_samples;
+				fps_compute_stats(&fps_low, &fps_median, &fps_high, &fps_samples);
+				fprintf(stderr,
+						BLUE "frame %d: fps = %.0f (low %.0f, med %.0f, high %.0f, samples %.0f) : processing %.0f%%, rendering %.0f%%, "
+				             "flushing %.0f%%" RESET "\n",
+						frame,
+						fps,
+				        fps_low,
+				        fps_median,
+				        fps_high,
+						fps_samples,
+				        proc_ratio * 100,
+				        render_ratio * 100,
+				        flush_ratio * 100);
+			}
+			if (debug_frames) {
+				for (int i = 0; i < num_panels; i++) {
+					char path[256];
+					sprintf(path, "tint2-%d-panel-%d-frame-%d.png", getpid(), i, frame);
+					dump_panel_to_file(&panels[i], path);
+				}
+			}
+			frame++;
 		}
 
 		// Create a File Description Set containing x11_fd
@@ -1641,9 +1799,9 @@ start:
 		FD_ZERO(&fdset);
 		FD_SET(x11_fd, &fdset);
 		int maxfd = x11_fd;
-		if (sn_pipe_valid) {
-			FD_SET(sn_pipe[0], &fdset);
-			maxfd = maxfd < sn_pipe[0] ? sn_pipe[0] : maxfd;
+		if (sigchild_pipe_valid) {
+			FD_SET(sigchild_pipe[0], &fdset);
+			maxfd = maxfd < sigchild_pipe[0] ? sigchild_pipe[0] : maxfd;
 		}
 		for (GList *l = panel_config.execp_list; l; l = l->next) {
 			Execp *execp = (Execp *)l->data;
@@ -1661,12 +1819,13 @@ start:
 		struct timeval *select_timeout = (next_timeout.tv_sec >= 0 && next_timeout.tv_usec >= 0) ? &next_timeout : NULL;
 
 		// Wait for X Event or a Timer
+		ts_event_read = 0;
 		if (XPending(server.display) > 0 || select(maxfd + 1, &fdset, 0, 0, select_timeout) >= 0) {
 			uevent_handler();
 
-			if (sn_pipe_valid) {
+			if (sigchild_pipe_valid) {
 				char buffer[1];
-				while (read(sn_pipe[0], buffer, sizeof(buffer)) > 0) {
+				while (read(sigchild_pipe[0], buffer, sizeof(buffer)) > 0) {
 					sigchld_handler_async();
 				}
 			}
@@ -1677,13 +1836,15 @@ start:
 					for (l_instance = execp->backend->instances; l_instance; l_instance = l_instance->next) {
 						Execp *instance = l_instance->data;
 						instance->area.resize_needed = TRUE;
-						panel_refresh = TRUE;
+						schedule_panel_redraw();
 					}
 				}
 			}
 			if (XPending(server.display) > 0) {
 				XEvent e;
 				XNextEvent(server.display, &e);
+				if (debug_fps)
+					ts_event_read = get_time();
 #if HAVE_SN
 				if (startup_notifications)
 					sn_display_process_event(server.sn_display, &e);
@@ -1702,7 +1863,7 @@ start:
 						} else
 							continue; // discard further processing of this event because the panel is not visible yet
 					} else if (hidden_dnd && e.type == ClientMessage &&
-							   e.xclient.message_type == server.atom.XdndLeave) {
+					           e.xclient.message_type == server.atom.XdndLeave) {
 						hidden_dnd = 0;
 						autohide_hide(panel);
 					}
@@ -1800,9 +1961,9 @@ start:
 					if (e.xany.window == server.composite_manager) {
 						// Stop real_transparency
 						fprintf(stderr,
-								YELLOW "%s %d: triggering tint2 restart due to compositor shutdown" RESET "\n",
-								__FILE__,
-								__LINE__);
+						        YELLOW "%s %d: triggering tint2 restart due to compositor shutdown" RESET "\n",
+						        __FILE__,
+						        __LINE__);
 						signal_pending = SIGUSR1;
 						break;
 					}
@@ -1822,21 +1983,21 @@ start:
 						if (ev->data.l[2] == None) {
 							// Stop real_transparency
 							fprintf(stderr,
-									YELLOW "%s %d: triggering tint2 restart due to change in transparency" RESET "\n",
-									__FILE__,
-									__LINE__);
+							        YELLOW "%s %d: triggering tint2 restart due to change in transparency" RESET "\n",
+							        __FILE__,
+							        __LINE__);
 							signal_pending = SIGUSR1;
 						} else {
 							// Start real_transparency
 							fprintf(stderr,
-									YELLOW "%s %d: triggering tint2 restart due to change in transparency" RESET "\n",
-									__FILE__,
-									__LINE__);
+							        YELLOW "%s %d: triggering tint2 restart due to change in transparency" RESET "\n",
+							        __FILE__,
+							        __LINE__);
 							signal_pending = SIGUSR1;
 						}
 					}
 					if (systray_enabled && e.xclient.message_type == server.atom._NET_SYSTEM_TRAY_OPCODE &&
-						e.xclient.format == 32 && e.xclient.window == net_sel_win) {
+					    e.xclient.format == 32 && e.xclient.window == net_sel_win) {
 						net_message(&e.xclient);
 					} else if (e.xclient.message_type == server.atom.XdndEnter) {
 						dnd_enter(&e.xclient);
@@ -1854,20 +2015,20 @@ start:
 					fprintf(stderr, "DnD %s:%d: A selection notify has arrived!\n", __FILE__, __LINE__);
 					fprintf(stderr, "DnD %s:%d: Requestor = %lu\n", __FILE__, __LINE__, e.xselectionrequest.requestor);
 					fprintf(stderr,
-							"DnD %s:%d: Selection atom = %s\n",
-							__FILE__,
-							__LINE__,
-							GetAtomName(server.display, e.xselection.selection));
+					        "DnD %s:%d: Selection atom = %s\n",
+					        __FILE__,
+					        __LINE__,
+					        GetAtomName(server.display, e.xselection.selection));
 					fprintf(stderr,
-							"DnD %s:%d: Target atom    = %s\n",
-							__FILE__,
-							__LINE__,
-							GetAtomName(server.display, target));
+					        "DnD %s:%d: Target atom    = %s\n",
+					        __FILE__,
+					        __LINE__,
+					        GetAtomName(server.display, target));
 					fprintf(stderr,
-							"DnD %s:%d: Property atom  = %s\n",
-							__FILE__,
-							__LINE__,
-							GetAtomName(server.display, e.xselection.property));
+					        "DnD %s:%d: Property atom  = %s\n",
+					        __FILE__,
+					        __LINE__,
+					        GetAtomName(server.display, e.xselection.property));
 
 					if (e.xselection.property != None && dnd_launcher_exec) {
 						Property prop = read_property(server.display, dnd_target_window, dnd_selection);
@@ -1883,11 +2044,11 @@ start:
 								// Request the data type we are able to select
 								fprintf(stderr, "Now requsting type %s", GetAtomName(server.display, dnd_atom));
 								XConvertSelection(server.display,
-												  dnd_selection,
-												  dnd_atom,
-												  dnd_selection,
-												  dnd_target_window,
-												  CurrentTime);
+								                  dnd_selection,
+								                  dnd_atom,
+								                  dnd_selection,
+								                  dnd_target_window,
+								                  CurrentTime);
 							}
 						} else if (target == dnd_atom) {
 							// Dump the binary data

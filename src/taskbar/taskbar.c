@@ -41,11 +41,13 @@ gboolean taskbar_enabled;
 gboolean taskbar_distribute_size;
 gboolean hide_inactive_tasks;
 gboolean hide_task_diff_monitor;
+gboolean hide_taskbar_if_empty;
 gboolean always_show_all_desktop_tasks;
 TaskbarSortMethod taskbar_sort_method;
 Alignment taskbar_alignment;
 
 void taskbar_init_fonts();
+int taskbar_compute_desired_size(void *obj);
 
 // Removes the task with &win = key. The other args are ignored.
 void taskbar_remove_task(Window *win);
@@ -74,6 +76,7 @@ void default_taskbar()
 	taskbar_distribute_size = FALSE;
 	hide_inactive_tasks = FALSE;
 	hide_task_diff_monitor = FALSE;
+	hide_taskbar_if_empty = FALSE;
 	always_show_all_desktop_tasks = FALSE;
 	taskbar_sort_method = TASKBAR_NOSORT;
 	taskbar_alignment = ALIGN_LEFT;
@@ -82,7 +85,6 @@ void default_taskbar()
 
 void cleanup_taskbar()
 {
-	cleanup_taskbarname();
 	if (win_to_task) {
 		while (g_hash_table_size(win_to_task)) {
 			GHashTableIter iter;
@@ -96,6 +98,7 @@ void cleanup_taskbar()
 		g_hash_table_destroy(win_to_task);
 		win_to_task = NULL;
 	}
+	cleanup_taskbarname();
 	for (int i = 0; i < num_panels; i++) {
 		Panel *panel = &panels[i];
 		for (int j = 0; j < panel->num_desktops; j++) {
@@ -114,6 +117,15 @@ void cleanup_taskbar()
 	urgent_list = NULL;
 
 	stop_timeout(urgent_timeout);
+
+	for (int state = 0; state < TASK_STATE_COUNT; state++) {
+		g_list_free(panel_config.g_task.gradient[state]);
+	}
+
+	for (int state = 0; state < TASKBAR_STATE_COUNT; state++) {
+		g_list_free(panel_config.g_taskbar.gradient[state]);
+		g_list_free(panel_config.g_taskbar.gradient_name[state]);
+	}
 }
 
 void init_taskbar()
@@ -163,13 +175,14 @@ void init_taskbar_panel(void *p)
 	panel->g_taskbar.area.size_mode = LAYOUT_DYNAMIC;
 	panel->g_taskbar.area.alignment = taskbar_alignment;
 	panel->g_taskbar.area._resize = resize_taskbar;
+	panel->g_taskbar.area._compute_desired_size = taskbar_compute_desired_size;
 	panel->g_taskbar.area._is_under_mouse = full_width_area_is_under_mouse;
 	panel->g_taskbar.area.resize_needed = 1;
 	panel->g_taskbar.area.on_screen = TRUE;
 	if (panel_horizontal) {
 		panel->g_taskbar.area.posy = top_border_width(&panel->area) + panel->area.paddingy;
 		panel->g_taskbar.area.height =
-			panel->area.height - top_bottom_border_width(&panel->area) - 2 * panel->area.paddingy;
+		    panel->area.height - top_bottom_border_width(&panel->area) - 2 * panel->area.paddingy;
 		panel->g_taskbar.area_name.posy = panel->g_taskbar.area.posy;
 		panel->g_taskbar.area_name.height = panel->g_taskbar.area.height;
 	} else {
@@ -302,10 +315,16 @@ void init_taskbar_panel(void *p)
 		taskbar = &panel->taskbar[j];
 		memcpy(&taskbar->area, &panel->g_taskbar.area, sizeof(Area));
 		taskbar->desktop = j;
-		if (j == server.desktop)
+		if (j == server.desktop) {
 			taskbar->area.bg = panel->g_taskbar.background[TASKBAR_ACTIVE];
-		else
+			free_area_gradient_instances(&taskbar->area);
+			instantiate_area_gradients(&taskbar->area);
+		} else {
 			taskbar->area.bg = panel->g_taskbar.background[TASKBAR_NORMAL];
+			free_area_gradient_instances(&taskbar->area);
+			instantiate_area_gradients(&taskbar->area);
+		}
+
 	}
 	init_taskbarname_panel(panel);
 }
@@ -347,7 +366,7 @@ void taskbar_default_font_changed()
 			}
 		}
 	}
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void taskbar_remove_task(Window *win)
@@ -400,6 +419,22 @@ void taskbar_refresh_tasklist()
 	XFree(win);
 }
 
+int taskbar_compute_desired_size(void *obj)
+{
+	Taskbar *taskbar = (Taskbar *)obj;
+	Panel *panel = (Panel *)taskbar->area.panel;
+
+	if (taskbar_mode == MULTI_DESKTOP && !taskbar_distribute_size) {
+		int result = 0;
+		for (int i = 0; i < panel->num_desktops; i++) {
+			 Taskbar *t = &panel->taskbar[i];
+			 result = MAX(result, container_compute_desired_size(&t->area));
+		}
+		return result;
+	}
+	return container_compute_desired_size(&taskbar->area);
+}
+
 gboolean resize_taskbar(void *obj)
 {
 	Taskbar *taskbar = (Taskbar *)obj;
@@ -430,18 +465,63 @@ gboolean resize_taskbar(void *obj)
 	return FALSE;
 }
 
+gboolean taskbar_is_empty(Taskbar *taskbar)
+{
+	GList *l = taskbar->area.children;
+	if (taskbarname_enabled)
+		l = l->next;
+	for (; l != NULL; l = l->next) {
+		if (((Task *)l->data)->area.on_screen) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void update_taskbar_visibility(Taskbar *taskbar)
+{
+	if (taskbar->desktop == server.desktop) {
+		// Taskbar for current desktop is always shown
+		show(&taskbar->area);
+	} else if (taskbar_mode == MULTI_DESKTOP) {
+		if (hide_taskbar_if_empty) {
+			if (taskbar_is_empty(taskbar)) {
+				hide(&taskbar->area);
+			} else {
+				show(&taskbar->area);
+			}
+		} else {
+			show(&taskbar->area);
+		}
+	} else {
+		hide(&taskbar->area);
+	}
+}
+
+void update_all_taskbars_visibility()
+{
+	for (int i = 0; i < num_panels; i++) {
+		Panel *panel = &panels[i];
+		for (int j = 0; j < panel->num_desktops; j++) {
+			update_taskbar_visibility(&panel->taskbar[j]);
+		}
+	}
+}
+
 void set_taskbar_state(Taskbar *taskbar, TaskbarState state)
 {
 	taskbar->area.bg = panels[0].g_taskbar.background[state];
+	free_area_gradient_instances(&taskbar->area);
+	instantiate_area_gradients(&taskbar->area);
+
 	if (taskbarname_enabled) {
 		taskbar->bar_name.area.bg = panels[0].g_taskbar.background_name[state];
+		free_area_gradient_instances(&taskbar->bar_name.area);
+		instantiate_area_gradients(&taskbar->bar_name.area);
 	}
-	if (taskbar_mode != MULTI_DESKTOP) {
-		if (state == TASKBAR_NORMAL)
-			taskbar->area.on_screen = FALSE;
-		else
-			taskbar->area.on_screen = TRUE;
-	}
+
+	update_taskbar_visibility(taskbar);
+
 	if (taskbar->area.on_screen) {
 		schedule_redraw(&taskbar->area);
 		if (taskbarname_enabled) {
@@ -456,23 +536,7 @@ void set_taskbar_state(Taskbar *taskbar, TaskbarState state)
 				schedule_redraw((Area *)l->data);
 		}
 	}
-	panel_refresh = TRUE;
-}
-
-void update_taskbar_visibility(void *p)
-{
-	Panel *panel = (Panel *)p;
-
-	for (int j = 0; j < panel->num_desktops; j++) {
-		Taskbar *taskbar = &panel->taskbar[j];
-		if (taskbar_mode != MULTI_DESKTOP && taskbar->desktop != server.desktop) {
-			// SINGLE_DESKTOP and not current desktop
-			taskbar->area.on_screen = FALSE;
-		} else {
-			taskbar->area.on_screen = TRUE;
-		}
-	}
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 #define NONTRIVIAL 2
@@ -585,7 +649,7 @@ void sort_tasks(Taskbar *taskbar)
 
 	taskbar->area.children = g_list_sort_with_data(taskbar->area.children, (GCompareDataFunc)compare_tasks, taskbar);
 	taskbar->area.resize_needed = TRUE;
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 	((Panel *)taskbar->area.panel)->area.resize_needed = TRUE;
 }
 

@@ -48,9 +48,10 @@ void copy_file(const char *path_src, const char *path_dest);
 // Strips key and value.
 // Values may contain spaces and the equal sign.
 // Returns 1 if both key and value could be read, zero otherwise.
-int parse_line(const char *line, char **key, char **value);
+gboolean parse_line(const char *line, char **key, char **value);
 
 void extract_values(const char *value, char **value1, char **value2, char **value3);
+void extract_values_4(const char *value, char **value1, char **value2, char **value3, char **value4);
 
 // Executes a command in a shell.
 void tint_exec(const char *command);
@@ -119,6 +120,9 @@ void clear_pixmap(Pixmap p, int x, int y, int w, int h);
 GSList *load_locations_from_env(GSList *locations, const char *var, ...);
 
 GSList *slist_remove_duplicates(GSList *list, GCompareFunc eq, GDestroyNotify fr);
+
+// A trivial pointer comparator.
+gint cmp_ptr(gconstpointer a, gconstpointer b);
 
 #define free_and_null(p) \
 	{                    \

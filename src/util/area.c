@@ -17,10 +17,12 @@
 * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **************************************************************************/
 
+#include <assert.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xrender.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -215,36 +217,39 @@ void relayout_dynamic(Area *a, int level)
 	}
 }
 
+int compute_desired_size(Area *a)
+{
+	if (!a->on_screen)
+		return 0;
+	if (a->_compute_desired_size)
+		return a->_compute_desired_size(a);
+	if (a->size_mode == LAYOUT_FIXED)
+		fprintf(stderr, YELLOW "Area %s does not set desired size!" RESET "\n", a->name);
+	return container_compute_desired_size(a);
+}
+
+int container_compute_desired_size(Area *a)
+{
+	if (!a->on_screen)
+		return 0;
+	int result = 2 * a->paddingxlr + (panel_horizontal ? left_right_border_width(a) : top_bottom_border_width(a));
+	int children_count = 0;
+	for (GList *l = a->children; l != NULL; l = l->next) {
+		Area *child = (Area *)l->data;
+		if (child->on_screen) {
+			result += compute_desired_size(child);
+			children_count++;
+		}
+	}
+	if (children_count > 0)
+		result += (children_count - 1) * a->paddingx;
+	return result;
+}
+
 void relayout(Area *a)
 {
 	relayout_fixed(a);
 	relayout_dynamic(a, 1);
-}
-
-void draw_tree(Area *a)
-{
-	if (!a->on_screen)
-		return;
-
-	if (a->_redraw_needed) {
-		a->_redraw_needed = FALSE;
-		draw(a);
-	}
-
-	if (a->pix)
-		XCopyArea(server.display,
-		          a->pix,
-		          ((Panel *)a->panel)->temp_pmap,
-		          server.gc,
-		          0,
-		          0,
-		          a->width,
-		          a->height,
-		          a->posx,
-		          a->posy);
-
-	for (GList *l = a->children; l; l = l->next)
-		draw_tree((Area *)l->data);
 }
 
 int relayout_with_constraint(Area *a, int maximum_size)
@@ -355,13 +360,43 @@ void schedule_redraw(Area *a)
 
 	for (GList *l = a->children; l; l = l->next)
 		schedule_redraw((Area *)l->data);
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
+}
+
+void draw_tree(Area *a)
+{
+	if (!a->on_screen)
+		return;
+
+	if (a->_redraw_needed) {
+		a->_redraw_needed = FALSE;
+		draw(a);
+	}
+
+	if (a->pix)
+		XCopyArea(server.display,
+				  a->pix,
+				  ((Panel *)a->panel)->temp_pmap,
+				  server.gc,
+				  0,
+				  0,
+				  a->width,
+				  a->height,
+				  a->posx,
+				  a->posy);
+	else
+		fprintf(stderr, RED "%s %d: area %s has no pixmap!!!" RESET "\n", __FILE__, __LINE__, a->name);
+
+	for (GList *l = a->children; l; l = l->next)
+		draw_tree((Area *)l->data);
 }
 
 void hide(Area *a)
 {
 	Area *parent = (Area *)a->parent;
 
+	if (!a->on_screen)
+		return;
 	a->on_screen = FALSE;
 	if (parent)
 		parent->resize_needed = TRUE;
@@ -375,10 +410,29 @@ void show(Area *a)
 {
 	Area *parent = (Area *)a->parent;
 
+	if (a->on_screen)
+		return;
 	a->on_screen = TRUE;
 	if (parent)
 		parent->resize_needed = TRUE;
 	a->resize_needed = TRUE;
+	schedule_panel_redraw();
+}
+
+void update_dependent_gradients(Area *a)
+{
+	if (!a->on_screen)
+		return;
+	if (a->_changed) {
+		for (GList *l = a->dependent_gradients; l; l = l->next) {
+			GradientInstance *gi = (GradientInstance *)l->data;
+			update_gradient(gi);
+			if (gi->area != a)
+				schedule_redraw(gi->area);
+		}
+	}
+	for (GList *l = a->children; l; l = l->next)
+		update_dependent_gradients((Area *)l->data);
 }
 
 void draw(Area *a)
@@ -438,7 +492,7 @@ void draw(Area *a)
 
 void draw_background(Area *a, cairo_t *c)
 {
-	if (a->bg->fill_color.alpha > 0.0 ||
+	if ((a->bg->fill_color.alpha > 0.0) ||
 	    (panel_config.mouse_effects && (a->has_mouse_over_effect || a->has_mouse_press_effect))) {
 		if (a->mouse_state == MOUSE_OVER)
 			cairo_set_source_rgba(c,
@@ -466,6 +520,19 @@ void draw_background(Area *a, cairo_t *c)
 		          a->height - top_bottom_border_width(a),
 		          a->bg->border.radius - a->bg->border.width / 1.571);
 
+		cairo_fill(c);
+	}
+	for (GList *l = a->gradient_instances_by_state[a->mouse_state]; l; l = l->next) {
+		GradientInstance *gi = (GradientInstance *)l->data;
+		if (!gi->pattern)
+			update_gradient(gi);
+		cairo_set_source(c, gi->pattern);
+		draw_rect(c,
+		          left_border_width(a),
+		          top_border_width(a),
+		          a->width - left_right_border_width(a),
+		          a->height - top_bottom_border_width(a),
+		          a->bg->border.radius - a->bg->border.width / 1.571);
 		cairo_fill(c);
 	}
 
@@ -508,10 +575,12 @@ void remove_area(Area *a)
 	Area *area = (Area *)a;
 	Area *parent = (Area *)area->parent;
 
+	free_area_gradient_instances(a);
+
 	if (parent) {
 		parent->children = g_list_remove(parent->children, area);
 		parent->resize_needed = TRUE;
-		panel_refresh = TRUE;
+		schedule_panel_redraw();
 		schedule_redraw(parent);
 	}
 
@@ -529,7 +598,6 @@ void add_area(Area *a, Area *parent)
 		parent->children = g_list_append(parent->children, a);
 		parent->resize_needed = TRUE;
 		schedule_redraw(parent);
-		panel_refresh = TRUE;
 	}
 }
 
@@ -559,6 +627,7 @@ void free_area(Area *a)
 	if (mouse_over_area == a) {
 		mouse_over_area = NULL;
 	}
+	free_area_gradient_instances(a);
 }
 
 void mouse_over(Area *area, int pressed)
@@ -584,11 +653,10 @@ void mouse_over(Area *area, int pressed)
 	mouse_over_area = area;
 
 	mouse_over_area->mouse_state = new_state;
-	mouse_over_area->pix =
-	    mouse_over_area->pix_by_state[mouse_over_area->has_mouse_over_effect ? mouse_over_area->mouse_state : 0];
+	mouse_over_area->pix = mouse_over_area->pix_by_state[mouse_over_area->mouse_state];
 	if (!mouse_over_area->pix)
 		mouse_over_area->_redraw_needed = TRUE;
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 }
 
 void mouse_out()
@@ -596,11 +664,10 @@ void mouse_out()
 	if (!mouse_over_area)
 		return;
 	mouse_over_area->mouse_state = MOUSE_NORMAL;
-	mouse_over_area->pix =
-	    mouse_over_area->pix_by_state[mouse_over_area->has_mouse_over_effect ? mouse_over_area->mouse_state : 0];
+	mouse_over_area->pix = mouse_over_area->pix_by_state[mouse_over_area->mouse_state];
 	if (!mouse_over_area->pix)
 		mouse_over_area->_redraw_needed = TRUE;
-	panel_refresh = TRUE;
+	schedule_panel_redraw();
 	mouse_over_area = NULL;
 }
 
@@ -783,28 +850,29 @@ void area_dump_geometry(Area *area, int indent)
 		return;
 	}
 	fprintf(stderr,
-	        "%*sBox: x = %d, y = %d, w = %d, h = %d\n",
+			"%*sBox: x = %d, y = %d, w = %d, h = %d, desired size = %d\n",
 	        indent,
 	        "",
 	        area->posx,
 	        area->posy,
 	        area->width,
-	        area->height);
+			area->height,
+			compute_desired_size(area));
 	fprintf(stderr,
-			"%*sBorder: left = %d, right = %d, top = %d, bottom = %d\n",
-			indent,
-			"",
-			left_border_width(area),
-			right_border_width(area),
-			top_border_width(area),
-			bottom_border_width(area));
+	        "%*sBorder: left = %d, right = %d, top = %d, bottom = %d\n",
+	        indent,
+	        "",
+	        left_border_width(area),
+	        right_border_width(area),
+	        top_border_width(area),
+	        bottom_border_width(area));
 	fprintf(stderr,
-			"%*sPadding: left = right = %d, top = bottom = %d, spacing = %d\n",
-			indent,
-			"",
-			area->paddingxlr,
-			area->paddingy,
-			area->paddingx);
+	        "%*sPadding: left = right = %d, top = bottom = %d, spacing = %d\n",
+	        indent,
+	        "",
+	        area->paddingxlr,
+	        area->paddingy,
+	        area->paddingx);
 	if (area->_dump_geometry)
 		area->_dump_geometry(area, indent);
 	if (area->children) {
@@ -813,4 +881,257 @@ void area_dump_geometry(Area *area, int indent)
 		for (GList *l = area->children; l; l = l->next)
 			area_dump_geometry((Area *)l->data, indent);
 	}
+}
+
+Area *compute_element_area(Area *area, Element element)
+{
+	if (element == ELEMENT_SELF)
+		return area;
+	if (element == ELEMENT_PARENT)
+		return (Area *)area->parent;
+	if (element == ELEMENT_PANEL)
+		return (Area *)area->panel;
+	g_assert_not_reached();
+	return area;
+}
+
+void instantiate_gradient_offsets(GradientInstance *gi, GList *offsets)
+{
+	for (GList *l = offsets; l; l = l->next) {
+		Offset *offset = (Offset *)l->data;
+		if (!offset->constant) {
+			Area *element_area = compute_element_area(gi->area, offset->element);
+			element_area->dependent_gradients = g_list_append(element_area->dependent_gradients, gi);
+		}
+	}
+}
+
+void free_gradient_offsets(GradientInstance *gi, GList **offsets)
+{
+	for (GList *l = *offsets; l; l = l->next) {
+		Offset *offset = (Offset *)l->data;
+		if (!offset->constant) {
+			Area *element_area = compute_element_area(gi->area, offset->element);
+			element_area->dependent_gradients = g_list_remove_all(element_area->dependent_gradients, gi);
+		}
+	}
+}
+
+void instantiate_gradient_point(GradientInstance *gi, ControlPoint *control)
+{
+	instantiate_gradient_offsets(gi, control->offsets_x);
+	instantiate_gradient_offsets(gi, control->offsets_y);
+	instantiate_gradient_offsets(gi, control->offsets_r);
+}
+
+void free_gradient_instance_point(GradientInstance *gi, ControlPoint *control)
+{
+	free_gradient_offsets(gi, &control->offsets_x);
+	free_gradient_offsets(gi, &control->offsets_y);
+	free_gradient_offsets(gi, &control->offsets_r);
+}
+
+void instantiate_gradient(Area *area, GradientClass *g, GradientInstance *gi)
+{
+	g_assert_nonnull(area);
+	g_assert_nonnull(g);
+	gi->area = area;
+	gi->gradient_class = g;
+	instantiate_gradient_point(gi, &g->from);
+	instantiate_gradient_point(gi, &g->to);
+}
+
+void free_gradient_instance(GradientInstance *gi)
+{
+	if (gi->pattern) {
+		cairo_pattern_destroy(gi->pattern);
+		gi->pattern = NULL;
+	}
+	free_gradient_instance_point(gi, &gi->gradient_class->from);
+	free_gradient_instance_point(gi, &gi->gradient_class->to);
+	gi->gradient_class = NULL;
+}
+
+void instantiate_area_gradients(Area *area)
+{
+	if (debug_gradients)
+		fprintf(stderr, "Initializing gradients for area %s\n", area->name);
+	for (int i = 0; i < MOUSE_STATE_COUNT; i++) {
+		g_assert_null(area->gradient_instances_by_state[i]);
+		GradientClass *g = area->bg->gradients[i];
+		if (!g)
+			continue;
+		GradientInstance *gi = (GradientInstance *)calloc(1, sizeof(GradientInstance));
+		instantiate_gradient(area, g, gi);
+		area->gradient_instances_by_state[i] = g_list_append(area->gradient_instances_by_state[i], gi);
+	}
+}
+
+void free_area_gradient_instances(Area *area)
+{
+	if (debug_gradients)
+		fprintf(stderr, "Freeing gradients for area %s\n", area->name);
+	for (int i = 0; i < MOUSE_STATE_COUNT; i++) {
+		for (GList *l = area->gradient_instances_by_state[i]; l; l = l->next) {
+			GradientInstance *gi = (GradientInstance *)l->data;
+			free_gradient_instance(gi);
+		}
+		g_list_free_full(area->gradient_instances_by_state[i], free);
+		area->gradient_instances_by_state[i] = NULL;
+	}
+	g_assert_null(area->dependent_gradients);
+}
+
+double compute_control_point_offset(Area *area, Offset *offset)
+{
+	if (offset->constant)
+		return offset->constant_value;
+
+	Area *element_area = compute_element_area(area, offset->element);
+	Area *parent_area = ((Area *)area->parent);
+	g_assert_nonnull(element_area);
+	g_assert_nonnull(parent_area);
+
+	double width = element_area->width;
+	double height = element_area->height;
+	double radius = sqrt(element_area->width * element_area->width + element_area->height * element_area->height) / 2.0;
+
+	double left, top;
+	if (offset->element == ELEMENT_SELF) {
+		left = 0;
+		top = 0;
+	} else if (offset->element == ELEMENT_PARENT) {
+		left = parent_area->posx - area->posx;
+		top = parent_area->posy - area->posy;
+	} else if (offset->element == ELEMENT_PANEL) {
+		left = 0 - area->posx;
+		top = 0 - area->posy;
+	}
+
+	double right = left + width;
+	double bottom = top + height;
+	double center_x = left + 0.5 * width;
+	double center_y = top + 0.5 * height;
+
+	if (offset->variable == SIZE_WIDTH)
+		return width * offset->multiplier;
+	if (offset->variable == SIZE_HEIGHT)
+		return height * offset->multiplier;
+	if (offset->variable == SIZE_RADIUS)
+		return radius * offset->multiplier;
+	if (offset->variable == SIZE_LEFT)
+		return left * offset->multiplier;
+	if (offset->variable == SIZE_RIGHT)
+		return right * offset->multiplier;
+	if (offset->variable == SIZE_TOP)
+		return top * offset->multiplier;
+	if (offset->variable == SIZE_BOTTOM)
+		return bottom * offset->multiplier;
+	if (offset->variable == SIZE_CENTERX)
+		return center_x * offset->multiplier;
+	if (offset->variable == SIZE_CENTERY)
+		return center_y * offset->multiplier;
+
+	g_assert_not_reached();
+	return 0;
+}
+
+double compute_control_point_offsets(GradientInstance *gi, GList *offsets)
+{
+	double result = 0;
+	for (GList *l = offsets; l; l = l->next) {
+		Offset *offset = (Offset *)l->data;
+		result += compute_control_point_offset(gi->area, offset);
+	}
+	return result;
+}
+
+void compute_control_point(GradientInstance *gi, ControlPoint *control, double *x, double *y, double *r)
+{
+	*x = compute_control_point_offsets(gi, control->offsets_x);
+	*y = compute_control_point_offsets(gi, control->offsets_y);
+	*r = compute_control_point_offsets(gi, control->offsets_r);
+}
+
+void update_gradient(GradientInstance *gi)
+{
+	if (gi->pattern) {
+		return;
+		cairo_pattern_destroy(gi->pattern);
+		gi->pattern = NULL;
+	}
+	double from_x, from_y, from_r;
+	compute_control_point(gi, &gi->gradient_class->from, &from_x, &from_y, &from_r);
+	double to_x, to_y, to_r;
+	compute_control_point(gi, &gi->gradient_class->to, &to_x, &to_y, &to_r);
+	if (gi->gradient_class->type == GRADIENT_VERTICAL || gi->gradient_class->type == GRADIENT_HORIZONTAL) {
+		gi->pattern = cairo_pattern_create_linear(from_x, from_y, to_x, to_y);
+		if (debug_gradients)
+			fprintf(stderr,
+			        "Creating linear gradient for area %s: %f %f, %f %f\n",
+			        gi->area->name,
+			        from_x,
+			        from_y,
+			        to_x,
+			        to_y);
+	} else if (gi->gradient_class->type == GRADIENT_CENTERED) {
+		gi->pattern = cairo_pattern_create_radial(from_x, from_y, from_r, to_x, to_y, to_r);
+		if (debug_gradients)
+			fprintf(stderr,
+			        "Creating radial gradient for area %s: %f %f %f, %f %f %f\n",
+			        gi->area->name,
+			        from_x,
+			        from_y,
+			        from_r,
+			        to_x,
+			        to_y,
+			        to_r);
+	} else {
+		g_assert_not_reached();
+	}
+	if (debug_gradients)
+		fprintf(stderr,
+		        "Adding color stop at offset %f: %f %f %f %f\n",
+		        0.0,
+		        gi->gradient_class->start_color.rgb[0],
+		        gi->gradient_class->start_color.rgb[1],
+		        gi->gradient_class->start_color.rgb[2],
+		        gi->gradient_class->start_color.alpha);
+	cairo_pattern_add_color_stop_rgba(gi->pattern,
+	                                  0,
+	                                  gi->gradient_class->start_color.rgb[0],
+	                                  gi->gradient_class->start_color.rgb[1],
+	                                  gi->gradient_class->start_color.rgb[2],
+	                                  gi->gradient_class->start_color.alpha);
+	for (GList *l = gi->gradient_class->extra_color_stops; l; l = l->next) {
+		ColorStop *color_stop = (ColorStop *)l->data;
+		if (debug_gradients)
+			fprintf(stderr,
+			        "Adding color stop at offset %f: %f %f %f %f\n",
+			        color_stop->offset,
+			        color_stop->color.rgb[0],
+			        color_stop->color.rgb[1],
+			        color_stop->color.rgb[2],
+			        color_stop->color.alpha);
+		cairo_pattern_add_color_stop_rgba(gi->pattern,
+		                                  color_stop->offset,
+		                                  color_stop->color.rgb[0],
+		                                  color_stop->color.rgb[1],
+		                                  color_stop->color.rgb[2],
+		                                  color_stop->color.alpha);
+	}
+	if (debug_gradients)
+		fprintf(stderr,
+		        "Adding color stop at offset %f: %f %f %f %f\n",
+		        1.0,
+		        gi->gradient_class->end_color.rgb[0],
+		        gi->gradient_class->end_color.rgb[1],
+		        gi->gradient_class->end_color.rgb[2],
+		        gi->gradient_class->end_color.alpha);
+	cairo_pattern_add_color_stop_rgba(gi->pattern,
+	                                  1.0,
+	                                  gi->gradient_class->end_color.rgb[0],
+	                                  gi->gradient_class->end_color.rgb[1],
+	                                  gi->gradient_class->end_color.rgb[2],
+	                                  gi->gradient_class->end_color.alpha);
 }
