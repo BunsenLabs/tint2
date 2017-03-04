@@ -1,7 +1,7 @@
 Source: tint2
 Section: x11
 Priority: optional
-Maintainer: o9000 <mrovi9000@gmail.com>
+Maintainer: Jens John <dev@2ion.de>
 Build-Depends: cmake,
                debhelper (>= 9),
                libcairo2-dev,

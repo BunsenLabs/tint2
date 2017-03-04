@@ -1,3 +1,12 @@
+tint2 (0.13.0-1) jessie-backports; urgency=medium
+
+  * debian/control: make myself the new maintainer a the package needed to be
+    modified
+  * New upstream release 0.13.
+  * Build for BL jessie-backports.
+
+ -- Jens John <dev@2ion.de>  Sat, 04 Mar 2017 16:28:52 +0100
+
 tint2 (0.12.12~bl1+e9d6ec9f-1.1) jessie-backports; urgency=medium
 
   * Non-maintainer upload.

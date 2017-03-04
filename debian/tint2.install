@@ -1,6 +1,6 @@
 /usr/bin/tint2
 /usr/bin/tint2conf
-/etc/xdg/tint2/tint2rc
+themes/tint2rc etc/xdg/tint2
 /usr/share/applications/tint2.desktop
 /usr/share/applications/tint2conf.desktop
 /usr/share/man/man1/tint2.1
