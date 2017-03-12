@@ -1,4 +1,4 @@
-# TINT2 1 "2017-03-04"
+# TINT2 1 "2017-03-12"
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -389,7 +389,7 @@ panel_size = 94% 30
 
 The following options configure the task buttons in the taskbar:
 
-  * `task_icon = boolean (0 or 1)` : Whether to display the task icon.
+  * `task_icon = boolean (0 or 1)` : Whether to display the task icon. There is no explicit option to control the task icon size; it depends on the vertical padding set with `task_padding`.
 
   * `task_text = boolean (0 or 1)` : Whether to display the task text.
 
@@ -462,6 +462,8 @@ The action semantics:
   * `systray_icon_asb = alpha (0 to 100) saturation (-100 to 100) brightness (-100 to 100)` : Adjust the systray icons color and transparency.
 
   * `systray_monitor = integer (1, 2, ...)` :  On which monitor to draw the systray. The first monitor is `1`. *(since 0.12)*
+
+  * `systray_name_filter = string` :  Regular expression to identify icon names to be hidden. For example, `^audacious$` will hide icons with the exact name `audacious`, while `aud` will hide any icons having `aud` in the name. *(since 0.13.1)*
 
 ### Clock
 
@@ -644,8 +646,8 @@ execp_continuous = 2
 
 ```
 execp = new
-execp_command = ping -i 1 -W 1 -O -D -n $(ip route | grep default | grep via | grep -o '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*') | awk '/no/ { print "<span foreground=\"#faa\">timeout</span>"; fflush(); }; /time=/ { gsub(/time=/, "", $8); printf "<span foreground=\"#7af\">%3.0f %s</span>\n", $8, $9; fflush(); } '
-execp_continuous = 1
+execp_command = ping -i 1 -c 1 -W 1 -O -D -n $(ip route | grep default | grep via | grep -o '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*') | awk '/no/ { print "<span foreground=\"#faa\">timeout</span>"; fflush(); }; /time=/ { gsub(/time=/, "", $8); printf "<span foreground=\"#7af\">%3.0f %s</span>\n", $8, $9; fflush(); } '
+execp_continuous = 0
 execp_interval = 1
 execp_markup = 1
 ```
@@ -654,9 +656,9 @@ execp_markup = 1
 
 ```
 execp = new
-execp_command = free -s 2 | awk '/^-/ { printf "Mem: '$(free -h | awk '/^Mem:/ { print $2 }')' %.0f%\n", 100*$3/($3+$4); fflush(stdout) }'
-execp_interval = 1
-execp_continuous = 1
+execp_command = free | awk '/^-/ { printf "Mem: '$(free -h | awk '/^Mem:/ { print $2 }')' %.0f%%\n", 100*$3/($3+$4); fflush(stdout) }'
+execp_interval = 5
+execp_continuous = 0
 ```
 
 ##### Network load
@@ -743,7 +745,7 @@ task_font = sans 7
 task_font_color = #ffffff 70
 task_background_id = 3
 task_icon_asb = 100 0 0
-## replace STATUS by 'urgent', 'active' or 'iconfied'
+## replace STATUS by 'urgent', 'active' or 'iconified'
 #task_STATUS_background_id = 2
 #task_STATUS_font_color = #ffffff 85
 #task_STATUS_icon_asb = 100 0 0

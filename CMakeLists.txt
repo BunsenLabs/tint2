@@ -82,7 +82,7 @@ if( NOT IMLIB_BUILD_WITH_X )
   message( FATAL_ERROR "Imlib is not built with X support" )
 endif( NOT IMLIB_BUILD_WITH_X )
 
-add_definitions( -D_GNU_SOURCE )
+add_definitions( -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE -D_DEFAULT_SOURCE )
 
 include_directories( ${PROJECT_BINARY_DIR}
                      src
@@ -124,6 +124,7 @@ set( SOURCES src/config.c
              src/execplugin/execplugin.c
              src/freespace/freespace.c
              src/separator/separator.c
+             src/tint2rc.c
              src/util/area.c
              src/util/common.c
              src/util/strnatcmp.c

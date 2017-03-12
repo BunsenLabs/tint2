@@ -20,6 +20,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,8 @@ int systray_monitor;
 int chrono;
 int systray_composited;
 int systray_profile;
+char *systray_hide_name_filter;
+regex_t *systray_hide_name_regex;
 // background pixmap if we render ourselves the icons
 static Pixmap render_background;
 
@@ -81,6 +84,8 @@ void default_systray()
 	systray.area.size_mode = LAYOUT_FIXED;
 	systray.area._resize = resize_systray;
 	systray_profile = getenv("SYSTRAY_PROFILING") != NULL;
+	systray_hide_name_filter = NULL;
+	systray_hide_name_regex = NULL;
 }
 
 void cleanup_systray()
@@ -95,6 +100,12 @@ void cleanup_systray()
 		XFreePixmap(server.display, render_background);
 		render_background = 0;
 	}
+	if (systray_hide_name_regex) {
+		regfree(systray_hide_name_regex);
+		free_and_null(systray_hide_name_regex);
+	}
+	if (systray_hide_name_filter)
+		free_and_null(systray_hide_name_filter);
 }
 
 void init_systray()
@@ -573,6 +584,26 @@ void print_icons()
 	}
 }
 
+gboolean reject_icon(Window win)
+{
+	if (systray_hide_name_filter && strlen(systray_hide_name_filter)) {
+		if (!systray_hide_name_regex) {
+			systray_hide_name_regex = (regex_t *) calloc(1, sizeof(*systray_hide_name_regex));
+			if (regcomp(systray_hide_name_regex, systray_hide_name_filter, 0) != 0) {
+				fprintf(stderr, RED "Could not compile regex %s" RESET "\n", systray_hide_name_filter);
+				free_and_null(systray_hide_name_regex);
+				return FALSE;
+			}
+		}
+		char *name = get_window_name(win);
+		if (regexec(systray_hide_name_regex, name, 0, NULL, 0) == 0) {
+			fprintf(stderr, GREEN "Filtering out systray icon '%s'" RESET "\n", name);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 gboolean add_icon(Window win)
 {
 	// Avoid duplicates
@@ -583,6 +614,10 @@ gboolean add_icon(Window win)
 		}
 	}
 
+	// Filter out systray_hide_by_icon_name
+	if (reject_icon(win))
+		return FALSE;
+	
 	// Dangerous actions begin
 	XSync(server.display, False);
 	error = FALSE;

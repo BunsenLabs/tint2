@@ -440,8 +440,6 @@ gboolean resize_panel(void *obj)
 			Taskbar *taskbar = &panel->taskbar[i];
 			if (!taskbar->area.on_screen)
 				continue;
-			if (!taskbar->area.children)
-				continue;
 			if (panel_horizontal)
 				taskbar->area.width = 2 * taskbar->area.paddingxlr;
 			else
@@ -516,6 +514,7 @@ gboolean resize_panel(void *obj)
 					taskbar->area.width += total_size;
 				else
 					taskbar->area.height += total_size;
+				break;
 			}
 		}
 		for (int i = 0; i < panel->num_desktops; i++) {
