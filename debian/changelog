@@ -1,3 +1,9 @@
+tint2 (0.13.3-1) jessie-backports; urgency=medium
+
+  * New upstream release 0.13.3.
+
+ -- Jens John <dev@2ion.de>  Sat, 25 Mar 2017 18:39:44 +0100
+
 tint2 (0.13.1-1) jessie-backports; urgency=medium
 
   * New upstream release 0.13.1.
