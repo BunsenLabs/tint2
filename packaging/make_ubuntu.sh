@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Requirements: devscripts
+
 set -x
 
 rm -rf tint2* 2>/dev/null || true
@@ -29,6 +31,8 @@ else
     REPO="tint2-git"
 fi
 
+set -e
+
 # Export repository contents to source directory
 DIR=tint2-$VERSION
 echo "Making release $DIR"
@@ -43,9 +47,9 @@ rm -f $DIR/make_release.sh
 echo "echo \"#define VERSION_STRING \\\"$VERSION\\\"\" > version.h" > $DIR/get_version.sh
 
 # Copy the debian files into the source directory
-cp -r ubuntu $DIR/debian
+cp -r debian $DIR/debian
 
-for DISTRO in precise trusty wily xenial
+for DISTRO in precise trusty xenial yakkety zesty
 do
     # Cleanup from previous builds
     rm -rf tint2_$VERSION-*

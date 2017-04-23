@@ -12,39 +12,39 @@
 #include "taskbarname.h"
 
 typedef enum TaskbarState {
-	TASKBAR_NORMAL = 0,
-	TASKBAR_ACTIVE,
-	TASKBAR_STATE_COUNT,
+    TASKBAR_NORMAL = 0,
+    TASKBAR_ACTIVE,
+    TASKBAR_STATE_COUNT,
 } TaskbarState;
 
 typedef enum TaskbarSortMethod {
-	TASKBAR_NOSORT = 0,
-	TASKBAR_SORT_CENTER,
-	TASKBAR_SORT_TITLE,
-	TASKBAR_SORT_LRU,
-	TASKBAR_SORT_MRU,
+    TASKBAR_NOSORT = 0,
+    TASKBAR_SORT_CENTER,
+    TASKBAR_SORT_TITLE,
+    TASKBAR_SORT_LRU,
+    TASKBAR_SORT_MRU,
 } TaskbarSortMethod;
 
 typedef struct {
-	Area area;
-	gchar *name;
-	int posy;
+    Area area;
+    gchar *name;
+    int posy;
 } TaskbarName;
 
 typedef struct {
-	Area area;
-	int desktop;
-	TaskbarName bar_name;
-	int text_width;
+    Area area;
+    int desktop;
+    TaskbarName bar_name;
+    int text_width;
 } Taskbar;
 
 typedef struct GlobalTaskbar {
-	Area area;
-	Area area_name;
-	Background *background[TASKBAR_STATE_COUNT];
-	Background *background_name[TASKBAR_STATE_COUNT];
-	GList *gradient[TASKBAR_STATE_COUNT];
-	GList *gradient_name[TASKBAR_STATE_COUNT];
+    Area area;
+    Area area_name;
+    Background *background[TASKBAR_STATE_COUNT];
+    Background *background_name[TASKBAR_STATE_COUNT];
+    GList *gradient[TASKBAR_STATE_COUNT];
+    GList *gradient_name[TASKBAR_STATE_COUNT];
 } GlobalTaskbar;
 
 extern gboolean taskbar_enabled;
@@ -87,6 +87,8 @@ void set_taskbar_state(Taskbar *taskbar, TaskbarState state);
 
 // Updates the visibility of all taskbars
 void update_all_taskbars_visibility();
+
+void update_minimized_icon_positions(void *p);
 
 // Sorts the taskbar(s) on which the window is present.
 void sort_taskbar_for_win(Window win);

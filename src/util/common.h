@@ -24,19 +24,19 @@
 
 // mouse actions
 typedef enum MouseAction {
-	NONE = 0,
-	CLOSE,
-	TOGGLE,
-	ICONIFY,
-	SHADE,
-	TOGGLE_ICONIFY,
-	MAXIMIZE_RESTORE,
-	MAXIMIZE,
-	RESTORE,
-	DESKTOP_LEFT,
-	DESKTOP_RIGHT,
-	NEXT_TASK,
-	PREV_TASK
+    NONE = 0,
+    CLOSE,
+    TOGGLE,
+    ICONIFY,
+    SHADE,
+    TOGGLE_ICONIFY,
+    MAXIMIZE_RESTORE,
+    MAXIMIZE,
+    RESTORE,
+    DESKTOP_LEFT,
+    DESKTOP_RIGHT,
+    NEXT_TASK,
+    PREV_TASK
 } MouseAction;
 
 #define ALL_DESKTOPS 0xFFFFFFFF
@@ -54,7 +54,8 @@ void extract_values(const char *value, char **value1, char **value2, char **valu
 void extract_values_4(const char *value, char **value1, char **value2, char **value3, char **value4);
 
 // Executes a command in a shell.
-void tint_exec(const char *command);
+void tint_exec(const char *command, const char *dir, const char *tooltip, Time time);
+void tint_exec_no_sn(const char *command);
 
 // Returns a copy of s in which "~" is expanded to the path to the user's home directory.
 // The caller takes ownership of the string.
@@ -94,16 +95,16 @@ void create_heuristic_mask(DATA32 *data, int w, int h);
 void render_image(Drawable d, int x, int y);
 
 void get_text_size2(PangoFontDescription *font,
-					int *height_ink,
-					int *height,
-					int *width,
-					int panel_height,
-					int panel_with,
-					char *text,
-					int len,
-					PangoWrapMode wrap,
-					PangoEllipsizeMode ellipsis,
-					gboolean markup);
+                    int *height_ink,
+                    int *height,
+                    int *width,
+                    int panel_height,
+                    int panel_with,
+                    char *text,
+                    int len,
+                    PangoWrapMode wrap,
+                    PangoEllipsizeMode ellipsis,
+                    gboolean markup);
 
 void draw_text(PangoLayout *layout, cairo_t *c, int posx, int posy, Color *color, int font_shadow);
 
@@ -125,10 +126,10 @@ GSList *slist_remove_duplicates(GSList *list, GCompareFunc eq, GDestroyNotify fr
 gint cmp_ptr(gconstpointer a, gconstpointer b);
 
 #define free_and_null(p) \
-	{                    \
-		free(p);         \
-		p = NULL;        \
-	}
+    {                    \
+        free(p);         \
+        p = NULL;        \
+    }
 
 #if !GLIB_CHECK_VERSION(2, 33, 4)
 GList *g_list_copy_deep(GList *list, GCopyFunc func, gpointer user_data);
@@ -136,6 +137,10 @@ GList *g_list_copy_deep(GList *list, GCopyFunc func, gpointer user_data);
 
 #if !GLIB_CHECK_VERSION(2, 38, 0)
 #define g_assert_null(expr) g_assert((expr) == NULL)
+#endif
+
+#if !GLIB_CHECK_VERSION(2, 40, 0)
+#define g_assert_nonnull(expr) g_assert((expr) != NULL)
 #endif
 
 #endif

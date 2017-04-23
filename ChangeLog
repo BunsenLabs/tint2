@@ -1,3 +1,13 @@
+2017-04-23 0.14.3
+- Fixes:
+  - Make versioning more robust when building as package
+- Enhancements:
+  - Tint2conf: Open current tint2 config automatically when started from tint2
+
+2017-03-26 0.14.1
+- Fixes:
+  - Fixed tint2conf problem under FreeBSD (or generally any system using clang).
+
 2017-03-26 0.14
 - Enhancements:
   - New plugin: button.

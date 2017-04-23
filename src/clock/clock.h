@@ -14,12 +14,12 @@
 #include "area.h"
 
 typedef struct Clock {
-	// always start with area
-	Area area;
+    // always start with area
+    Area area;
 
-	Color font;
-	int time1_posy;
-	int time2_posy;
+    Color font;
+    int time1_posy;
+    int time2_posy;
 } Clock;
 
 extern char *time1_format;
@@ -54,6 +54,6 @@ void draw_clock(void *obj, cairo_t *c);
 
 gboolean resize_clock(void *obj);
 
-void clock_action(int button);
+void clock_action(int button, Time time);
 
 #endif
