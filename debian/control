@@ -16,8 +16,8 @@ Build-Depends: cmake,
                libxinerama-dev,
                libxrandr-dev
 Standards-Version: 3.9.7
-Vcs-Git: git://anonscm.debian.org/collab-maint/tint2.git
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/tint2.git
+Vcs-Git: https://github.com/BunsenLabs/tint2.git
+Vcs-Browser: https://github.com/BunsenLabs/tint2
 Homepage: https://gitlab.com/o9000/tint2/
 
 Package: tint2
