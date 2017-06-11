@@ -463,6 +463,7 @@ void init(int argc, char *argv[])
 
     struct sigaction sa = {.sa_handler = signal_handler, .sa_flags = SA_RESTART};
     sigaction(SIGUSR1, &sa, 0);
+    sigaction(SIGUSR2, &sa, 0);
     sigaction(SIGINT, &sa, 0);
     sigaction(SIGTERM, &sa, 0);
     sigaction(SIGHUP, &sa, 0);
@@ -652,6 +653,7 @@ void cleanup()
 
     cleanup_server();
     cleanup_timeout();
+
     if (server.display)
         XCloseDisplay(server.display);
     server.display = NULL;
@@ -2176,6 +2178,12 @@ start:
                 // restart tint2
                 // SIGUSR1 used when : user's signal, composite manager stop/start or xrandr
                 goto start;
+            } else if (signal_pending == SIGUSR2) {
+                fprintf(stderr, YELLOW "%s %d: reexecuting tint2..." RESET "\n", __FILE__, __LINE__);
+                if (execvp(argv[0], argv) == -1) {
+                    fprintf(stderr, RED "%s %d: failed!" RESET "\n", __FILE__, __LINE__);
+                    return 1;
+                }
             } else {
                 // SIGINT, SIGTERM, SIGHUP
                 exit(0);

@@ -290,156 +290,138 @@ gboolean reload_icon(Execp *execp)
     return FALSE;
 }
 
-int execp_compute_desired_size(void *obj)
+void execp_compute_icon_text_geometry(Execp *execp,
+                                      int *horiz_padding,
+                                      int *vert_padding,
+                                      int *interior_padding,
+                                      int *icon_w,
+                                      int *icon_h,
+                                      gboolean *text_next_line,
+                                      int *txt_height_ink,
+                                      int *txt_height,
+                                      int *txt_width,
+                                      int *new_size,
+                                      gboolean *resized)
 {
-    Execp *execp = (Execp *)obj;
     Panel *panel = (Panel *)execp->area.panel;
-    int horiz_padding = (panel_horizontal ? execp->area.paddingxlr : execp->area.paddingy);
-    int vert_padding = (panel_horizontal ? execp->area.paddingy : execp->area.paddingxlr);
-    int interior_padding = execp->area.paddingx;
+    Area *area = &execp->area;
+    *horiz_padding = (panel_horizontal ? area->paddingxlr : area->paddingy);
+    *vert_padding = (panel_horizontal ? area->paddingy : area->paddingxlr);
+    *interior_padding = area->paddingx;
 
-    int icon_w, icon_h;
     if (reload_icon(execp)) {
         if (execp->backend->icon) {
             imlib_context_set_image(execp->backend->icon);
-            icon_w = imlib_image_get_width();
-            icon_h = imlib_image_get_height();
+            *icon_w = imlib_image_get_width();
+            *icon_h = imlib_image_get_height();
         } else {
-            icon_w = icon_h = 0;
+            *icon_w = *icon_h = 0;
         }
     } else {
-        icon_w = icon_h = 0;
+        *icon_w = *icon_h = 0;
     }
 
-    int text_next_line = !panel_horizontal && icon_w > execp->area.width / 2;
+    *text_next_line = !panel_horizontal && *icon_w > area->width / 2;
 
+    int available_w, available_h;
+    if (panel_horizontal) {
+        available_w = panel->area.width;
+        available_h = area->height - 2 * area->paddingy - left_right_border_width(area);
+    } else {
+        available_w = !text_next_line
+                          ? area->width - *icon_w - (*icon_w ? *interior_padding : 0) - 2 * *horiz_padding -
+                                left_right_border_width(area)
+                          : area->width - 2 * *horiz_padding - left_right_border_width(area);
+        available_h = panel->area.height;
+    }
+    get_text_size2(execp->backend->font_desc,
+                   txt_height_ink,
+                   txt_height,
+                   txt_width,
+                   available_h,
+                   available_w,
+                   execp->backend->text,
+                   strlen(execp->backend->text),
+                   PANGO_WRAP_WORD_CHAR,
+                   PANGO_ELLIPSIZE_NONE,
+                   execp->backend->has_markup);
+
+    *resized = FALSE;
+    if (panel_horizontal) {
+        *new_size = *txt_width;
+        if (*icon_w)
+            *new_size += *interior_padding + *icon_w;
+        *new_size += 2 * *horiz_padding + left_right_border_width(area);
+        if (*new_size > area->width || *new_size < (area->width - 6)) {
+            // we try to limit the number of resize
+            *new_size += 1;
+            *resized = TRUE;
+        }
+    } else {
+        if (!*text_next_line) {
+            *new_size = *txt_height + 2 * *vert_padding + top_bottom_border_width(area);
+            *new_size = MAX(*new_size, *icon_h + 2 * *vert_padding + top_bottom_border_width(area));
+        } else {
+            *new_size = *icon_h + *interior_padding + *txt_height + 2 * *vert_padding + top_bottom_border_width(area);
+        }
+        if (*new_size != area->height) {
+            *resized = TRUE;
+        }
+    }
+}
+
+int execp_compute_desired_size(void *obj)
+{
+    Execp *execp = (Execp *)obj;
+    int horiz_padding, vert_padding, interior_padding;
+    int icon_w, icon_h;
+    gboolean text_next_line;
     int txt_height_ink, txt_height, txt_width;
-    if (panel_horizontal) {
-        get_text_size2(execp->backend->font_desc,
-                       &txt_height_ink,
-                       &txt_height,
-                       &txt_width,
-                       panel->area.height,
-                       panel->area.width,
-                       execp->backend->text,
-                       strlen(execp->backend->text),
-                       PANGO_WRAP_WORD_CHAR,
-                       PANGO_ELLIPSIZE_NONE,
-                       execp->backend->has_markup);
-    } else {
-        get_text_size2(execp->backend->font_desc,
-                       &txt_height_ink,
-                       &txt_height,
-                       &txt_width,
-                       panel->area.height,
-                       !text_next_line
-                           ? execp->area.width - icon_w - (icon_w ? interior_padding : 0) - 2 * horiz_padding -
-                                 left_right_border_width(&execp->area)
-                           : execp->area.width - 2 * horiz_padding - left_right_border_width(&execp->area),
-                       execp->backend->text,
-                       strlen(execp->backend->text),
-                       PANGO_WRAP_WORD_CHAR,
-                       PANGO_ELLIPSIZE_NONE,
-                       execp->backend->has_markup);
-    }
+    int new_size;
+    gboolean resized;
+    execp_compute_icon_text_geometry(execp,
+                                     &horiz_padding,
+                                     &vert_padding,
+                                     &interior_padding,
+                                     &icon_w,
+                                     &icon_h,
+                                     &text_next_line,
+                                     &txt_height_ink,
+                                     &txt_height,
+                                     &txt_width,
+                                     &new_size,
+                                     &resized);
 
-    if (panel_horizontal) {
-        int new_size = txt_width;
-        if (icon_w)
-            new_size += interior_padding + icon_w;
-        new_size += 2 * horiz_padding + left_right_border_width(&execp->area);
-        return new_size;
-    } else {
-        int new_size;
-        if (!text_next_line) {
-            new_size = txt_height + 2 * vert_padding + top_bottom_border_width(&execp->area);
-            new_size = MAX(new_size, icon_h + 2 * vert_padding + top_bottom_border_width(&execp->area));
-        } else {
-            new_size =
-                icon_h + interior_padding + txt_height + 2 * vert_padding + top_bottom_border_width(&execp->area);
-        }
-        return new_size;
-    }
+    return new_size;
 }
 
 gboolean resize_execp(void *obj)
 {
     Execp *execp = (Execp *)obj;
-    Panel *panel = (Panel *)execp->area.panel;
-    int horiz_padding = (panel_horizontal ? execp->area.paddingxlr : execp->area.paddingy);
-    int vert_padding = (panel_horizontal ? execp->area.paddingy : execp->area.paddingxlr);
-    int interior_padding = execp->area.paddingx;
-
+    int horiz_padding, vert_padding, interior_padding;
     int icon_w, icon_h;
-    if (reload_icon(execp)) {
-        if (execp->backend->icon) {
-            imlib_context_set_image(execp->backend->icon);
-            icon_w = imlib_image_get_width();
-            icon_h = imlib_image_get_height();
-        } else {
-            icon_w = icon_h = 0;
-        }
-    } else {
-        icon_w = icon_h = 0;
-    }
-
-    int text_next_line = !panel_horizontal && icon_w > execp->area.width / 2;
-
+    gboolean text_next_line;
     int txt_height_ink, txt_height, txt_width;
-    if (panel_horizontal) {
-        get_text_size2(execp->backend->font_desc,
-                       &txt_height_ink,
-                       &txt_height,
-                       &txt_width,
-                       panel->area.height,
-                       panel->area.width,
-                       execp->backend->text,
-                       strlen(execp->backend->text),
-                       PANGO_WRAP_WORD_CHAR,
-                       PANGO_ELLIPSIZE_NONE,
-                       execp->backend->has_markup);
-    } else {
-        get_text_size2(execp->backend->font_desc,
-                       &txt_height_ink,
-                       &txt_height,
-                       &txt_width,
-                       panel->area.height,
-                       !text_next_line
-                           ? execp->area.width - icon_w - (icon_w ? interior_padding : 0) - 2 * horiz_padding -
-                                 left_right_border_width(&execp->area)
-                           : execp->area.width - 2 * horiz_padding - left_right_border_width(&execp->area),
-                       execp->backend->text,
-                       strlen(execp->backend->text),
-                       PANGO_WRAP_WORD_CHAR,
-                       PANGO_ELLIPSIZE_NONE,
-                       execp->backend->has_markup);
-    }
+    int new_size;
+    gboolean resized;
+    execp_compute_icon_text_geometry(execp,
+                                     &horiz_padding,
+                                     &vert_padding,
+                                     &interior_padding,
+                                     &icon_w,
+                                     &icon_h,
+                                     &text_next_line,
+                                     &txt_height_ink,
+                                     &txt_height,
+                                     &txt_width,
+                                     &new_size,
+                                     &resized);
 
-    gboolean result = FALSE;
-    if (panel_horizontal) {
-        int new_size = txt_width;
-        if (icon_w)
-            new_size += interior_padding + icon_w;
-        new_size += 2 * horiz_padding + left_right_border_width(&execp->area);
-        if (new_size > execp->area.width || new_size < (execp->area.width - 6)) {
-            // we try to limit the number of resize
-            execp->area.width = new_size + 1;
-            result = TRUE;
-        }
-    } else {
-        int new_size;
-        if (!text_next_line) {
-            new_size = txt_height + 2 * vert_padding + top_bottom_border_width(&execp->area);
-            new_size = MAX(new_size, icon_h + 2 * vert_padding + top_bottom_border_width(&execp->area));
-        } else {
-            new_size =
-                icon_h + interior_padding + txt_height + 2 * vert_padding + top_bottom_border_width(&execp->area);
-        }
-        if (new_size != execp->area.height) {
-            execp->area.height = new_size;
-            result = TRUE;
-        }
-    }
+    if (panel_horizontal)
+        execp->area.width = new_size;
+    else
+        execp->area.height = new_size;
+
     execp->frontend->textw = txt_width;
     execp->frontend->texth = txt_height;
     if (execp->backend->centered) {
@@ -479,13 +461,12 @@ gboolean resize_execp(void *obj)
     }
 
     schedule_redraw(&execp->area);
-
-    return result;
+    return resized;
 }
 
 void draw_execp(void *obj, cairo_t *c)
 {
-    Execp *execp = obj;
+    Execp *execp = (Execp *)obj;
     PangoLayout *layout = pango_cairo_create_layout(c);
 
     if (execp->backend->has_icon && execp->backend->icon) {
@@ -518,7 +499,7 @@ void draw_execp(void *obj, cairo_t *c)
 
 void execp_dump_geometry(void *obj, int indent)
 {
-    Execp *execp = obj;
+    Execp *execp = (Execp *)obj;
 
     if (execp->backend->has_icon && execp->backend->icon) {
         Imlib_Image tmp = imlib_context_get_image();
@@ -559,7 +540,7 @@ void execp_force_update(Execp *execp)
 
 void execp_action(void *obj, int button, int x, int y, Time time)
 {
-    Execp *execp = obj;
+    Execp *execp = (Execp *)obj;
     char *command = NULL;
     switch (button) {
     case 1:
@@ -579,17 +560,15 @@ void execp_action(void *obj, int button, int x, int y, Time time)
         break;
     }
     if (command) {
-        char *full_cmd = g_strdup_printf("export EXECP_X=%d;"
-                                         "export EXECP_Y=%d;"
-                                         "export EXECP_W=%d;"
-                                         "export EXECP_H=%d; %s",
-                                         x,
-                                         y,
-                                         execp->area.width,
-                                         execp->area.height,
-                                         command);
-        pid_t pid = tint_exec(full_cmd, NULL, NULL, time, obj, x, y);
-        g_free(full_cmd);
+        setenvd("EXECP_X", x);
+        setenvd("EXECP_Y", y);
+        setenvd("EXECP_W", execp->area.width);
+        setenvd("EXECP_H", execp->area.height);
+        pid_t pid = tint_exec(command, NULL, NULL, time, obj, x, y);
+        unsetenv("EXECP_X");
+        unsetenv("EXECP_Y");
+        unsetenv("EXECP_W");
+        unsetenv("EXECP_H");
         if (pid > 0)
             g_tree_insert(execp->backend->cmd_pids, GINT_TO_POINTER(pid), GINT_TO_POINTER(1));
     } else {
@@ -605,7 +584,7 @@ void execp_cmd_completed(Execp *execp, pid_t pid)
 
 void execp_timer_callback(void *arg)
 {
-    Execp *execp = arg;
+    Execp *execp = (Execp *)arg;
 
     if (!execp->backend->command)
         return;
@@ -729,7 +708,6 @@ gboolean read_execp(void *obj)
     } else if (execp->backend->continuous > 0) {
         // Count lines in buffer
         int num_lines = 0;
-        char *last = execp->backend->buf_output;
         char *end = NULL;
         for (char *c = execp->backend->buf_output; *c; c++) {
             if (*c == '\n') {
@@ -737,10 +715,7 @@ gboolean read_execp(void *obj)
                 if (num_lines == execp->backend->continuous)
                     end = c;
             }
-            last = c;
         }
-        if (*last && *last != '\n')
-            num_lines++;
         if (num_lines >= execp->backend->continuous) {
             if (end)
                 *end = '\0';
@@ -808,7 +783,7 @@ const char *time_to_string(int seconds, char *buffer)
 
 char *execp_get_tooltip(void *obj)
 {
-    Execp *execp = obj;
+    Execp *execp = (Execp *)obj;
 
     if (execp->backend->tooltip) {
         if (strlen(execp->backend->tooltip) > 0)

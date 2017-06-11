@@ -103,6 +103,13 @@ gboolean parse_line(const char *line, char **key, char **value)
 
 extern char *config_path;
 
+int setenvd(const char *name, const int value)
+{
+    char buf[256];
+    sprintf(buf, "%d", value);
+    return setenv(name, buf, 1);
+}
+
 #ifndef TINT2CONF
 pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time time, Area *area, int x, int y)
 {
@@ -172,43 +179,23 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
             panel_y2 = panel->posy + panel->area.height;
         }
 
-        command = g_strdup_printf("export TINT2_CONFIG=%s;"
-                                  "export TINT2_BUTTON_X=%d;"
-                                  "export TINT2_BUTTON_Y=%d;"
-                                  "export TINT2_BUTTON_W=%d;"
-                                  "export TINT2_BUTTON_H=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_X=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_Y=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_X1=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_Y1=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_X2=%d;"
-                                  "export TINT2_BUTTON_ALIGNED_Y2=%d;"
-                                  "export TINT2_BUTTON_PANEL_X1=%d;"
-                                  "export TINT2_BUTTON_PANEL_Y1=%d;"
-                                  "export TINT2_BUTTON_PANEL_X2=%d;"
-                                  "export TINT2_BUTTON_PANEL_Y2=%d;"
-                                  "%s",
-                                  config_path,
-                                  x,
-                                  y,
-                                  area->width,
-                                  area->height,
-                                  aligned_x,
-                                  aligned_y,
-                                  aligned_x1,
-                                  aligned_y1,
-                                  aligned_x2,
-                                  aligned_y2,
-                                  panel_x1,
-                                  panel_y1,
-                                  panel_x2,
-                                  panel_y2,
-                                  command);
+        setenv("TINT2_CONFIG", config_path, 1);
+        setenvd("TINT2_BUTTON_X", x);
+        setenvd("TINT2_BUTTON_Y", y);
+        setenvd("TINT2_BUTTON_W", area->width);
+        setenvd("TINT2_BUTTON_H", area->height);
+        setenvd("TINT2_BUTTON_ALIGNED_X", aligned_x);
+        setenvd("TINT2_BUTTON_ALIGNED_Y", aligned_y);
+        setenvd("TINT2_BUTTON_ALIGNED_X1", aligned_x1);
+        setenvd("TINT2_BUTTON_ALIGNED_Y1", aligned_y1);
+        setenvd("TINT2_BUTTON_ALIGNED_X2", aligned_x2);
+        setenvd("TINT2_BUTTON_ALIGNED_Y2", aligned_y2);
+        setenvd("TINT2_BUTTON_PANEL_X1", panel_x1);
+        setenvd("TINT2_BUTTON_PANEL_Y1", panel_y1);
+        setenvd("TINT2_BUTTON_PANEL_X2", panel_x2);
+        setenvd("TINT2_BUTTON_PANEL_Y2", panel_y2);
     } else {
-        command = g_strdup_printf("export TINT2_CONFIG=%s;"
-                                  "%s",
-                                  config_path,
-                                  command);
+        setenv("TINT2_CONFIG", config_path, 1);
     }
 
     if (!command)
@@ -259,6 +246,23 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
         }
 #endif // HAVE_SN
     }
+
+    unsetenv("TINT2_CONFIG");
+    unsetenv("TINT2_BUTTON_X");
+    unsetenv("TINT2_BUTTON_Y");
+    unsetenv("TINT2_BUTTON_W");
+    unsetenv("TINT2_BUTTON_H");
+    unsetenv("TINT2_BUTTON_ALIGNED_X");
+    unsetenv("TINT2_BUTTON_ALIGNED_Y");
+    unsetenv("TINT2_BUTTON_ALIGNED_X1");
+    unsetenv("TINT2_BUTTON_ALIGNED_Y1");
+    unsetenv("TINT2_BUTTON_ALIGNED_X2");
+    unsetenv("TINT2_BUTTON_ALIGNED_Y2");
+    unsetenv("TINT2_BUTTON_PANEL_X1");
+    unsetenv("TINT2_BUTTON_PANEL_Y1");
+    unsetenv("TINT2_BUTTON_PANEL_X2");
+    unsetenv("TINT2_BUTTON_PANEL_Y2");
+
     return pid;
 }
 
@@ -732,35 +736,38 @@ void clear_pixmap(Pixmap p, int x, int y, int w, int h)
     XRenderFreePicture(server.display, pict);
 }
 
-void get_text_size2(PangoFontDescription *font,
+void get_text_size2(const PangoFontDescription *font,
                     int *height_ink,
                     int *height,
                     int *width,
-                    int panel_height,
-                    int panel_width,
-                    char *text,
-                    int len,
+                    int available_height,
+                    int available_width,
+                    const char *text,
+                    int text_len,
                     PangoWrapMode wrap,
                     PangoEllipsizeMode ellipsis,
                     gboolean markup)
 {
     PangoRectangle rect_ink, rect;
 
-    Pixmap pmap = XCreatePixmap(server.display, server.root_win, panel_height, panel_width, server.depth);
+    available_width = MAX(0, available_width);
+    available_height = MAX(0, available_height);
+    Pixmap pmap = XCreatePixmap(server.display, server.root_win, available_height, available_width, server.depth);
 
-    cairo_surface_t *cs = cairo_xlib_surface_create(server.display, pmap, server.visual, panel_height, panel_width);
+    cairo_surface_t *cs = cairo_xlib_surface_create(server.display, pmap, server.visual, available_height, available_width);
     cairo_t *c = cairo_create(cs);
 
     PangoLayout *layout = pango_cairo_create_layout(c);
-    pango_layout_set_width(layout, panel_width * PANGO_SCALE);
-    pango_layout_set_height(layout, panel_height * PANGO_SCALE);
+    pango_layout_set_width(layout, available_width * PANGO_SCALE);
+    pango_layout_set_height(layout, available_height * PANGO_SCALE);
     pango_layout_set_wrap(layout, wrap);
     pango_layout_set_ellipsize(layout, ellipsis);
     pango_layout_set_font_description(layout, font);
+    text_len = MAX(0, text_len);
     if (!markup)
-        pango_layout_set_text(layout, text, len);
+        pango_layout_set_text(layout, text, text_len);
     else
-        pango_layout_set_markup(layout, text, len);
+        pango_layout_set_markup(layout, text, text_len);
 
     pango_layout_get_pixel_extents(layout, &rect_ink, &rect);
     *height_ink = rect_ink.height;
