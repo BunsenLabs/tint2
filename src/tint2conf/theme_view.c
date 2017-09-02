@@ -145,10 +145,16 @@ void theme_list_append(const gchar *path)
     GtkTreeIter iter;
     gtk_list_store_append(theme_list_store, &iter);
 
-    gchar *name = strrchr(path, '/') + 1;
+    gchar *name, *dir;
 
-    gchar *dir = g_strdup(path);
-    strrchr(dir, '/')[0] = 0;
+    if (strchr(path, '/')) {
+        name = strrchr(path, '/') + 1;
+        dir = g_strdup(path);
+        strrchr(dir, '/')[0] = 0;
+    } else {
+        name = (gchar*)path;
+        dir = g_strdup(".");
+    }
     char *suffix = contract_tilde(dir);
     g_free(dir);
 
@@ -171,7 +177,7 @@ gboolean update_snapshot(gpointer ignored)
     {
         gchar *tint2_cache_dir = g_build_filename(g_get_user_cache_dir(), "tint2", NULL);
         if (!g_file_test(tint2_cache_dir, G_FILE_TEST_IS_DIR))
-            g_mkdir(tint2_cache_dir, 0700);
+            g_mkdir_with_parents(tint2_cache_dir, 0700);
         g_free(tint2_cache_dir);
     }
 

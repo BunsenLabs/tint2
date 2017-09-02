@@ -18,6 +18,8 @@
 #include "timer.h"
 #include "common.h"
 
+#define MAX_TOOLTIP_LEN 4096
+
 void execp_timer_callback(void *arg);
 char *execp_get_tooltip(void *obj);
 void execp_init_fonts();
@@ -30,9 +32,10 @@ void default_execp()
 
 Execp *create_execp()
 {
-    Execp *execp = calloc(1, sizeof(Execp));
-    execp->backend = calloc(1, sizeof(ExecpBackend));
-    execp->backend->child_pipe = -1;
+    Execp *execp = (Execp *)calloc(1, sizeof(Execp));
+    execp->backend = (ExecpBackend *)calloc(1, sizeof(ExecpBackend));
+    execp->backend->child_pipe_stdout = -1;
+    execp->backend->child_pipe_stderr = -1;
     execp->backend->cmd_pids = g_tree_new(cmp_ptr);
     execp->backend->interval = 30;
     execp->backend->cache_icon = TRUE;
@@ -45,10 +48,10 @@ gpointer create_execp_frontend(gconstpointer arg, gpointer data)
 {
     Execp *execp_backend = (Execp *)arg;
 
-    Execp *execp_frontend = calloc(1, sizeof(Execp));
+    Execp *execp_frontend = (Execp *)calloc(1, sizeof(Execp));
     execp_frontend->backend = execp_backend->backend;
     execp_backend->backend->instances = g_list_append(execp_backend->backend->instances, execp_frontend);
-    execp_frontend->frontend = calloc(1, sizeof(ExecpFrontend));
+    execp_frontend->frontend = (ExecpFrontend *)calloc(1, sizeof(ExecpFrontend));
     return execp_frontend;
 }
 
@@ -72,16 +75,21 @@ void destroy_execp(void *obj)
             imlib_free_image();
             execp->backend->icon = NULL;
         }
-        free_and_null(execp->backend->buf_output);
+        free_and_null(execp->backend->buf_stdout);
+        free_and_null(execp->backend->buf_stderr);
         free_and_null(execp->backend->text);
         free_and_null(execp->backend->icon_path);
         if (execp->backend->child) {
             kill(-execp->backend->child, SIGHUP);
             execp->backend->child = 0;
         }
-        if (execp->backend->child_pipe >= 0) {
-            close(execp->backend->child_pipe);
-            execp->backend->child_pipe = -1;
+        if (execp->backend->child_pipe_stdout >= 0) {
+            close(execp->backend->child_pipe_stdout);
+            execp->backend->child_pipe_stdout = -1;
+        }
+        if (execp->backend->child_pipe_stderr >= 0) {
+            close(execp->backend->child_pipe_stderr);
+            execp->backend->child_pipe_stderr = -1;
         }
         if (execp->backend->cmd_pids) {
             g_tree_destroy(execp->backend->cmd_pids);
@@ -100,7 +108,7 @@ void destroy_execp(void *obj)
         free_and_null(execp->backend->uwheel_command);
 
         if (execp->backend->instances) {
-            fprintf(stderr, "Error: Attempt to destroy backend while there are still frontend instances!\n");
+            fprintf(stderr, "tint2: Error: Attempt to destroy backend while there are still frontend instances!\n");
             exit(-1);
         }
         free(execp->backend);
@@ -138,9 +146,11 @@ void init_execp()
         // Set missing config options
         if (!execp->backend->bg)
             execp->backend->bg = &g_array_index(backgrounds, Background, 0);
-        execp->backend->buf_capacity = 1024;
-        execp->backend->buf_output = calloc(execp->backend->buf_capacity, 1);
-        execp->backend->text = strdup(" ");
+        execp->backend->buf_stdout_capacity = 1024;
+        execp->backend->buf_stdout = calloc(execp->backend->buf_stdout_capacity, 1);
+        execp->backend->buf_stderr_capacity = 1024;
+        execp->backend->buf_stderr = calloc(execp->backend->buf_stderr_capacity, 1);
+        execp->backend->text = strdup("");
         execp->backend->icon_path = NULL;
     }
 }
@@ -186,8 +196,9 @@ void init_execp_panel(void *p)
         execp->area.on_screen = TRUE;
         instantiate_area_gradients(&execp->area);
 
-        if (!execp->backend->timer)
-            execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+        execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+
+        execp_update_post_read(execp);
     }
 }
 
@@ -352,10 +363,12 @@ void execp_compute_icon_text_geometry(Execp *execp,
         if (*icon_w)
             *new_size += *interior_padding + *icon_w;
         *new_size += 2 * *horiz_padding + left_right_border_width(area);
-        if (*new_size > area->width || *new_size < (area->width - 6)) {
-            // we try to limit the number of resize
-            *new_size += 1;
+        if (*new_size < area->width && abs(*new_size - area->width) < 6) {
+            // we try to limit the number of resizes
+            *new_size = area->width;
             *resized = TRUE;
+        } else {
+            *resized = *new_size != area->width;
         }
     } else {
         if (!*text_next_line) {
@@ -528,7 +541,7 @@ void execp_dump_geometry(void *obj, int indent)
 
 void execp_force_update(Execp *execp)
 {
-    if (execp->backend->child_pipe > 0) {
+    if (execp->backend->child_pipe_stdout > 0) {
         // Command currently running, nothing to do
     } else {
         if (execp->backend->timer)
@@ -564,7 +577,7 @@ void execp_action(void *obj, int button, int x, int y, Time time)
         setenvd("EXECP_Y", y);
         setenvd("EXECP_W", execp->area.width);
         setenvd("EXECP_H", execp->area.height);
-        pid_t pid = tint_exec(command, NULL, NULL, time, obj, x, y);
+        pid_t pid = tint_exec(command, NULL, NULL, time, obj, x, y, FALSE, TRUE);
         unsetenv("EXECP_X");
         unsetenv("EXECP_Y");
         unsetenv("EXECP_W");
@@ -590,72 +603,87 @@ void execp_timer_callback(void *arg)
         return;
 
     // Still running!
-    if (execp->backend->child_pipe > 0)
+    if (execp->backend->child_pipe_stdout > 0)
         return;
 
-    int pipe_fd[2];
-    if (pipe(pipe_fd)) {
+    int pipe_fd_stdout[2];
+    if (pipe(pipe_fd_stdout)) {
         // TODO maybe write this in tooltip, but if this happens we're screwed anyways
-        fprintf(stderr, "Execp: Creating pipe failed!\n");
+        fprintf(stderr, "tint2: Execp: Creating pipe failed!\n");
         return;
     }
 
-    fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK | fcntl(pipe_fd[0], F_GETFL));
+    fcntl(pipe_fd_stdout[0], F_SETFL, O_NONBLOCK | fcntl(pipe_fd_stdout[0], F_GETFL));
+
+    int pipe_fd_stderr[2];
+    if (pipe(pipe_fd_stderr)) {
+        close(pipe_fd_stdout[1]);
+        close(pipe_fd_stdout[0]);
+        // TODO maybe write this in tooltip, but if this happens we're screwed anyways
+        fprintf(stderr, "tint2: Execp: Creating pipe failed!\n");
+        return;
+    }
+
+    fcntl(pipe_fd_stderr[0], F_SETFL, O_NONBLOCK | fcntl(pipe_fd_stderr[0], F_GETFL));
 
     // Fork and run command, capturing stdout in pipe
     pid_t child = fork();
     if (child == -1) {
         // TODO maybe write this in tooltip, but if this happens we're screwed anyways
-        fprintf(stderr, "Fork failed.\n");
-        close(pipe_fd[1]);
-        close(pipe_fd[0]);
+        fprintf(stderr, "tint2: Fork failed.\n");
+        close(pipe_fd_stdout[1]);
+        close(pipe_fd_stdout[0]);
+        close(pipe_fd_stderr[1]);
+        close(pipe_fd_stderr[0]);
         return;
     } else if (child == 0) {
-        fprintf(stderr, "Executing: %s\n", execp->backend->command);
+        fprintf(stderr, "tint2: Executing: %s\n", execp->backend->command);
         // We are in the child
-        close(pipe_fd[0]);
-        dup2(pipe_fd[1], 1); // 1 is stdout
-        close(pipe_fd[1]);
+        close(pipe_fd_stdout[0]);
+        dup2(pipe_fd_stdout[1], 1); // 1 is stdout
+        close(pipe_fd_stdout[1]);
+        close(pipe_fd_stderr[0]);
+        dup2(pipe_fd_stderr[1], 2); // 2 is stderr
+        close(pipe_fd_stderr[1]);
+        close_all_fds();
         setpgid(0, 0);
         execl("/bin/sh", "/bin/sh", "-c", execp->backend->command, NULL);
         // This should never happen!
-        fprintf(stdout, "execl() failed\nexecl() failed\n");
-        fflush(stdout);
+        fprintf(stderr, "execl() failed\nexecl() failed\n");
         exit(0);
     }
-    close(pipe_fd[1]);
+    close(pipe_fd_stdout[1]);
+    close(pipe_fd_stderr[1]);
     execp->backend->child = child;
-    execp->backend->child_pipe = pipe_fd[0];
-    execp->backend->buf_length = 0;
-    execp->backend->buf_output[execp->backend->buf_length] = '\0';
+    execp->backend->child_pipe_stdout = pipe_fd_stdout[0];
+    execp->backend->child_pipe_stderr = pipe_fd_stderr[0];
+    execp->backend->buf_stdout_length = 0;
+    execp->backend->buf_stdout[execp->backend->buf_stdout_length] = '\0';
+    execp->backend->buf_stderr_length = 0;
+    execp->backend->buf_stderr[execp->backend->buf_stderr_length] = '\0';
     execp->backend->last_update_start_time = time(NULL);
 }
 
-gboolean read_execp(void *obj)
+void read_from_pipe(int fd, char **buffer, ssize_t *buffer_length, ssize_t *buffer_capacity, gboolean *eof)
 {
-    Execp *execp = (Execp *)obj;
-
-    if (execp->backend->child_pipe < 0)
-        return FALSE;
-
-    gboolean command_finished = FALSE;
+    *eof = FALSE;
     while (1) {
         // Make sure there is free space in the buffer
-        if (execp->backend->buf_capacity - execp->backend->buf_length < 1024) {
-            execp->backend->buf_capacity *= 2;
-            execp->backend->buf_output = realloc(execp->backend->buf_output, execp->backend->buf_capacity);
+        if (*buffer_capacity - *buffer_length < 1024) {
+            *buffer_capacity *= 2;
+            *buffer = (char *)realloc(*buffer, *buffer_capacity);
         }
-        ssize_t count = read(execp->backend->child_pipe,
-                             execp->backend->buf_output + execp->backend->buf_length,
-                             execp->backend->buf_capacity - execp->backend->buf_length - 1);
+        ssize_t count = read(fd,
+                             *buffer + *buffer_length,
+                             *buffer_capacity - *buffer_length - 1);
         if (count > 0) {
             // Successful read
-            execp->backend->buf_length += count;
-            execp->backend->buf_output[execp->backend->buf_length] = '\0';
+            *buffer_length += count;
+            (*buffer)[*buffer_length] = '\0';
             continue;
         } else if (count == 0) {
             // End of file
-            command_finished = TRUE;
+            *eof = TRUE;
             break;
         } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
             // No more data available at the moment
@@ -665,28 +693,87 @@ gboolean read_execp(void *obj)
             continue;
         } else {
             // Error
-            command_finished = TRUE;
+            *eof = TRUE;
             break;
         }
         break;
     }
+}
+
+gboolean starts_with(char *s, char *prefix)
+{
+    char *p, *q;
+    for (p = s, q = prefix; *p && *q; p++, q++) {
+        if (*p != *q)
+            return FALSE;
+    }
+    return *q == '\0';
+}
+
+char *last_substring(char *s, char *sub)
+{
+    char *result = NULL;
+    for (char *p = s; *p; p++) {
+        if (starts_with(p, sub))
+            result = p;
+    }
+    return result;
+}
+
+void rstrip(char *s)
+{
+    size_t len = strlen(s);
+    while (len > 0) {
+        if (s[len-1] == ' ' || s[len-1] == '\n') {
+            s[len-1] = 0;
+            len--;
+        } else {
+            break;
+        }
+    }
+}
+
+gboolean read_execp(void *obj)
+{
+    Execp *execp = (Execp *)obj;
+
+    if (execp->backend->child_pipe_stdout < 0)
+        return FALSE;
+
+    gboolean stdout_eof, stderr_eof;
+    read_from_pipe(execp->backend->child_pipe_stdout,
+                   &execp->backend->buf_stdout,
+                   &execp->backend->buf_stdout_length,
+                   &execp->backend->buf_stdout_capacity,
+                   &stdout_eof);
+    read_from_pipe(execp->backend->child_pipe_stderr,
+                   &execp->backend->buf_stderr,
+                   &execp->backend->buf_stderr_length,
+                   &execp->backend->buf_stderr_capacity,
+                   &stderr_eof);
+
+    gboolean command_finished = stdout_eof && stderr_eof;
 
     if (command_finished) {
         execp->backend->child = 0;
-        close(execp->backend->child_pipe);
-        execp->backend->child_pipe = -1;
+        close(execp->backend->child_pipe_stdout);
+        execp->backend->child_pipe_stdout = -1;
+        close(execp->backend->child_pipe_stderr);
+        execp->backend->child_pipe_stderr = -1;
         if (execp->backend->interval)
             execp->backend->timer =
                 add_timeout(execp->backend->interval * 1000, 0, execp_timer_callback, execp, &execp->backend->timer);
     }
 
+    char *ansi_clear_screen = (char*)"\x1b[2J";
     if (!execp->backend->continuous && command_finished) {
+        // Handle stdout
         free_and_null(execp->backend->text);
         free_and_null(execp->backend->icon_path);
         if (!execp->backend->has_icon) {
-            execp->backend->text = strdup(execp->backend->buf_output);
+            execp->backend->text = strdup(execp->backend->buf_stdout);
         } else {
-            char *text = strchr(execp->backend->buf_output, '\n');
+            char *text = strchr(execp->backend->buf_stdout, '\n');
             if (text) {
                 *text = '\0';
                 text++;
@@ -694,22 +781,60 @@ gboolean read_execp(void *obj)
             } else {
                 execp->backend->text = strdup("");
             }
-            execp->backend->icon_path = strdup(execp->backend->buf_output);
+            execp->backend->icon_path = strdup(execp->backend->buf_stdout);
         }
         int len = strlen(execp->backend->text);
         if (len > 0 && execp->backend->text[len - 1] == '\n')
             execp->backend->text[len - 1] = '\0';
-        execp->backend->buf_length = 0;
-        execp->backend->buf_output[execp->backend->buf_length] = '\0';
+        execp->backend->buf_stdout_length = 0;
+        execp->backend->buf_stdout[execp->backend->buf_stdout_length] = '\0';
+        // Handle stderr
+        if (!execp->backend->has_user_tooltip) {
+            free_and_null(execp->backend->tooltip);
+            char *start = last_substring(execp->backend->buf_stderr, ansi_clear_screen);
+            if (start)
+                start += strlen(ansi_clear_screen);
+            else
+                start = execp->backend->buf_stderr;
+            if (*start) {
+                execp->backend->tooltip = strdup(start);
+                rstrip(execp->backend->tooltip);
+                if (strlen(execp->backend->tooltip) > MAX_TOOLTIP_LEN)
+                    execp->backend->tooltip[MAX_TOOLTIP_LEN] = '\0';
+            }
+        }
+        execp->backend->buf_stderr_length = 0;
+        execp->backend->buf_stderr[execp->backend->buf_stderr_length] = '\0';
+        //
         execp->backend->last_update_finish_time = time(NULL);
         execp->backend->last_update_duration =
             execp->backend->last_update_finish_time - execp->backend->last_update_start_time;
         return TRUE;
     } else if (execp->backend->continuous > 0) {
+        // Handle stderr
+        if (!execp->backend->has_user_tooltip) {
+            free_and_null(execp->backend->tooltip);
+            char *start = last_substring(execp->backend->buf_stderr, ansi_clear_screen);
+            if (start) {
+                start += strlen(ansi_clear_screen);
+                memmove(execp->backend->buf_stderr, start, strlen(start) + 1);
+                execp->backend->buf_stderr_length = (ssize_t)strlen(execp->backend->buf_stderr);
+            }
+            if (execp->backend->buf_stderr_length > MAX_TOOLTIP_LEN) {
+                execp->backend->buf_stderr_length = MAX_TOOLTIP_LEN;
+                execp->backend->buf_stderr[execp->backend->buf_stderr_length] = '\0';
+            }
+            execp->backend->tooltip = strdup(execp->backend->buf_stderr);
+            rstrip(execp->backend->tooltip);
+        } else {
+            execp->backend->buf_stderr_length = 0;
+            execp->backend->buf_stderr[execp->backend->buf_stderr_length] = '\0';
+        }
+        // Handle stdout
         // Count lines in buffer
         int num_lines = 0;
         char *end = NULL;
-        for (char *c = execp->backend->buf_output; *c; c++) {
+        for (char *c = execp->backend->buf_stdout; *c; c++) {
             if (*c == '\n') {
                 num_lines++;
                 if (num_lines == execp->backend->continuous)
@@ -722,9 +847,9 @@ gboolean read_execp(void *obj)
             free_and_null(execp->backend->text);
             free_and_null(execp->backend->icon_path);
             if (!execp->backend->has_icon) {
-                execp->backend->text = strdup(execp->backend->buf_output);
+                execp->backend->text = strdup(execp->backend->buf_stdout);
             } else {
-                char *text = strchr(execp->backend->buf_output, '\n');
+                char *text = strchr(execp->backend->buf_stdout, '\n');
                 if (text) {
                     *text = '\0';
                     text++;
@@ -732,23 +857,23 @@ gboolean read_execp(void *obj)
                 } else {
                     execp->backend->text = strdup("");
                 }
-                execp->backend->icon_path = strdup(execp->backend->buf_output);
+                execp->backend->icon_path = strdup(execp->backend->buf_stdout);
             }
-            int len = strlen(execp->backend->text);
+            size_t len = strlen(execp->backend->text);
             if (len > 0 && execp->backend->text[len - 1] == '\n')
                 execp->backend->text[len - 1] = '\0';
 
             if (end) {
                 char *next = end + 1;
-                int copied = next - execp->backend->buf_output;
-                int remaining = execp->backend->buf_length - copied;
+                ssize_t copied = next - execp->backend->buf_stdout;
+                ssize_t remaining = execp->backend->buf_stdout_length - copied;
                 if (remaining > 0) {
-                    memmove(execp->backend->buf_output, next, remaining);
-                    execp->backend->buf_length = remaining;
-                    execp->backend->buf_output[execp->backend->buf_length] = '\0';
+                    memmove(execp->backend->buf_stdout, next, (size_t)remaining);
+                    execp->backend->buf_stdout_length = remaining;
+                    execp->backend->buf_stdout[execp->backend->buf_stdout_length] = '\0';
                 } else {
-                    execp->backend->buf_length = 0;
-                    execp->backend->buf_output[execp->backend->buf_length] = '\0';
+                    execp->backend->buf_stdout_length = 0;
+                    execp->backend->buf_stdout[execp->backend->buf_stdout_length] = '\0';
                 }
             }
 
@@ -797,7 +922,7 @@ char *execp_get_tooltip(void *obj)
     char tmp_buf1[256];
     char tmp_buf2[256];
     char tmp_buf3[256];
-    if (execp->backend->child_pipe < 0) {
+    if (execp->backend->child_pipe_stdout < 0) {
         // Not executing command
         if (execp->backend->last_update_finish_time) {
             // We updated at least once
@@ -834,4 +959,45 @@ char *execp_get_tooltip(void *obj)
         }
     }
     return strdup(execp->backend->tooltip_text);
+}
+
+void execp_update_post_read(Execp *execp)
+{
+    int icon_h, icon_w;
+    if (reload_icon(execp)) {
+        if (execp->backend->icon) {
+            imlib_context_set_image(execp->backend->icon);
+            icon_w = imlib_image_get_width();
+            icon_h = imlib_image_get_height();
+        } else {
+            icon_w = icon_h = 0;
+        }
+    } else {
+        icon_w = icon_h = 0;
+    }
+
+    if ((icon_h == 0 || icon_w == 0) && execp->backend->text[0] == 0) {
+        // Easy to test with bash -c 'R=$(( RANDOM % 2 )); [ $R -eq 0 ] && echo HELLO $R'
+        if (execp->area.on_screen)
+            hide(&execp->area);
+    } else {
+        if (!execp->area.on_screen)
+            show(&execp->area);
+        execp->area.resize_needed = TRUE;
+        schedule_panel_redraw();
+    }
+}
+
+void handle_execp_events()
+{
+    for (GList *l = panel_config.execp_list; l; l = l->next) {
+        Execp *execp = (Execp *)l->data;
+        if (read_execp(execp)) {
+            GList *l_instance;
+            for (l_instance = execp->backend->instances; l_instance; l_instance = l_instance->next) {
+                Execp *instance = (Execp *)l_instance->data;
+                execp_update_post_read(instance);
+            }
+        }
+    }
 }

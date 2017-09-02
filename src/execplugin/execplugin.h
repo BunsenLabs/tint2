@@ -27,6 +27,7 @@ typedef struct ExecpBackend {
     gboolean cache_icon;
     int icon_w;
     int icon_h;
+    gboolean has_user_tooltip;
     char *tooltip;
     gboolean centered;
     gboolean has_font;
@@ -46,20 +47,24 @@ typedef struct ExecpBackend {
 
     // Backend state:
     timeout *timer;
-    int child_pipe;
+    int child_pipe_stdout;
+    int child_pipe_stderr;
     pid_t child;
 
     // Command output buffer
-    char *buf_output;
-    int buf_length;
-    int buf_capacity;
+    char *buf_stdout;
+    ssize_t buf_stdout_length;
+    ssize_t buf_stdout_capacity;
+    char *buf_stderr;
+    ssize_t buf_stderr_length;
+    ssize_t buf_stderr_capacity;
 
     // Text extracted from the output buffer
     char *text;
     // Icon path extracted from the output buffer
     char *icon_path;
     Imlib_Image icon;
-    char tooltip_text[512];
+    gchar tooltip_text[512];
 
     // The time the last command was started
     time_t last_update_start_time;
@@ -138,6 +143,11 @@ void execp_cmd_completed(Execp *obj, pid_t pid);
 // Returns 1 if the output has been updated and a redraw is needed.
 gboolean read_execp(void *obj);
 
+// Called for Execp front elements when the command output has changed.
+void execp_update_post_read(Execp *execp);
+
 void execp_default_font_changed();
+
+void handle_execp_events();
 
 #endif // EXECPLUGIN_H

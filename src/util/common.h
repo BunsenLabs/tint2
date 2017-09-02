@@ -41,6 +41,18 @@ typedef enum MouseAction {
 
 #define ALL_DESKTOPS 0xFFFFFFFF
 
+void write_string(int fd, const char *s);
+void log_string(int fd, const char *s);
+
+void dump_backtrace(int log_fd);
+
+// sleep() returns early when signals arrive. This function does not.
+void safe_sleep(int seconds);
+
+const char *signal_name(int sig);
+
+const char *get_home_dir();
+
 // Copies a file to another path
 void copy_file(const char *path_src, const char *path_dest);
 
@@ -54,7 +66,15 @@ void extract_values(const char *value, char **value1, char **value2, char **valu
 void extract_values_4(const char *value, char **value1, char **value2, char **value3, char **value4);
 
 // Executes a command in a shell.
-pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time time, Area *area, int x, int y);
+pid_t tint_exec(const char *command,
+                const char *dir,
+                const char *tooltip,
+                Time time,
+                Area *area,
+                int x,
+                int y,
+                gboolean terminal,
+                gboolean startup_notification);
 void tint_exec_no_sn(const char *command);
 int setenvd(const char *name, const int value);
 
@@ -116,6 +136,8 @@ void draw_rect_on_sides(cairo_t *c, double x, double y, double w, double h, doub
 // Clears the pixmap (with transparent color)
 void clear_pixmap(Pixmap p, int x, int y, int w, int h);
 
+void close_all_fds();
+
 // Appends to the list locations all the directories contained in the environment variable var (split by ":").
 // Optional suffixes are added to each directory. The suffix arguments MUST end with NULL.
 // Returns the new value of the list.
@@ -125,6 +147,8 @@ GSList *slist_remove_duplicates(GSList *list, GCompareFunc eq, GDestroyNotify fr
 
 // A trivial pointer comparator.
 gint cmp_ptr(gconstpointer a, gconstpointer b);
+
+GString *tint2_g_string_replace(GString *s, const char *from, const char *to);
 
 #define free_and_null(p) \
     {                    \

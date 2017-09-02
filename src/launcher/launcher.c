@@ -64,6 +64,8 @@ void launcher_reload_hidden_icons(Launcher *launcher);
 void launcher_icon_on_change_layout(void *obj);
 int launcher_compute_desired_size(void *obj);
 
+void relayout_launcher();
+
 void default_launcher()
 {
     launcher_enabled = 0;
@@ -95,6 +97,7 @@ void init_launcher_panel(void *p)
     launcher->area._draw_foreground = NULL;
     launcher->area.size_mode = LAYOUT_FIXED;
     launcher->area._resize = resize_launcher;
+    launcher->area._on_change_layout = relayout_launcher;
     launcher->area._compute_desired_size = launcher_compute_desired_size;
     launcher->area.resize_needed = 1;
     schedule_redraw(&launcher->area);
@@ -294,7 +297,7 @@ gboolean resize_launcher(void *obj)
         launcherIcon->y = posy;
         launcherIcon->x = posx;
         launcher_icon_on_change_layout(launcherIcon);
-        // printf("launcher %d : %d,%d\n", i, posx, posy);
+        // fprintf(stderr, "tint2: launcher %d : %d,%d\n", i, posx, posy);
         if (panel_horizontal) {
             if (i % icons_per_column) {
                 posy += launcher->icon_size + launcher->area.paddingx;
@@ -323,6 +326,17 @@ gboolean resize_launcher(void *obj)
     }
 
     return TRUE;
+}
+
+void relayout_launcher(void *obj)
+{
+    Launcher *launcher = (Launcher *)obj;
+    for (GSList *l = launcher->list_icons; l; l = l->next) {
+        LauncherIcon *launcherIcon = (LauncherIcon *)l->data;
+        if (!launcherIcon->area.on_screen)
+            continue;
+        launcher_icon_on_change_layout(launcherIcon);
+    }
 }
 
 // Here we override the default layout of the icons; normally Area layouts its children
@@ -371,7 +385,12 @@ void draw_launcher_icon(void *obj, cairo_t *c)
 void launcher_icon_dump_geometry(void *obj, int indent)
 {
     LauncherIcon *launcherIcon = (LauncherIcon *)obj;
-    fprintf(stderr, "%*sIcon: w = h = %d, name = %s\n", indent, "", launcherIcon->icon_size, launcherIcon->icon_name);
+    fprintf(stderr,
+            "tint2: %*sIcon: w = h = %d, name = %s\n",
+            indent,
+            "",
+            launcherIcon->icon_size,
+            launcherIcon->icon_name);
 }
 
 Imlib_Image scale_icon(Imlib_Image original, int icon_size)
@@ -420,8 +439,21 @@ void launcher_action(LauncherIcon *icon, XEvent *evt, int x, int y)
     launcher_reload_icon((Launcher *)icon->area.parent, icon);
     launcher_reload_hidden_icons((Launcher *)icon->area.parent);
 
-    if (evt->type == ButtonPress || evt->type == ButtonRelease)
-        tint_exec(icon->cmd, icon->cwd, icon->icon_tooltip, evt->xbutton.time, &icon->area, x, y);
+    if (evt->type == ButtonPress || evt->type == ButtonRelease) {
+        GString *cmd = g_string_new(icon->cmd);
+        tint2_g_string_replace(cmd, "%f", "");
+        tint2_g_string_replace(cmd, "%F", "");
+        tint_exec(cmd->str,
+                  icon->cwd,
+                  icon->icon_tooltip,
+                  evt->xbutton.time,
+                  &icon->area,
+                  x,
+                  y,
+                  icon->start_in_terminal,
+                  icon->startup_notification);
+        g_string_free(cmd, TRUE);
+    }
 }
 
 // Populates the list_icons list from the list_apps list
@@ -476,6 +508,8 @@ void launcher_reload_icon(Launcher *launcher, LauncherIcon *launcherIcon)
             launcherIcon->cwd = strdup(entry.cwd);
         else
             launcherIcon->cwd = NULL;
+        launcherIcon->start_in_terminal = entry.start_in_terminal;
+        launcherIcon->startup_notification = entry.startup_notification;
         if (launcherIcon->icon_name)
             free(launcherIcon->icon_name);
         launcherIcon->icon_name = entry.icon ? strdup(entry.icon) : strdup(DEFAULT_ICON);
@@ -531,7 +565,7 @@ void launcher_reload_icon_image(Launcher *launcher, LauncherIcon *launcherIcon)
     free_icon(original);
     free(launcherIcon->icon_path);
     launcherIcon->icon_path = new_icon_path;
-    // fprintf(stderr, "launcher.c %d: Using icon %s\n", __LINE__, launcherIcon->icon_path);
+    // fprintf(stderr, "tint2: launcher.c %d: Using icon %s\n", __LINE__, launcherIcon->icon_path);
 
     if (panel_config.mouse_effects) {
         launcherIcon->image_hover = adjust_icon(launcherIcon->image,

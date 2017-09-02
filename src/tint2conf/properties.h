@@ -19,7 +19,7 @@ extern GtkWidget *panel_window_name, *disable_transparency;
 extern GtkWidget *panel_mouse_effects;
 extern GtkWidget *mouse_hover_icon_opacity, *mouse_hover_icon_saturation, *mouse_hover_icon_brightness;
 extern GtkWidget *mouse_pressed_icon_opacity, *mouse_pressed_icon_saturation, *mouse_pressed_icon_brightness;
-extern GtkWidget *panel_primary_monitor_first, *panel_shrink;
+extern GtkWidget *panel_shrink;
 
 enum { itemsColName = 0, itemsColValue, itemsNumCols };
 extern GtkListStore *panel_items, *all_items;
@@ -49,7 +49,7 @@ extern GtkWidget *panel_background;
 
 // taskbar
 extern GtkWidget *taskbar_show_desktop, *taskbar_show_name, *taskbar_padding_x, *taskbar_padding_y, *taskbar_spacing;
-extern GtkWidget *taskbar_hide_inactive_tasks, *taskbar_hide_diff_monitor;
+extern GtkWidget *taskbar_hide_inactive_tasks, *taskbar_hide_diff_monitor, *taskbar_hide_diff_desktop;
 extern GtkWidget *taskbar_name_padding_x, *taskbar_name_padding_y, *taskbar_name_inactive_color,
     *taskbar_name_active_color;
 extern GtkWidget *taskbar_name_font, *taskbar_name_font_set;
@@ -88,10 +88,10 @@ extern GtkWidget *clock_font_line1, *clock_font_line1_set, *clock_font_line2, *c
 extern GtkWidget *clock_background;
 
 // battery
-extern GtkWidget *battery_hide_if_higher, *battery_alert_if_lower, *battery_alert_cmd;
+extern GtkWidget *battery_hide_if_higher, *battery_alert_if_lower, *battery_alert_cmd, *battery_alert_full_cmd;
 extern GtkWidget *battery_padding_x, *battery_padding_y;
 extern GtkWidget *battery_font_line1, *battery_font_line1_set, *battery_font_line2, *battery_font_line2_set,
-    *battery_font_color;
+    *battery_font_color, *battery_format1, *battery_format2;
 extern GtkWidget *battery_background;
 extern GtkWidget *battery_tooltip;
 extern GtkWidget *battery_left_command, *battery_mclick_command, *battery_right_command, *battery_uwheel_command,

@@ -119,7 +119,7 @@ void get_action(char *event, MouseAction *action)
     else if (strcmp(event, "prev_task") == 0)
         *action = PREV_TASK;
     else
-        fprintf(stderr, "Error: unrecognized action '%s'. Please fix your config file.\n", event);
+        fprintf(stderr, "tint2: Error: unrecognized action '%s'. Please fix your config file.\n", event);
 }
 
 int get_task_status(char *status)
@@ -135,27 +135,36 @@ int get_task_status(char *status)
 
 int config_get_monitor(char *monitor)
 {
-    if (strcmp(monitor, "all") != 0) {
-        char *endptr;
-        int ret_int = strtol(monitor, &endptr, 10);
-        if (*endptr == 0)
-            return ret_int - 1;
-        else {
-            // monitor specified by name, not by index
-            int i, j;
-            for (i = 0; i < server.num_monitors; ++i) {
-                if (server.monitors[i].names == 0)
-                    // xrandr can't identify monitors
-                    continue;
-                j = 0;
-                while (server.monitors[i].names[j] != 0) {
-                    if (strcmp(monitor, server.monitors[i].names[j++]) == 0)
-                        return i;
-                }
+    if (strcmp(monitor, "primary") == 0) {
+        for (int i = 0; i < server.num_monitors; ++i) {
+            if (server.monitors[i].primary)
+                return i;
+        }
+        return 0;
+    }
+    if (strcmp(monitor, "all") == 0) {
+        return -1;
+    }
+    char *endptr;
+    int ret_int = strtol(monitor, &endptr, 10);
+    if (*endptr == 0)
+        return ret_int - 1;
+    else {
+        // monitor specified by name, not by index
+        int i, j;
+        for (i = 0; i < server.num_monitors; ++i) {
+            if (server.monitors[i].names == 0)
+                // xrandr can't identify monitors
+                continue;
+            j = 0;
+            while (server.monitors[i].names[j] != 0) {
+                if (strcmp(monitor, server.monitors[i].names[j++]) == 0)
+                    return i;
             }
         }
     }
-    // monitor == "all" or monitor not found or xrandr can't identify monitors
+
+    // monitor not found or xrandr can't identify monitors => all
     return -1;
 }
 
@@ -206,7 +215,7 @@ void load_launcher_app_dir(const char *path)
 Separator *get_or_create_last_separator()
 {
     if (!panel_config.separator_list) {
-        fprintf(stderr, "Warning: separator items should shart with 'separator = new'\n");
+        fprintf(stderr, "tint2: Warning: separator items should shart with 'separator = new'\n");
         panel_config.separator_list = g_list_append(panel_config.separator_list, create_separator());
     }
     return (Separator *)g_list_last(panel_config.separator_list)->data;
@@ -215,7 +224,7 @@ Separator *get_or_create_last_separator()
 Execp *get_or_create_last_execp()
 {
     if (!panel_config.execp_list) {
-        fprintf(stderr, "Warning: execp items should start with 'execp = new'\n");
+        fprintf(stderr, "tint2: Warning: execp items should start with 'execp = new'\n");
         panel_config.execp_list = g_list_append(panel_config.execp_list, create_execp());
     }
     return (Execp *)g_list_last(panel_config.execp_list)->data;
@@ -224,7 +233,7 @@ Execp *get_or_create_last_execp()
 Button *get_or_create_last_button()
 {
     if (!panel_config.button_list) {
-        fprintf(stderr, "Warning: button items should start with 'button = new'\n");
+        fprintf(stderr, "tint2: Warning: button items should start with 'button = new'\n");
         panel_config.button_list = g_list_append(panel_config.button_list, create_button());
     }
     return (Button *)g_list_last(panel_config.button_list)->data;
@@ -381,8 +390,6 @@ void add_entry(char *key, char *value)
     /* Panel */
     else if (strcmp(key, "panel_monitor") == 0) {
         panel_config.monitor = config_get_monitor(value);
-    } else if (strcmp(key, "primary_monitor_first") == 0) {
-        primary_monitor_first = atoi(value);
     } else if (strcmp(key, "panel_shrink") == 0) {
         panel_shrink = atoi(value);
     } else if (strcmp(key, "panel_size") == 0) {
@@ -408,6 +415,7 @@ void add_entry(char *key, char *value)
         }
     } else if (strcmp(key, "panel_items") == 0) {
         new_config_file = TRUE;
+        free_and_null(panel_items_order);
         panel_items_order = strdup(value);
         systray_enabled = 0;
         launcher_enabled = 0;
@@ -425,7 +433,7 @@ void add_entry(char *key, char *value)
 #ifdef ENABLE_BATTERY
                 battery_enabled = 1;
 #else
-                fprintf(stderr, "tint2 is build without battery support\n");
+                fprintf(stderr, "tint2: tint2 has been compiled without battery support\n");
 #endif
             }
             if (panel_items_order[j] == 'S') {
@@ -545,6 +553,11 @@ void add_entry(char *key, char *value)
         if (strlen(value) > 0)
             battery_low_cmd = strdup(value);
 #endif
+    } else if (strcmp(key, "battery_full_cmd") == 0) {
+#ifdef ENABLE_BATTERY
+        if (strlen(value) > 0)
+            battery_full_cmd = strdup(value);
+#endif
     } else if (strcmp(key, "ac_connected_cmd") == 0) {
 #ifdef ENABLE_BATTERY
         if (strlen(value) > 0)
@@ -564,6 +577,21 @@ void add_entry(char *key, char *value)
 #ifdef ENABLE_BATTERY
         bat2_font_desc = pango_font_description_from_string(value);
         bat2_has_font = TRUE;
+#endif
+    } else if (strcmp(key, "bat1_format") == 0) {
+#ifdef ENABLE_BATTERY
+        if (strlen(value) > 0) {
+            free(bat1_format);
+            bat1_format = strdup(value);
+            battery_enabled = 1;
+        }
+#endif
+    } else if (strcmp(key, "bat2_format") == 0) {
+#ifdef ENABLE_BATTERY
+        if (strlen(value) > 0) {
+            free(bat2_format);
+            bat2_format = strdup(value);
+        }
 #endif
     } else if (strcmp(key, "battery_font_color") == 0) {
 #ifdef ENABLE_BATTERY
@@ -626,7 +654,7 @@ void add_entry(char *key, char *value)
         else if (g_str_equal(value, "dots"))
             separator->style = SEPARATOR_DOTS;
         else
-            fprintf(stderr, RED "Invalid separator_style value: %s" RESET "\n", value);
+            fprintf(stderr, RED "tint2: Invalid separator_style value: %s" RESET "\n", value);
     } else if (strcmp(key, "separator_size") == 0) {
         Separator *separator = get_or_create_last_separator();
         separator->thickness = atoi(value);
@@ -653,7 +681,7 @@ void add_entry(char *key, char *value)
         execp->backend->interval = 0;
         int v = atoi(value);
         if (v < 0) {
-            fprintf(stderr, "execp_interval must be an integer >= 0\n");
+            fprintf(stderr, "tint2: execp_interval must be an integer >= 0\n");
         } else {
             execp->backend->interval = v;
         }
@@ -673,6 +701,7 @@ void add_entry(char *key, char *value)
         Execp *execp = get_or_create_last_execp();
         free_and_null(execp->backend->tooltip);
         execp->backend->tooltip = strdup(value);
+        execp->backend->has_user_tooltip = TRUE;
     } else if (strcmp(key, "execp_font") == 0) {
         Execp *execp = get_or_create_last_execp();
         pango_font_description_free(execp->backend->font_desc);
@@ -708,7 +737,7 @@ void add_entry(char *key, char *value)
         Execp *execp = get_or_create_last_execp();
         int v = atoi(value);
         if (v < 0) {
-            fprintf(stderr, "execp_icon_w must be an integer >= 0\n");
+            fprintf(stderr, "tint2: execp_icon_w must be an integer >= 0\n");
         } else {
             execp->backend->icon_w = v;
         }
@@ -716,7 +745,7 @@ void add_entry(char *key, char *value)
         Execp *execp = get_or_create_last_execp();
         int v = atoi(value);
         if (v < 0) {
-            fprintf(stderr, "execp_icon_h must be an integer >= 0\n");
+            fprintf(stderr, "tint2: execp_icon_h must be an integer >= 0\n");
         } else {
             execp->backend->icon_h = v;
         }
@@ -750,17 +779,23 @@ void add_entry(char *key, char *value)
     /* Button */
     else if (strcmp(key, "button") == 0) {
         panel_config.button_list = g_list_append(panel_config.button_list, create_button());
-    } else if (strcmp(key, "button_icon") == 0 && strlen(value)) {
-        Button *button = get_or_create_last_button();
-        button->backend->icon_name = strdup(value);
-    } else if (strcmp(key, "button_text") == 0 && strlen(value)) {
-        Button *button = get_or_create_last_button();
-        free_and_null(button->backend->text);
-        button->backend->text = strdup(value);
-    } else if (strcmp(key, "button_tooltip") == 0 && strlen(value)) {
-        Button *button = get_or_create_last_button();
-        free_and_null(button->backend->tooltip);
-        button->backend->tooltip = strdup(value);
+    } else if (strcmp(key, "button_icon") == 0) {
+        if (strlen(value)) {
+            Button *button = get_or_create_last_button();
+            button->backend->icon_name = strdup(value);
+        }
+    } else if (strcmp(key, "button_text") == 0) {
+        if (strlen(value)) {
+            Button *button = get_or_create_last_button();
+            free_and_null(button->backend->text);
+            button->backend->text = strdup(value);
+        }
+    } else if (strcmp(key, "button_tooltip") == 0) {
+        if (strlen(value)) {
+            Button *button = get_or_create_last_button();
+            free_and_null(button->backend->tooltip);
+            button->backend->tooltip = strdup(value);
+        }
     } else if (strcmp(key, "button_font") == 0) {
         Button *button = get_or_create_last_button();
         pango_font_description_free(button->backend->font_desc);
@@ -960,6 +995,8 @@ void add_entry(char *key, char *value)
         hide_inactive_tasks = atoi(value);
     } else if (strcmp(key, "taskbar_hide_different_monitor") == 0) {
         hide_task_diff_monitor = atoi(value);
+    } else if (strcmp(key, "taskbar_hide_different_desktop") == 0) {
+        hide_task_diff_desktop = atoi(value);
     } else if (strcmp(key, "taskbar_hide_if_empty") == 0) {
         hide_taskbar_if_empty = atoi(value);
     } else if (strcmp(key, "taskbar_always_show_all_desktop_tasks") == 0) {
@@ -1094,7 +1131,7 @@ void add_entry(char *key, char *value)
         systray.saturation = atoi(value2);
         systray.brightness = atoi(value3);
     } else if (strcmp(key, "systray_monitor") == 0) {
-        systray_monitor = atoi(value) - 1;
+        systray_monitor = MAX(0, config_get_monitor(value));
     } else if (strcmp(key, "systray_name_filter") == 0) {
         if (systray_hide_name_filter)
             free(systray_hide_name_filter);
@@ -1250,8 +1287,13 @@ void add_entry(char *key, char *value)
         }
     }
 #endif
-    else
-        fprintf(stderr, "tint2 : invalid option \"%s\",\n  upgrade tint2 or correct your config file\n", key);
+    else if (strcmp(key, "primary_monitor_first") == 0) {
+        fprintf(stderr,
+                "tint2: deprecated config option \"%s\"\n"
+                "       Please see the documentation regarding the alternatives.\n",
+                key);
+    } else
+        fprintf(stderr, "tint2: invalid option \"%s\",\n  upgrade tint2 or correct your config file\n", key);
 
     if (value1)
         free(value1);
@@ -1263,6 +1305,8 @@ void add_entry(char *key, char *value)
 
 gboolean config_read_file(const char *path)
 {
+    fprintf(stderr, "tint2: Loading config file: %s\n", path);
+
     FILE *fp = fopen(path, "r");
     if (!fp)
         return FALSE;
@@ -1331,12 +1375,12 @@ gboolean config_read_default_path()
 
     // copy tint2rc from system directory to user directory
 
-    fprintf(stderr, "tint2 warning: could not find a config file! Creating a default one.\n");
+    fprintf(stderr, "tint2: could not find a config file! Creating a default one.\n");
     // According to the XDG Base Directory Specification
     // (https://specifications.freedesktop.org/basedir-spec/basedir-spec-0.6.html)
     // if the user's config directory does not exist, we should create it with permissions set to 0700.
     if (!g_file_test(g_get_user_config_dir(), G_FILE_TEST_IS_DIR))
-        g_mkdir(g_get_user_config_dir(), 0700);
+        g_mkdir_with_parents(g_get_user_config_dir(), 0700);
 
     gchar *path2 = 0;
     system_dirs = g_get_system_config_dirs();
@@ -1353,7 +1397,7 @@ gboolean config_read_default_path()
         // copy file in user directory (path1)
         gchar *dir = g_build_filename(g_get_user_config_dir(), "tint2", NULL);
         if (!g_file_test(dir, G_FILE_TEST_IS_DIR))
-            g_mkdir(dir, 0700);
+            g_mkdir_with_parents(dir, 0700);
         g_free(dir);
 
         path1 = g_build_filename(g_get_user_config_dir(), "tint2", "tint2rc", NULL);
@@ -1369,7 +1413,7 @@ gboolean config_read_default_path()
     // generate config file
     gchar *dir = g_build_filename(g_get_user_config_dir(), "tint2", NULL);
     if (!g_file_test(dir, G_FILE_TEST_IS_DIR))
-        g_mkdir(dir, 0700);
+        g_mkdir_with_parents(dir, 0700);
     g_free(dir);
 
     path1 = g_build_filename(g_get_user_config_dir(), "tint2", "tint2rc", NULL);

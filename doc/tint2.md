@@ -1,4 +1,4 @@
-# TINT2 1 "2017-06-11" 0.14.6
+# TINT2 1 "2017-09-02" 15.0
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -258,11 +258,11 @@ gradient_id_pressed = 2
 
     For example, `panel_items = STC` will show the systray, the taskbar and the clock (from left to right).
 
-  * `panel_monitor = monitor (all or 1 or 2 or ...)` : Which monitor tint2 draws the panel on
+  * `panel_monitor = monitor (all or primary or 1 or 2 or ...)` : Which monitor tint2 draws the panel on
     * The first monitor is `1`
     * Use `panel_monitor = all` to get a separate panel per monitor
 
-  * `primary_monitor_first = boolean (0 or 1)` : Place the primary monitor before all the other monitors in the list. *(since 0.12.4)*
+  * `primary_monitor_first = boolean (0 or 1)` : Place the primary monitor before all the other monitors in the list. *(since 0.12.4; removed in 1.0, use `primary` instead)*
 
 ![](images/panel_padding.jpg)
 
@@ -370,6 +370,8 @@ panel_size = 94% 30
 
   * `taskbar_hide_different_monitor = boolean (0 or 1)` :  If enabled, the taskbar shows only the tasks from the current monitor. Useful when running different tint2 instances on different monitors, each one having its own config. *(since 0.12)*
 
+  * `taskbar_hide_different_desktop = boolean (0 or 1)` :  If enabled, the taskbar shows only the tasks from the current desktop. Useful to make multi-desktop taskbars more compact, but still allow desktop switching with mouse click. *(since 1.0)*
+
   * `taskbar_always_show_all_desktop_tasks = boolean (0 or 1)` :  Has effect only if `taskbar_mode = multi_desktop`. If enabled, tasks that appear on all desktops are shown on all taskbars. Otherwise, they are shown only on the taskbar of the current desktop. *(since 0.12.4)*
 
   * `taskbar_sort_order = none/title/center` : Specifies the sort order of the tasks on the taskbar.  *(since 0.12)*
@@ -471,7 +473,7 @@ The action semantics:
 
   * `systray_icon_asb = alpha (0 to 100) saturation (-100 to 100) brightness (-100 to 100)` : Adjust the systray icons color and transparency.
 
-  * `systray_monitor = integer (1, 2, ...)` :  On which monitor to draw the systray. The first monitor is `1`. *(since 0.12)*
+  * `systray_monitor = integer (1, 2, ...) or primary` :  On which monitor to draw the systray. The first monitor is `1`. *(since 0.12)*
 
   * `systray_name_filter = string` :  Regular expression to identify icon names to be hidden. For example, `^audacious$` will hide icons with the exact name `audacious`, while `aud` will hide any icons having `aud` in the name. *(since 0.13.1)*
 
@@ -534,11 +536,22 @@ The action semantics:
 
   * `battery_low_cmd = notify-send "battery low"` : Command to execute when the battery is low.
 
+  * `battery_full_cmd = notify-send "battery full"` : Command to execute when the battery is full.
+
   * `bat1_font = [FAMILY-LIST] [STYLE-OPTIONS] [SIZE]`
 
   * `bat2_font = [FAMILY-LIST] [STYLE-OPTIONS] [SIZE]`
 
   * `battery_font_color = color opacity (0 to 100)`
+
+  * `bat1_format = FORMAT_STRING` : Format for battery line 1. Default: %p. *(since 1.0)* Format specification:
+    * %s: State (charging, discharging, full, unknown).
+    * %m: Minutes left until completely charged/discharged (estimated).
+    * %h: Hours left until completely charged/discharged (estimated).
+    * %t: Time left. Shows "hrs:mins" when charging/discharging, or "Ful\" when full.
+    * %p: Percentage. Includes the % sign.
+
+  * `bat2_format = FORMAT_STRING` : Format for battery line 2. Default: %t. *(since 1.0)*
 
   * `battery_padding = horizontal_padding vertical_padding`
 
@@ -739,3 +752,4 @@ and the wiki page at https://gitlab.com/o9000/tint2/wikis/home.
 
 This documentation is also provided in HTML and Markdown format in the system's default location
 for documentation files, usually `/usr/share/doc/tint2` or `/usr/local/share/doc/tint2`.
+.

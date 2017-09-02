@@ -34,17 +34,174 @@
 #include "../server.h"
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <errno.h>
 #include <dirent.h>
+#include <wordexp.h>
 
 #ifdef HAVE_RSVG
 #include <librsvg/rsvg.h>
 #endif
 
+#ifdef ENABLE_LIBUNWIND
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+#else
+#ifdef ENABLE_EXECINFO
+#include <execinfo.h>
+#endif
+#endif
+
 #include "../panel.h"
+#include "timer.h"
+
+void write_string(int fd, const char *s)
+{
+    int len = strlen(s);
+    while (len > 0) {
+        int count = write(fd, s, len);
+        if (count >= 0) {
+            s += count;
+            len -= count;
+        } else {
+            break;
+        }
+    }
+}
+
+void log_string(int fd, const char *s)
+{
+    write_string(2, s);
+    write_string(fd, s);
+}
+
+void dump_backtrace(int log_fd)
+{
+#ifndef DISABLE_BACKTRACE
+    log_string(log_fd, "\n" YELLOW "Backtrace:" RESET "\n");
+
+#ifdef ENABLE_LIBUNWIND
+    unw_cursor_t cursor;
+    unw_context_t context;
+    unw_getcontext(&context);
+    unw_init_local(&cursor, &context);
+
+    while (unw_step(&cursor) > 0) {
+        unw_word_t offset;
+        char fname[128];
+        fname[0] = '\0';
+        (void)unw_get_proc_name(&cursor, fname, sizeof(fname), &offset);
+        log_string(log_fd, fname);
+        log_string(log_fd, "\n");
+    }
+#else
+#ifdef ENABLE_EXECINFO
+#define MAX_TRACE_SIZE 128
+    void *array[MAX_TRACE_SIZE];
+    size_t size = backtrace(array, MAX_TRACE_SIZE);
+    char **strings = backtrace_symbols(array, size);
+
+    for (size_t i = 0; i < size; i++) {
+        log_string(log_fd, strings[i]);
+        log_string(log_fd, "\n");
+    }
+
+    free(strings);
+#endif // ENABLE_EXECINFO
+#endif // ENABLE_LIBUNWIND
+#endif // DISABLE_BACKTRACE
+}
+
+// sleep() returns early when signals arrive. This function does not.
+void safe_sleep(int seconds)
+{
+    double t0 = get_time();
+    while (1) {
+        double t = get_time();
+        if (t > t0 + seconds)
+            return;
+        sleep(1);
+    }
+}
+
+const char *signal_name(int sig)
+{
+    switch (sig) {
+    case SIGHUP:
+        return "SIGHUP: Hangup (POSIX).";
+    case SIGINT:
+        return "SIGINT: Interrupt (ANSI).";
+    case SIGQUIT:
+        return "SIGQUIT: Quit (POSIX).";
+    case SIGILL:
+        return "SIGILL: Illegal instruction (ANSI).";
+    case SIGTRAP:
+        return "SIGTRAP: Trace trap (POSIX).";
+    case SIGABRT:
+        return "SIGABRT/SIGIOT: Abort (ANSI) / IOT trap (4.2 BSD).";
+    case SIGBUS:
+        return "SIGBUS: BUS error (4.2 BSD).";
+    case SIGFPE:
+        return "SIGFPE: Floating-point exception (ANSI).";
+    case SIGKILL:
+        return "SIGKILL: Kill, unblockable (POSIX).";
+    case SIGUSR1:
+        return "SIGUSR1: User-defined signal 1 (POSIX).";
+    case SIGSEGV:
+        return "SIGSEGV: Segmentation violation (ANSI).";
+    case SIGUSR2:
+        return "SIGUSR2: User-defined signal 2 (POSIX).";
+    case SIGPIPE:
+        return "SIGPIPE: Broken pipe (POSIX).";
+    case SIGALRM:
+        return "SIGALRM: Alarm clock (POSIX).";
+    case SIGTERM:
+        return "SIGTERM: Termination (ANSI).";
+    // case SIGSTKFLT: return "SIGSTKFLT: Stack fault.";
+    case SIGCHLD:
+        return "SIGCHLD: Child status has changed (POSIX).";
+    case SIGCONT:
+        return "SIGCONT: Continue (POSIX).";
+    case SIGSTOP:
+        return "SIGSTOP: Stop, unblockable (POSIX).";
+    case SIGTSTP:
+        return "SIGTSTP: Keyboard stop (POSIX).";
+    case SIGTTIN:
+        return "SIGTTIN: Background read from tty (POSIX).";
+    case SIGTTOU:
+        return "SIGTTOU: Background write to tty (POSIX).";
+    case SIGURG:
+        return "SIGURG: Urgent condition on socket (4.2 BSD).";
+    case SIGXCPU:
+        return "SIGXCPU: CPU limit exceeded (4.2 BSD).";
+    case SIGXFSZ:
+        return "SIGXFSZ: File size limit exceeded (4.2 BSD).";
+    case SIGVTALRM:
+        return "SIGVTALRM: Virtual alarm clock (4.2 BSD).";
+    case SIGPROF:
+        return "SIGPROF: Profiling alarm clock (4.2 BSD).";
+    // case SIGPWR: return "SIGPWR: Power failure restart (System V).";
+    case SIGSYS:
+        return "SIGSYS: Bad system call.";
+    }
+    static char s[64];
+    sprintf(s, "SIG=%d: Unknown", sig);
+    return s;
+}
+
+const char *get_home_dir()
+{
+    const char *s = getenv("HOME");
+    if (s)
+        return s;
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw)
+        return NULL;
+    return pw->pw_dir;
+}
 
 void copy_file(const char *path_src, const char *path_dest)
 {
@@ -67,7 +224,7 @@ void copy_file(const char *path_src, const char *path_dest)
 
     while ((nb = fread(buffer, 1, sizeof(buffer), file_src)) > 0) {
         if (nb != fwrite(buffer, 1, nb, file_dest)) {
-            printf("Error while copying file %s to %s\n", path_src, path_dest);
+            fprintf(stderr, "tint2: Error while copying file %s to %s\n", path_src, path_dest);
         }
     }
 
@@ -111,7 +268,15 @@ int setenvd(const char *name, const int value)
 }
 
 #ifndef TINT2CONF
-pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time time, Area *area, int x, int y)
+pid_t tint_exec(const char *command,
+                const char *dir,
+                const char *tooltip,
+                Time time,
+                Area *area,
+                int x,
+                int y,
+                gboolean terminal,
+                gboolean startup_notification)
 {
     if (!command || strlen(command) == 0)
         return -1;
@@ -206,7 +371,7 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
 
 #if HAVE_SN
     SnLauncherContext *ctx = 0;
-    if (startup_notifications && time) {
+    if (startup_notifications && startup_notification && time) {
         ctx = sn_launcher_context_new(server.sn_display, server.screen);
         sn_launcher_context_set_name(ctx, tooltip);
         sn_launcher_context_set_description(ctx, "Application launched from tint2");
@@ -217,11 +382,11 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
     pid_t pid;
     pid = fork();
     if (pid < 0) {
-        fprintf(stderr, "Could not fork\n");
+        fprintf(stderr, "tint2: Could not fork\n");
     } else if (pid == 0) {
 // Child process
 #if HAVE_SN
-        if (startup_notifications && time) {
+        if (startup_notifications && startup_notification && time) {
             sn_launcher_context_setup_child_process(ctx);
         }
 #endif // HAVE_SN
@@ -230,10 +395,22 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
         // Run the command
         if (dir)
             chdir(dir);
-        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        fprintf(stderr, "Failed to execlp %s\n", command);
+        close_all_fds();
+        if (terminal) {
+            fprintf(stderr, "tint2: executing in x-terminal-emulator: %s\n", command);
+            wordexp_t words;
+            words.we_offs = 2;
+            if (wordexp(command, &words, WRDE_DOOFFS | WRDE_SHOWERR) == 0) {
+                words.we_wordv[0] = (char*)"x-terminal-emulator";
+                words.we_wordv[1] = (char*)"-e";
+                execvp("x-terminal-emulator", words.we_wordv);
+            }
+            fprintf(stderr, "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n", command);
+        }
+        execlp("sh", "sh", "-c", command, NULL);
+        fprintf(stderr, "tint2: Failed to execute %s\n", command);
 #if HAVE_SN
-        if (startup_notifications && time) {
+        if (startup_notifications && startup_notification && time) {
             sn_launcher_context_unref(ctx);
         }
 #endif // HAVE_SN
@@ -241,7 +418,7 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
     } else {
 // Parent process
 #if HAVE_SN
-        if (startup_notifications && time) {
+        if (startup_notifications && startup_notification && time) {
             g_tree_insert(server.pids, GINT_TO_POINTER(pid), ctx);
         }
 #endif // HAVE_SN
@@ -268,7 +445,7 @@ pid_t tint_exec(const char *command, const char *dir, const char *tooltip, Time 
 
 void tint_exec_no_sn(const char *command)
 {
-    tint_exec(command, NULL, NULL, 0, NULL, 0, 0);
+    tint_exec(command, NULL, NULL, 0, NULL, 0, 0, FALSE, FALSE);
 }
 #endif
 
@@ -619,7 +796,7 @@ Imlib_Image load_image(const char *path, int cached)
                 RsvgHandle *svg = rsvg_handle_new_from_file(path, &err);
 
                 if (err != NULL) {
-                    fprintf(stderr, "Could not load svg image!: %s", err->message);
+                    fprintf(stderr, "tint2: Could not load svg image!: %s", err->message);
                     g_error_free(err);
                 } else {
                     GdkPixbuf *pixbuf = rsvg_handle_get_pixbuf(svg);
@@ -754,7 +931,8 @@ void get_text_size2(const PangoFontDescription *font,
     available_height = MAX(0, available_height);
     Pixmap pmap = XCreatePixmap(server.display, server.root_win, available_height, available_width, server.depth);
 
-    cairo_surface_t *cs = cairo_xlib_surface_create(server.display, pmap, server.visual, available_height, available_width);
+    cairo_surface_t *cs =
+        cairo_xlib_surface_create(server.display, pmap, server.visual, available_height, available_width);
     cairo_t *c = cairo_create(cs);
 
     PangoLayout *layout = pango_cairo_create_layout(c);
@@ -773,7 +951,7 @@ void get_text_size2(const PangoFontDescription *font,
     *height_ink = rect_ink.height;
     *height = rect.height;
     *width = rect.width;
-    // printf("dimension : %d - %d\n", rect_ink.height, rect.height);
+    // fprintf(stderr, "tint2: dimension : %d - %d\n", rect_ink.height, rect.height);
 
     g_object_unref(layout);
     cairo_destroy(c);
@@ -847,4 +1025,29 @@ gint cmp_ptr(gconstpointer a, gconstpointer b)
         return 0;
     else
         return 1;
+}
+
+void close_all_fds()
+{
+    long maxfd = sysconf(_SC_OPEN_MAX);
+    for (int fd = 3; fd < maxfd; fd++) {
+        close(fd);
+    }
+}
+
+GString *tint2_g_string_replace(GString *s, const char *from, const char *to)
+{
+    GString *result = g_string_new("");
+    for (char *p = s->str; *p;) {
+        if (strstr(p, from) == p) {
+            g_string_append(result, to);
+            p += strlen(from);
+        } else {
+            g_string_append_c(result, *p);
+            p += 1;
+        }
+    }
+    g_string_assign(s, result->str);
+    g_string_free(result, TRUE);
+    return s;
 }

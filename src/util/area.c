@@ -224,7 +224,7 @@ int compute_desired_size(Area *a)
     if (a->_compute_desired_size)
         return a->_compute_desired_size(a);
     if (a->size_mode == LAYOUT_FIXED)
-        fprintf(stderr, YELLOW "Area %s does not set desired size!" RESET "\n", a->name);
+        fprintf(stderr, YELLOW "tint2: Area %s does not set desired size!" RESET "\n", a->name);
     return container_compute_desired_size(a);
 }
 
@@ -385,7 +385,7 @@ void draw_tree(Area *a)
                   a->posx,
                   a->posy);
     else
-        fprintf(stderr, RED "%s %d: area %s has no pixmap!!!" RESET "\n", __FILE__, __LINE__, a->name);
+        fprintf(stderr, RED "tint2: %s %d: area %s has no pixmap!!!" RESET "\n", __FILE__, __LINE__, a->name);
 
     for (GList *l = a->children; l; l = l->next)
         draw_tree((Area *)l->data);
@@ -630,7 +630,7 @@ void free_area(Area *a)
     free_area_gradient_instances(a);
 }
 
-void mouse_over(Area *area, int pressed)
+void mouse_over(Area *area, gboolean pressed)
 {
     if (mouse_over_area == area && !area)
         return;
@@ -843,10 +843,10 @@ int top_bottom_bg_border_width(Background *bg)
 
 void area_dump_geometry(Area *area, int indent)
 {
-    fprintf(stderr, "%*s%s:\n", indent, "", area->name);
+    fprintf(stderr, "tint2: %*s%s:\n", indent, "", area->name);
     indent += 2;
     if (!area->on_screen) {
-        fprintf(stderr, "%*shidden\n", indent, "");
+        fprintf(stderr, "tint2: %*shidden\n", indent, "");
         return;
     }
     fprintf(stderr,
@@ -876,7 +876,7 @@ void area_dump_geometry(Area *area, int indent)
     if (area->_dump_geometry)
         area->_dump_geometry(area, indent);
     if (area->children) {
-        fprintf(stderr, "%*sChildren:\n", indent, "");
+        fprintf(stderr, "tint2: %*sChildren:\n", indent, "");
         indent += 2;
         for (GList *l = area->children; l; l = l->next)
             area_dump_geometry((Area *)l->data, indent);
@@ -996,9 +996,13 @@ gboolean resize_text_area(Area *area,
                                                   line1_font_desc,
                                                   line2_font_desc);
     if (panel_horizontal) {
-        if (new_size > area->width || new_size < (area->width - 6)) {
-            // we try to limit the number of resizes
-            area->width = new_size + 1;
+        if (new_size != area->width) {
+            if (new_size < area->width && abs(new_size - area->width) < 6) {
+                // we try to limit the number of resizes
+                new_size = area->width;
+            } else {
+                area->width = new_size;
+            }
             *line1_posy = (area->height - line1_height) / 2;
             if (line2) {
                 *line1_posy -= (line2_height) / 2;
@@ -1008,7 +1012,6 @@ gboolean resize_text_area(Area *area,
         }
     } else {
         if (new_size != area->height) {
-            // we try to limit the number of resizes
             area->height = new_size;
             *line1_posy = (area->height - line1_height) / 2;
             if (line2) {
@@ -1129,7 +1132,7 @@ void free_gradient_instance(GradientInstance *gi)
 void instantiate_area_gradients(Area *area)
 {
     if (debug_gradients)
-        fprintf(stderr, "Initializing gradients for area %s\n", area->name);
+        fprintf(stderr, "tint2: Initializing gradients for area %s\n", area->name);
     for (int i = 0; i < MOUSE_STATE_COUNT; i++) {
         g_assert_null(area->gradient_instances_by_state[i]);
         GradientClass *g = area->bg->gradients[i];
@@ -1144,7 +1147,7 @@ void instantiate_area_gradients(Area *area)
 void free_area_gradient_instances(Area *area)
 {
     if (debug_gradients)
-        fprintf(stderr, "Freeing gradients for area %s\n", area->name);
+        fprintf(stderr, "tint2: Freeing gradients for area %s\n", area->name);
     for (int i = 0; i < MOUSE_STATE_COUNT; i++) {
         for (GList *l = area->gradient_instances_by_state[i]; l; l = l->next) {
             GradientInstance *gi = (GradientInstance *)l->data;

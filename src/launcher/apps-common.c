@@ -96,6 +96,10 @@ void expand_exec(DesktopEntry *entry, const char *path)
                     q += strlen("''");
                     q += strlen(path);
                     q--; // To balance the q++ in the for
+                } else if (*p == 'f' || *p == 'F') {
+                    sprintf(q, "%c%c", '%', *p);
+                    q += 2;
+                    q--; // To balance the q++ in the for
                 } else {
                     // We don't care about other expansions
                     q--; // Delete the last % from q
@@ -113,10 +117,12 @@ gboolean read_desktop_file_full_path(const char *path, DesktopEntry *entry)
 {
     entry->name = entry->generic_name = entry->icon = entry->exec = entry->cwd = NULL;
     entry->hidden_from_menus = FALSE;
+    entry->start_in_terminal = FALSE;
+    entry->startup_notification = TRUE;
 
     FILE *fp = fopen(path, "rt");
     if (fp == NULL) {
-        fprintf(stderr, "Could not open file %s\n", path);
+        fprintf(stderr, "tint2: Could not open file %s\n", path);
         return FALSE;
     }
 
@@ -126,14 +132,14 @@ gboolean read_desktop_file_full_path(const char *path, DesktopEntry *entry)
     int lang_index_default = 1;
 #define LANG_DBG 0
     if (LANG_DBG)
-        printf("Languages:");
+        fprintf(stderr, "tint2: Languages:");
     for (int i = 0; languages[i]; i++) {
         lang_index_default = i + 1;
         if (LANG_DBG)
-            printf(" %s", languages[i]);
+            fprintf(stderr, "tint2:  %s", languages[i]);
     }
     if (LANG_DBG)
-        printf("\n");
+        fprintf(stderr, "tint2: \n");
     // we currently do not know about any Name key at all, so use an invalid index
     int lang_index_name = lang_index_default + 1;
     int lang_index_generic_name = lang_index_default + 1;
@@ -192,6 +198,10 @@ gboolean read_desktop_file_full_path(const char *path, DesktopEntry *entry)
                 entry->icon = strdup(value);
             } else if (strcmp(key, "NoDisplay") == 0) {
                 entry->hidden_from_menus = strcasecmp(value, "true") == 0;
+            } else if (strcmp(key, "Terminal") == 0) {
+                entry->start_in_terminal = strcasecmp(value, "true") == 0;
+            } else if (strcmp(key, "StartupNotify") == 0) {
+                entry->startup_notification = strcasecmp(value, "true") == 0;
             }
         }
     }
@@ -278,11 +288,11 @@ void free_desktop_entry(DesktopEntry *entry)
 
 void test_read_desktop_file()
 {
-    fprintf(stdout, "\033[1;33m");
+    fprintf(stderr, YELLOW);
     DesktopEntry entry;
     read_desktop_file("/usr/share/applications/firefox.desktop", &entry);
-    printf("Name:%s GenericName:%s Icon:%s Exec:%s\n", entry.name, entry.generic_name, entry.icon, entry.exec);
-    fprintf(stdout, "\033[0m");
+    fprintf(stderr, "tint2: Name:%s GenericName:%s Icon:%s Exec:%s\n", entry.name, entry.generic_name, entry.icon, entry.exec);
+    fprintf(stderr, RESET);
 }
 
 GSList *apps_locations = NULL;

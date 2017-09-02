@@ -326,16 +326,14 @@ void config_write_panel(FILE *fp)
     fprintf(fp, "\n");
 
     fprintf(fp, "panel_monitor = ");
-    if (gtk_combo_box_get_active(GTK_COMBO_BOX(panel_combo_monitor)) == 0) {
+    if (gtk_combo_box_get_active(GTK_COMBO_BOX(panel_combo_monitor)) <= 0) {
         fprintf(fp, "all");
+    } else if (gtk_combo_box_get_active(GTK_COMBO_BOX(panel_combo_monitor)) == 1) {
+        fprintf(fp, "primary");
     } else {
-        fprintf(fp, "%d", gtk_combo_box_get_active(GTK_COMBO_BOX(panel_combo_monitor)));
+        fprintf(fp, "%d", gtk_combo_box_get_active(GTK_COMBO_BOX(panel_combo_monitor)) - 1);
     }
     fprintf(fp, "\n");
-
-    fprintf(fp,
-            "primary_monitor_first = %d\n",
-            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(panel_primary_monitor_first)) ? 1 : 0);
 
     fprintf(fp, "panel_shrink = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(panel_shrink)) ? 1 : 0);
 
@@ -401,6 +399,9 @@ void config_write_taskbar(FILE *fp)
     fprintf(fp,
             "taskbar_hide_different_monitor = %d\n",
             gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(taskbar_hide_diff_monitor)) ? 1 : 0);
+    fprintf(fp,
+            "taskbar_hide_different_desktop = %d\n",
+            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(taskbar_hide_diff_desktop)) ? 1 : 0);
     fprintf(fp,
             "taskbar_always_show_all_desktop_tasks = %d\n",
             gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(taskbar_always_show_all_desktop_tasks)) ? 1 : 0);
@@ -629,7 +630,11 @@ void config_write_systray(FILE *fp)
             (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(systray_icon_brightness)));
 
     fprintf(fp, "systray_monitor = ");
-    fprintf(fp, "%d", MAX(1, 1 + gtk_combo_box_get_active(GTK_COMBO_BOX(systray_monitor))));
+    if (gtk_combo_box_get_active(GTK_COMBO_BOX(systray_monitor)) <= 0) {
+        fprintf(fp, "primary");
+    } else {
+        fprintf(fp, "%d", MAX(1, gtk_combo_box_get_active(GTK_COMBO_BOX(systray_monitor))));
+    }
     fprintf(fp, "\n");
 
     fprintf(fp, "systray_name_filter = %s\n", gtk_entry_get_text(GTK_ENTRY(systray_name_filter)));
@@ -752,6 +757,7 @@ void config_write_battery(FILE *fp)
     fprintf(fp, "battery_tooltip = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(battery_tooltip)) ? 1 : 0);
     fprintf(fp, "battery_low_status = %g\n", gtk_spin_button_get_value(GTK_SPIN_BUTTON(battery_alert_if_lower)));
     fprintf(fp, "battery_low_cmd = %s\n", gtk_entry_get_text(GTK_ENTRY(battery_alert_cmd)));
+    fprintf(fp, "battery_full_cmd = %s\n", gtk_entry_get_text(GTK_ENTRY(battery_alert_full_cmd)));
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(battery_font_line1_set)))
         fprintf(fp, "bat1_font = %s\n", gtk_font_button_get_font_name(GTK_FONT_BUTTON(battery_font_line1)));
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(battery_font_line2_set)))
@@ -762,6 +768,8 @@ void config_write_battery(FILE *fp)
                        "battery_font_color",
                        color,
                        gtk_color_button_get_alpha(GTK_COLOR_BUTTON(battery_font_color)) * 100 / 0xffff);
+    fprintf(fp, "bat1_format = %s\n", gtk_entry_get_text(GTK_ENTRY(battery_format1)));
+    fprintf(fp, "bat2_format = %s\n", gtk_entry_get_text(GTK_ENTRY(battery_format2)));
     fprintf(fp,
             "battery_padding = %d %d\n",
             (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(battery_padding_x)),
@@ -973,7 +981,7 @@ unsigned short checksum_txt(FILE *f)
 
 void config_save_file(const char *path)
 {
-    printf("config_save_file : %s\n", path);
+    fprintf(stderr, "tint2: config_save_file : %s\n", path);
 
     FILE *fp;
     if ((fp = fopen(path, "w+t")) == NULL)
@@ -1351,20 +1359,20 @@ void add_entry(char *key, char *value)
     } else if (strcmp(key, "panel_monitor") == 0) {
         if (strcmp(value, "all") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 0);
-        else if (strcmp(value, "1") == 0)
+        else if (strcmp(value, "primary") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 1);
-        else if (strcmp(value, "2") == 0)
+        else if (strcmp(value, "1") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 2);
-        else if (strcmp(value, "3") == 0)
+        else if (strcmp(value, "2") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 3);
-        else if (strcmp(value, "4") == 0)
+        else if (strcmp(value, "3") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 4);
-        else if (strcmp(value, "5") == 0)
+        else if (strcmp(value, "4") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 5);
-        else if (strcmp(value, "6") == 0)
+        else if (strcmp(value, "5") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 6);
-    } else if (strcmp(key, "primary_monitor_first") == 0) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(panel_primary_monitor_first), atoi(value));
+        else if (strcmp(value, "6") == 0)
+            gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 7);
     } else if (strcmp(key, "panel_shrink") == 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(panel_shrink), atoi(value));
     }
@@ -1403,12 +1411,18 @@ void add_entry(char *key, char *value)
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(battery_alert_if_lower), atof(value));
     } else if (strcmp(key, "battery_low_cmd") == 0) {
         gtk_entry_set_text(GTK_ENTRY(battery_alert_cmd), value);
+    } else if (strcmp(key, "battery_full_cmd") == 0) {
+        gtk_entry_set_text(GTK_ENTRY(battery_alert_full_cmd), value);
     } else if (strcmp(key, "bat1_font") == 0) {
         gtk_font_button_set_font_name(GTK_FONT_BUTTON(battery_font_line1), value);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(battery_font_line1_set), TRUE);
     } else if (strcmp(key, "bat2_font") == 0) {
         gtk_font_button_set_font_name(GTK_FONT_BUTTON(battery_font_line2), value);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(battery_font_line2_set), TRUE);
+    } else if (strcmp(key, "bat1_format") == 0) {
+        gtk_entry_set_text(GTK_ENTRY(battery_format1), value);
+    } else if (strcmp(key, "bat2_format") == 0) {
+        gtk_entry_set_text(GTK_ENTRY(battery_format2), value);
     } else if (strcmp(key, "battery_font_color") == 0) {
         extract_values(value, &value1, &value2, &value3);
         GdkColor col;
@@ -1551,6 +1565,8 @@ void add_entry(char *key, char *value)
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(taskbar_hide_inactive_tasks), atoi(value));
     } else if (strcmp(key, "taskbar_hide_different_monitor") == 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(taskbar_hide_diff_monitor), atoi(value));
+    } else if (strcmp(key, "taskbar_hide_different_desktop") == 0) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(taskbar_hide_diff_desktop), atoi(value));
     } else if (strcmp(key, "taskbar_always_show_all_desktop_tasks") == 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(taskbar_always_show_all_desktop_tasks), atoi(value));
     } else if (strcmp(key, "taskbar_name_padding") == 0) {
@@ -1747,18 +1763,20 @@ void add_entry(char *key, char *value)
     } else if (strcmp(key, "systray_icon_size") == 0) {
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(systray_icon_size), atoi(value));
     } else if (strcmp(key, "systray_monitor") == 0) {
-        if (strcmp(value, "1") == 0)
+        if (strcmp(value, "primary") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 0);
-        else if (strcmp(value, "2") == 0)
+        else if (strcmp(value, "1") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 1);
-        else if (strcmp(value, "3") == 0)
+        else if (strcmp(value, "2") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 2);
-        else if (strcmp(value, "4") == 0)
+        else if (strcmp(value, "3") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 3);
-        else if (strcmp(value, "5") == 0)
+        else if (strcmp(value, "4") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 4);
-        else if (strcmp(value, "6") == 0)
+        else if (strcmp(value, "5") == 0)
             gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 5);
+        else if (strcmp(value, "6") == 0)
+            gtk_combo_box_set_active(GTK_COMBO_BOX(systray_monitor), 6);
     } else if (strcmp(key, "systray_icon_asb") == 0) {
         extract_values(value, &value1, &value2, &value3);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(systray_icon_opacity), atoi(value1));

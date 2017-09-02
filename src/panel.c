@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
@@ -35,8 +37,6 @@
 #include "tooltip.h"
 
 void panel_clear_background(void *obj);
-
-int signal_pending;
 
 MouseAction mouse_left;
 MouseAction mouse_middle;
@@ -148,6 +148,8 @@ void cleanup_panel()
         cleanup_freespace(p);
     }
 
+    free_icon_themes();
+
     free(panel_items_order);
     panel_items_order = NULL;
     free(panel_window_name);
@@ -175,11 +177,11 @@ void init_panel()
 {
     if (panel_config.monitor > (server.num_monitors - 1)) {
         // server.num_monitors minimum value is 1 (see get_monitors())
-        fprintf(stderr, "warning : monitor not found. tint2 default to all monitors.\n");
+        fprintf(stderr, "tint2: warning : monitor not found. tint2 default to all monitors.\n");
         panel_config.monitor = 0;
     }
 
-    fprintf(stderr, "panel items: %s\n", panel_items_order);
+    fprintf(stderr, "tint2: panel items: %s\n", panel_items_order);
 
     icon_theme_wrapper = NULL;
 
@@ -207,7 +209,7 @@ void init_panel()
     }
 
     fprintf(stderr,
-            "tint2 : nb monitor %d, nb monitor used %d, nb desktop %d\n",
+            "tint2: nb monitors %d, nb monitors used %d, nb desktops %d\n",
             server.num_monitors,
             num_panels,
             server.num_desktops);
@@ -287,7 +289,7 @@ void init_panel()
             XGCValues gcv;
             server.gc = XCreateGC(server.display, p->main_win, 0, &gcv);
         }
-        // printf("panel %d : %d, %d, %d, %d\n", i, p->posx, p->posy, p->area.width, p->area.height);
+        // fprintf(stderr, "tint2: panel %d : %d, %d, %d, %d\n", i, p->posx, p->posy, p->area.width, p->area.height);
         set_panel_properties(p);
         set_panel_background(p);
         if (!snapshot_path) {
@@ -320,7 +322,7 @@ void panel_compute_size(Panel *panel)
         if (panel->fractional_height)
             panel->area.height = (server.monitors[panel->monitor].height - panel->marginy) * panel->area.height / 100;
         if (panel->area.bg->border.radius > panel->area.height / 2) {
-            printf("panel_background_id rounded is too big... please fix your tint2rc\n");
+            fprintf(stderr, "tint2: panel_background_id rounded is too big... please fix your tint2rc\n");
             g_array_append_val(backgrounds, *panel->area.bg);
             panel->area.bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
             panel->area.bg->border.radius = panel->area.height / 2;
@@ -346,7 +348,7 @@ void panel_compute_size(Panel *panel)
             panel->area.width = old_panel_height;
 
         if (panel->area.bg->border.radius > panel->area.width / 2) {
-            printf("panel_background_id rounded is too big... please fix your tint2rc\n");
+            fprintf(stderr, "tint2: panel_background_id rounded is too big... please fix your tint2rc\n");
             g_array_append_val(backgrounds, *panel->area.bg);
             panel->area.bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
             panel->area.bg->border.radius = panel->area.width / 2;
@@ -399,7 +401,7 @@ void panel_compute_position(Panel *panel)
         panel->hidden_width = panel->area.width - diff;
         panel->hidden_height = panel->area.height;
     }
-    // printf("panel : posx %d, posy %d, width %d, height %d\n", panel->posx, panel->posy, panel->area.width,
+    // fprintf(stderr, "tint2: panel : posx %d, posy %d, width %d, height %d\n", panel->posx, panel->posy, panel->area.width,
     // panel->area.height);
 }
 
@@ -414,7 +416,7 @@ gboolean resize_panel(void *obj)
     Panel *panel = (Panel *)obj;
     relayout_with_constraint(&panel->area, 0);
 
-    // printf("resize_panel\n");
+    // fprintf(stderr, "tint2: resize_panel\n");
     if (taskbar_mode != MULTI_DESKTOP && taskbar_enabled) {
         // propagate width/height on hidden taskbar
         int width = panel->taskbar[server.desktop].area.width;
@@ -551,7 +553,7 @@ void update_strut(Panel *p)
     long struts[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     if (panel_horizontal) {
         int height = p->area.height + p->marginy;
-        if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide))
+        if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide && p->is_hidden))
             height = p->hidden_height;
         if (panel_position & TOP) {
             struts[2] = height + monitor.y;
@@ -566,7 +568,7 @@ void update_strut(Panel *p)
         }
     } else {
         int width = p->area.width + p->marginx;
-        if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide))
+        if (panel_strut_policy == STRUT_MINIMUM || (panel_strut_policy == STRUT_FOLLOW_SIZE && panel_autohide && p->is_hidden))
             width = p->hidden_width;
         if (panel_position & LEFT) {
             struts[0] = width + monitor.x;
@@ -814,15 +816,24 @@ void set_panel_properties(Panel *p)
         g_free(name);
     }
 
+    long pid = getpid();
+    XChangeProperty(server.display,
+                    p->main_win,
+                    server.atom._NET_WM_PID,
+                    XA_CARDINAL,
+                    32,
+                    PropModeReplace,
+                    (unsigned char *)&pid,
+                    1);
+
     // Dock
-    long val = server.atom._NET_WM_WINDOW_TYPE_DOCK;
     XChangeProperty(server.display,
                     p->main_win,
                     server.atom._NET_WM_WINDOW_TYPE,
                     XA_ATOM,
                     32,
                     PropModeReplace,
-                    (unsigned char *)&val,
+                    (unsigned char *)&server.atom._NET_WM_WINDOW_TYPE_DOCK,
                     1);
 
     place_panel_all_desktops(p);
@@ -1135,6 +1146,63 @@ void _schedule_panel_redraw(const char *file, const char *function, const int li
 {
     panel_refresh = TRUE;
     if (debug_fps) {
-        fprintf(stderr, YELLOW "%s %s %d: triggering panel redraw" RESET "\n", file, function, line);
+        fprintf(stderr, YELLOW "tint2: %s %s %d: triggering panel redraw" RESET "\n", file, function, line);
     }
+}
+
+void save_panel_screenshot(const Panel *panel, const char *path)
+{
+    imlib_context_set_drawable(panel->temp_pmap);
+    Imlib_Image img = imlib_create_image_from_drawable(0, 0, 0, panel->area.width, panel->area.height, 1);
+
+    if (!img) {
+        XImage *ximg =
+            XGetImage(server.display, panel->temp_pmap, 0, 0, panel->area.width, panel->area.height, AllPlanes, ZPixmap);
+
+        if (ximg) {
+            DATA32 *pixels = (DATA32 *)calloc(panel->area.width * panel->area.height, sizeof(DATA32));
+            for (int x = 0; x < panel->area.width; x++) {
+                for (int y = 0; y < panel->area.height; y++) {
+                    DATA32 xpixel = XGetPixel(ximg, x, y);
+
+                    DATA32 r = (xpixel >> 16) & 0xff;
+                    DATA32 g = (xpixel >> 8) & 0xff;
+                    DATA32 b = (xpixel >> 0) & 0xff;
+                    DATA32 a = 0x0;
+
+                    DATA32 argb = (a << 24) | (r << 16) | (g << 8) | b;
+                    pixels[y * panel->area.width + x] = argb;
+                }
+            }
+            XDestroyImage(ximg);
+            img = imlib_create_image_using_data(panel->area.width, panel->area.height, pixels);
+        }
+    }
+
+    if (img) {
+        imlib_context_set_image(img);
+        if (!panel_horizontal) {
+            // rotate 90° vertical panel
+            imlib_image_flip_horizontal();
+            imlib_image_flip_diagonal();
+        }
+        imlib_save_image(path);
+        imlib_free_image();
+    }
+}
+
+void save_screenshot(const char *path)
+{
+    Panel *panel = &panels[0];
+
+    if (panel->area.width > server.monitors[0].width)
+        panel->area.width = server.monitors[0].width;
+
+    panel->temp_pmap =
+        XCreatePixmap(server.display, server.root_win, panel->area.width, panel->area.height, server.depth);
+    render_panel(panel);
+
+    XSync(server.display, False);
+
+    save_panel_screenshot(panel, path);
 }

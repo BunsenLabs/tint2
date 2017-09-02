@@ -93,6 +93,15 @@ typedef struct Global_atom {
     Atom TARGETS;
 } Global_atom;
 
+typedef struct Property {
+    unsigned char *data;
+    int format, nitems;
+    Atom type;
+} Property;
+
+// Returns the name of an Atom as string. Do not free the string.
+const char *GetAtomName(Display *disp, Atom a);
+
 typedef struct Monitor {
     int x;
     int y;
@@ -111,6 +120,7 @@ typedef struct Viewport {
 
 typedef struct Server {
     Display *display;
+    int x11_fd;
     Window root_win;
     Window composite_manager;
     gboolean real_transparency;
@@ -135,6 +145,8 @@ typedef struct Server {
     Colormap colormap;
     Colormap colormap32;
     Global_atom atom;
+    int xdamage_event_type;
+    int xdamage_event_error_type;
 #ifdef HAVE_SN
     SnDisplay *sn_display;
     GTree *pids;
@@ -153,6 +165,10 @@ Atom server_get_atom(char *atom_name);
 void server_catch_error(Display *d, XErrorEvent *ev);
 void server_init_atoms();
 void server_init_visual();
+void server_init_xdamage();
+
+void x11_io_error(Display *display);
+void handle_crash(const char *reason);
 
 // detect root background
 void get_root_pixmap();
@@ -166,5 +182,13 @@ void server_get_number_of_desktops();
 GSList *get_desktop_names();
 int get_current_desktop();
 void change_desktop(int desktop);
+
+// Forward mouse click to the desktop window
+void forward_click(XEvent *e);
+
+#ifdef HAVE_SN
+void error_trap_push(SnDisplay *display, Display *xdisplay);
+void error_trap_pop(SnDisplay *display, Display *xdisplay);
+#endif
 
 #endif

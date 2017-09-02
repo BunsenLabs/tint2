@@ -29,6 +29,8 @@
 #include "common.h"
 #include "cache.h"
 
+gboolean debug_icons = FALSE;
+
 #define ICON_DIR_TYPE_SCALABLE 0
 #define ICON_DIR_TYPE_FIXED 1
 #define ICON_DIR_TYPE_THRESHOLD 2
@@ -90,7 +92,7 @@ IconTheme *load_theme_from_index(const char *file_name, const char *name)
     size_t line_size;
 
     if ((f = fopen(file_name, "rt")) == NULL) {
-        fprintf(stderr, "Could not open theme '%s'\n", file_name);
+        fprintf(stderr, "tint2: Could not open theme '%s'\n", file_name);
         return NULL;
     }
 
@@ -325,22 +327,22 @@ void free_themes(IconThemeWrapper *wrapper)
 
 void test_launcher_read_theme_file()
 {
-    fprintf(stdout, "\033[1;33m");
+    fprintf(stdout, YELLOW);
     IconTheme *theme = load_theme("oxygen");
     if (!theme) {
-        printf("Could not load theme\n");
+        fprintf(stderr, "tint2: Could not load theme\n");
         return;
     }
-    printf("Loaded theme: %s\n", theme->name);
+    fprintf(stderr, "tint2: Loaded theme: %s\n", theme->name);
     GSList *item = theme->list_inherits;
     while (item != NULL) {
-        printf("Inherits:%s\n", (char *)item->data);
+        fprintf(stderr, "tint2: Inherits:%s\n", (char *)item->data);
         item = g_slist_next(item);
     }
     item = theme->list_directories;
     while (item != NULL) {
         IconThemeDir *dir = item->data;
-        printf("Dir:%s Size=%d MinSize=%d MaxSize=%d Threshold=%d Type=%s\n",
+        fprintf(stderr, "tint2: Dir:%s Size=%d MinSize=%d MaxSize=%d Threshold=%d Type=%s\n",
                dir->name,
                dir->size,
                dir->min_size,
@@ -352,7 +354,7 @@ void test_launcher_read_theme_file()
                                                                                                        : "?????");
         item = g_slist_next(item);
     }
-    fprintf(stdout, "\033[0m");
+    fprintf(stdout, RESET);
 }
 
 gboolean str_list_contains(const GSList *list, const char *value)
@@ -379,7 +381,7 @@ void load_themes_helper(const char *name, GSList **themes, GSList **queued)
         char *queued_name = queue->data;
         queue = g_slist_remove(queue, queued_name);
 
-        fprintf(stderr, " '%s',", queued_name);
+        fprintf(stderr, "tint2:  '%s',", queued_name);
         IconTheme *theme = load_theme(queued_name);
         if (theme != NULL) {
             *themes = g_slist_append(*themes, theme);
@@ -399,7 +401,7 @@ void load_themes_helper(const char *name, GSList **themes, GSList **queued)
 
         free(queued_name);
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, "tint2: \n");
 
     // Free the queue
     GSList *l;
@@ -413,7 +415,7 @@ void load_default_theme(IconThemeWrapper *wrapper)
     if (wrapper->_themes_loaded)
         return;
 
-    fprintf(stderr, GREEN "Loading icon theme %s:" RESET "\n", wrapper->icon_theme_name);
+    fprintf(stderr, GREEN "tint2: Loading icon theme %s:" RESET "\n", wrapper->icon_theme_name);
 
     load_themes_helper(wrapper->icon_theme_name, &wrapper->themes, &wrapper->_queued);
     load_themes_helper("hicolor", &wrapper->themes, &wrapper->_queued);
@@ -426,7 +428,7 @@ void load_fallbacks(IconThemeWrapper *wrapper)
     if (wrapper->_fallback_loaded)
         return;
 
-    fprintf(stderr, RED "Loading additional icon themes (this means your icon theme is incomplete)..." RESET "\n");
+    fprintf(stderr, RED "tint2: Loading additional icon themes (this means your icon theme is incomplete)..." RESET "\n");
 
     // Load wrapper->themes_fallback
     const GSList *location;
@@ -459,7 +461,7 @@ void load_icon_cache(IconThemeWrapper *wrapper)
     if (wrapper->_cache.loaded)
         return;
 
-    fprintf(stderr, GREEN "Loading icon theme cache..." RESET "\n");
+    fprintf(stderr, GREEN "tint2: Loading icon theme cache..." RESET "\n");
 
     gchar *cache_path = get_icon_cache_path();
     load_cache(&wrapper->_cache, cache_path);
@@ -471,7 +473,7 @@ void save_icon_cache(IconThemeWrapper *wrapper)
     if (!wrapper || !wrapper->_cache.dirty)
         return;
 
-    fprintf(stderr, GREEN "Saving icon theme cache..." RESET "\n");
+    fprintf(stderr, GREEN "tint2: Saving icon theme cache..." RESET "\n");
     gchar *cache_path = get_icon_cache_path();
     save_cache(&wrapper->_cache, cache_path);
     g_free(cache_path);
@@ -482,7 +484,7 @@ IconThemeWrapper *load_themes(const char *icon_theme_name)
     IconThemeWrapper *wrapper = calloc(1, sizeof(IconThemeWrapper));
 
     if (!icon_theme_name) {
-        fprintf(stderr, "Missing icon_theme_name theme, default to 'hicolor'.\n");
+        fprintf(stderr, "tint2: Missing icon_theme_name theme, default to 'hicolor'.\n");
         icon_theme_name = "hicolor";
     }
 
@@ -533,7 +535,6 @@ gint compare_theme_directories(gconstpointer a, gconstpointer b, gpointer size_q
     return abs(da->size - size) - abs(db->size - size);
 }
 
-#define DEBUG_ICON_SEARCH 0
 char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
 {
     if (icon_name == NULL)
@@ -585,6 +586,8 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
     char *file_name = calloc(file_name_size, 1);
 
     for (theme = themes; theme; theme = g_slist_next(theme)) {
+        if (debug_icons)
+            fprintf(stderr, "tint2: Searching theme: %s\n", ((IconTheme *)theme->data)->name);
         ((IconTheme *)theme->data)->list_directories =
             g_slist_sort_with_data(((IconTheme *)theme->data)->list_directories,
                                    compare_theme_directories,
@@ -600,6 +603,8 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
                                     (!next_larger_theme ? 1 : theme == next_larger_theme));
             if (!possible)
                 continue;
+            if (debug_icons)
+                fprintf(stderr, "tint2: Searching directory: %s\n", ((IconThemeDir *)dir->data)->name);
             const GSList *base;
             for (base = basenames; base; base = g_slist_next(base)) {
                 for (GSList *ext = extensions; ext; ext = g_slist_next(ext)) {
@@ -617,11 +622,11 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
                     file_name[0] = 0;
                     // filename = directory/$(themename)/subdirectory/iconname.extension
                     sprintf(file_name, "%s/%s/%s/%s%s", base_name, theme_name, dir_name, icon_name, extension);
-                    if (DEBUG_ICON_SEARCH)
-                        printf("checking %s\n", file_name);
+                    if (debug_icons)
+                        fprintf(stderr, "tint2: Checking %s\n", file_name);
                     if (g_file_test(file_name, G_FILE_TEST_EXISTS)) {
-                        if (DEBUG_ICON_SEARCH)
-                            printf("found: %s\n", file_name);
+                        if (debug_icons)
+                            fprintf(stderr, "tint2: Found potential match: %s\n", file_name);
                         // Closest match
                         if (directory_size_distance((IconThemeDir *)dir->data, size) < minimal_size &&
                             (!best_file_theme ? 1 : theme == best_file_theme)) {
@@ -632,8 +637,8 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
                             best_file_name = strdup(file_name);
                             minimal_size = directory_size_distance((IconThemeDir *)dir->data, size);
                             best_file_theme = theme;
-                            if (DEBUG_ICON_SEARCH)
-                                printf("best_file_name = %s; minimal_size = %d\n", best_file_name, minimal_size);
+                            if (debug_icons)
+                                fprintf(stderr, "tint2: best_file_name = %s; minimal_size = %d\n", best_file_name, minimal_size);
                         }
                         // Next larger match
                         if (((IconThemeDir *)dir->data)->size >= size &&
@@ -646,8 +651,8 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
                             next_larger = strdup(file_name);
                             next_larger_size = ((IconThemeDir *)dir->data)->size;
                             next_larger_theme = theme;
-                            if (DEBUG_ICON_SEARCH)
-                                printf("next_larger = %s; next_larger_size = %d\n", next_larger, next_larger_size);
+                            if (debug_icons)
+                                fprintf(stderr, "tint2: next_larger = %s; next_larger_size = %d\n", next_larger, next_larger_size);
                         }
                     }
                 }
@@ -668,6 +673,8 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
 
     // Look in unthemed icons
     {
+        if (debug_icons)
+            fprintf(stderr, "tint2: Searching unthemed icons\n");
         for (const GSList *base = basenames; base; base = g_slist_next(base)) {
             for (GSList *ext = extensions; ext; ext = g_slist_next(ext)) {
                 char *base_name = (char *)base->data;
@@ -675,9 +682,11 @@ char *get_icon_path_helper(GSList *themes, const char *icon_name, int size)
                 file_name = calloc(strlen(base_name) + strlen(icon_name) + strlen(extension) + 100, 1);
                 // filename = directory/iconname.extension
                 sprintf(file_name, "%s/%s%s", base_name, icon_name, extension);
-                if (DEBUG_ICON_SEARCH)
-                    printf("checking %s\n", file_name);
+                if (debug_icons)
+                    fprintf(stderr, "tint2: Checking %s\n", file_name);
                 if (g_file_test(file_name, G_FILE_TEST_EXISTS)) {
+                    if (debug_icons)
+                        fprintf(stderr, "tint2: Found %s\n", file_name);
                     g_slist_free(extensions);
                     return file_name;
                 } else {
@@ -715,7 +724,7 @@ char *get_icon_path_from_cache(IconThemeWrapper *wrapper, const char *icon_name,
     if (!g_file_test(value, G_FILE_TEST_EXISTS))
         return NULL;
 
-    // fprintf(stderr, "Icon path found in cache: theme = %s, icon = %s, size = %d, path = %s\n",
+    // fprintf(stderr, "tint2: Icon path found in cache: theme = %s, icon = %s, size = %d, path = %s\n",
     // wrapper->icon_theme_name, icon_name, size, value);
 
     return strdup(value);
@@ -742,28 +751,44 @@ void add_icon_path_to_cache(IconThemeWrapper *wrapper, const char *icon_name, in
 
 char *get_icon_path(IconThemeWrapper *wrapper, const char *icon_name, int size, gboolean use_fallbacks)
 {
-    if (!wrapper)
+    if (debug_icons)
+        fprintf(stderr,
+                "Searching for icon %s with size %d, fallbacks %sallowed\n",
+                icon_name,
+                size,
+                use_fallbacks ? "" : "not ");
+    if (!wrapper) {
+        if (debug_icons)
+            fprintf(stderr,
+                    "Icon search aborted, themes not loaded\n");
         return NULL;
+    }
 
     if (!icon_name || strlen(icon_name) == 0)
         goto notfound;
 
     char *path = get_icon_path_from_cache(wrapper, icon_name, size);
-    if (path)
+    if (path) {
+        if (debug_icons)
+            fprintf(stderr,
+                    "Icon found in cache: %s\n", path);
         return path;
+    }
 
     load_default_theme(wrapper);
 
     icon_name = icon_name ? icon_name : DEFAULT_ICON;
     path = get_icon_path_helper(wrapper->themes, icon_name, size);
     if (path) {
+        if (debug_icons)
+            fprintf(stderr, "tint2: Icon found: %s\n", path);
         add_icon_path_to_cache(wrapper, icon_name, size, path);
         return path;
     }
 
     if (!use_fallbacks)
         goto notfound;
-    fprintf(stderr, YELLOW "Icon not found in default theme: %s" RESET "\n", icon_name);
+    fprintf(stderr, YELLOW "tint2: Icon not found in default theme: %s" RESET "\n", icon_name);
     load_fallbacks(wrapper);
 
     path = get_icon_path_helper(wrapper->themes_fallback, icon_name, size);
@@ -773,7 +798,7 @@ char *get_icon_path(IconThemeWrapper *wrapper, const char *icon_name, int size, 
     }
 
 notfound:
-    fprintf(stderr, RED "Could not find icon '%s', using default." RESET "\n", icon_name);
+    fprintf(stderr, RED "tint2: Could not find icon '%s', using default." RESET "\n", icon_name);
     path = get_icon_path_helper(wrapper->themes, DEFAULT_ICON, size);
     if (path)
         return path;

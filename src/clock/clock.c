@@ -143,20 +143,31 @@ void update_clocks()
     schedule_panel_redraw();
 }
 
+int ms_until_second_change(struct timeval* tm)
+{
+    long us_until_change = 1000000 - tm->tv_usec;
+    // compute ms, rounding up so we don't ask to wait too short
+    int ms = (us_until_change+999)/1000;
+    return ms;
+}
+
 void update_clocks_sec(void *arg)
 {
     gettimeofday(&time_clock, 0);
     update_clocks();
+    clock_timeout = add_timeout(ms_until_second_change(&time_clock), 0, update_clocks_sec, 0, &clock_timeout);
 }
 
 void update_clocks_min(void *arg)
 {
     // remember old_sec because after suspend/hibernate the clock should be updated directly, and not
     // on next minute change
+    static time_t old_sec = 0;
     gettimeofday(&time_clock, 0);
-    time_t old_sec = time_clock.tv_sec;
-    if (time_clock.tv_sec % 60 == 0 || time_clock.tv_sec - old_sec > 60)
+    if (time_clock.tv_sec % 60 == 0 || time_clock.tv_sec - old_sec > 60 || (time1_format && !buf_time[0]) || (time2_format && !buf_date[0]))
         update_clocks();
+    old_sec = time_clock.tv_sec;
+    clock_timeout = add_timeout(ms_until_second_change(&time_clock), 0, update_clocks_min, 0, &clock_timeout);
 }
 
 gboolean time_format_needs_sec_ticks(char *time_format)
@@ -176,14 +187,6 @@ void init_clock_panel(void *p)
 {
     Panel *panel = (Panel *)p;
     Clock *clock = &panel->clock;
-
-    if (!clock_timeout) {
-        if (time_format_needs_sec_ticks(time1_format) || time_format_needs_sec_ticks(time2_format)) {
-            clock_timeout = add_timeout(10, 1000, update_clocks_sec, 0, &clock_timeout);
-        } else {
-            clock_timeout = add_timeout(10, 1000, update_clocks_min, 0, &clock_timeout);
-        }
-    }
 
     if (!clock->area.bg)
         clock->area.bg = &g_array_index(backgrounds, Background, 0);
@@ -212,7 +215,14 @@ void init_clock_panel(void *p)
         clock->area._get_tooltip_text = clock_get_tooltip;
         strftime(buf_tooltip, sizeof(buf_tooltip), time_tooltip_format, clock_gettime_for_tz(time_tooltip_timezone));
     }
-    update_clocks_sec(NULL);
+
+    if (!clock_timeout) {
+        if (time_format_needs_sec_ticks(time1_format) || time_format_needs_sec_ticks(time2_format)) {
+            update_clocks_sec(NULL);
+        } else {
+            update_clocks_min(NULL);
+        }
+    }
 }
 
 void clock_init_fonts()
@@ -311,9 +321,9 @@ void draw_clock(void *obj, cairo_t *c)
 void clock_dump_geometry(void *obj, int indent)
 {
     Clock *clock = (Clock *)obj;
-    fprintf(stderr, "%*sText 1: y = %d, text = %s\n", indent, "", clock->time1_posy, buf_time);
+    fprintf(stderr, "tint2: %*sText 1: y = %d, text = %s\n", indent, "", clock->time1_posy, buf_time);
     if (time2_format) {
-        fprintf(stderr, "%*sText 2: y = %d, text = %s\n", indent, "", clock->time2_posy, buf_date);
+        fprintf(stderr, "tint2: %*sText 2: y = %d, text = %s\n", indent, "", clock->time2_posy, buf_date);
     }
 }
 
@@ -343,5 +353,5 @@ void clock_action(void *obj, int button, int x, int y, Time time)
         command = clock_dwheel_command;
         break;
     }
-    tint_exec(command, NULL, NULL, time, obj, x, y);
+    tint_exec(command, NULL, NULL, time, obj, x, y, FALSE, TRUE);
 }

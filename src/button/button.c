@@ -78,7 +78,7 @@ void destroy_button(void *obj)
         free_and_null(button->backend->uwheel_command);
 
         if (button->backend->instances) {
-            fprintf(stderr, "Error: Attempt to destroy backend while there are still frontend instances!\n");
+            fprintf(stderr, "tint2: Error: Attempt to destroy backend while there are still frontend instances!\n");
             exit(-1);
         }
         free(button->backend);
@@ -530,7 +530,7 @@ void button_action(void *obj, int mouse_button, int x, int y, Time time)
         command = button->backend->dwheel_command;
         break;
     }
-    tint_exec(command, NULL, NULL, time, obj, x, y);
+    tint_exec(command, NULL, NULL, time, obj, x, y, FALSE, TRUE);
 }
 
 char *button_get_tooltip(void *obj)

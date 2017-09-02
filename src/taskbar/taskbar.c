@@ -39,6 +39,7 @@ Task *active_task;
 Task *task_drag;
 gboolean taskbar_enabled;
 gboolean taskbar_distribute_size;
+gboolean hide_task_diff_desktop;
 gboolean hide_inactive_tasks;
 gboolean hide_task_diff_monitor;
 gboolean hide_taskbar_if_empty;
@@ -74,6 +75,7 @@ void default_taskbar()
     urgent_list = NULL;
     taskbar_enabled = FALSE;
     taskbar_distribute_size = FALSE;
+    hide_task_diff_desktop = FALSE;
     hide_inactive_tasks = FALSE;
     hide_task_diff_monitor = FALSE;
     hide_taskbar_if_empty = FALSE;
@@ -265,7 +267,7 @@ void init_taskbar_panel(void *p)
         if (!panel->g_task.background[j])
             panel->g_task.background[j] = &g_array_index(backgrounds, Background, 0);
         if (panel->g_task.background[j]->border.radius > panel->g_task.area.height / 2) {
-            printf("task%sbackground_id has a too large rounded value. Please fix your tint2rc\n",
+            fprintf(stderr, "tint2: task%sbackground_id has a too large rounded value. Please fix your tint2rc\n",
                    j == 0 ? "_" : j == 1 ? "_active_" : j == 2 ? "_iconified_" : "_urgent_");
             g_array_append_val(backgrounds, *panel->g_task.background[j]);
             panel->g_task.background[j] = &g_array_index(backgrounds, Background, backgrounds->len - 1);
@@ -297,16 +299,6 @@ void init_taskbar_panel(void *p)
                                                                          top_bottom_border_width(&panel->g_task.area));
         panel->g_task.text_posx += panel->g_task.icon_size1 + panel->g_task.area.paddingx;
         panel->g_task.icon_posy = (panel->g_task.area.height - panel->g_task.icon_size1) / 2;
-        if (0)
-            printf("task: icon_size = %d, textx = %f, texth = %f, icony = %d, w = %d, h = %d, maxw = %d, maxh = %d\n",
-                   panel->g_task.icon_size1,
-                   panel->g_task.text_posx,
-                   panel->g_task.text_height,
-                   panel->g_task.icon_posy,
-                   panel->g_task.area.width,
-                   panel->g_task.area.height,
-                   panel->g_task.maximum_width,
-                   panel->g_task.maximum_height);
     }
 
     Taskbar *taskbar;
@@ -393,7 +385,7 @@ void taskbar_refresh_tasklist()
 {
     if (!taskbar_enabled)
         return;
-    // fprintf(stderr, "%s %d:\n", __FUNCTION__, __LINE__);
+    // fprintf(stderr, "tint2: %s %d:\n", __FUNCTION__, __LINE__);
 
     int num_results;
     Window *win = server_get_property(server.root_win, server.atom._NET_CLIENT_LIST, XA_WINDOW, &num_results);
@@ -440,7 +432,7 @@ gboolean resize_taskbar(void *obj)
     Taskbar *taskbar = (Taskbar *)obj;
     Panel *panel = (Panel *)taskbar->area.panel;
 
-    // printf("resize_taskbar %d %d\n", taskbar->area.posx, taskbar->area.posy);
+    // fprintf(stderr, "tint2: resize_taskbar %d %d\n", taskbar->area.posx, taskbar->area.posy);
     if (panel_horizontal) {
         relayout_with_constraint(&taskbar->area, panel->g_task.maximum_width);
 
@@ -534,6 +526,15 @@ void set_taskbar_state(Taskbar *taskbar, TaskbarState state)
                 l = l->next;
             for (; l; l = l->next)
                 schedule_redraw((Area *)l->data);
+        }
+        if (taskbar_mode == MULTI_DESKTOP && hide_task_diff_desktop) {
+            GList *l = taskbar->area.children;
+            if (taskbarname_enabled)
+                l = l->next;
+            for (; l; l = l->next) {
+                Task *task = (Task *)l->data;
+                set_task_state(task, task->current_state);
+            }
         }
     }
     schedule_panel_redraw();

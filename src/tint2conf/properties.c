@@ -31,7 +31,7 @@ GtkWidget *panel_window_name, *disable_transparency;
 GtkWidget *panel_mouse_effects;
 GtkWidget *mouse_hover_icon_opacity, *mouse_hover_icon_saturation, *mouse_hover_icon_brightness;
 GtkWidget *mouse_pressed_icon_opacity, *mouse_pressed_icon_saturation, *mouse_pressed_icon_brightness;
-GtkWidget *panel_primary_monitor_first, *panel_shrink;
+GtkWidget *panel_shrink;
 
 GtkListStore *panel_items, *all_items;
 GtkWidget *panel_items_view, *all_items_view;
@@ -44,7 +44,7 @@ GtkWidget *notebook;
 
 // taskbar
 GtkWidget *taskbar_show_desktop, *taskbar_show_name, *taskbar_padding_x, *taskbar_padding_y, *taskbar_spacing;
-GtkWidget *taskbar_hide_inactive_tasks, *taskbar_hide_diff_monitor;
+GtkWidget *taskbar_hide_inactive_tasks, *taskbar_hide_diff_monitor, *taskbar_hide_diff_desktop;
 GtkWidget *taskbar_name_padding_x, *taskbar_name_padding_y, *taskbar_name_inactive_color, *taskbar_name_active_color;
 GtkWidget *taskbar_name_font, *taskbar_name_font_set;
 GtkWidget *taskbar_active_background, *taskbar_inactive_background;
@@ -80,10 +80,10 @@ GtkWidget *clock_font_line1, *clock_font_line1_set, *clock_font_line2, *clock_fo
 GtkWidget *clock_background;
 
 // battery
-GtkWidget *battery_hide_if_higher, *battery_alert_if_lower, *battery_alert_cmd;
+GtkWidget *battery_hide_if_higher, *battery_alert_if_lower, *battery_alert_cmd, *battery_alert_full_cmd;
 GtkWidget *battery_padding_x, *battery_padding_y;
 GtkWidget *battery_font_line1, *battery_font_line1_set, *battery_font_line2, *battery_font_line2_set,
-    *battery_font_color;
+    *battery_font_color, *battery_format1, *battery_format2;
 GtkWidget *battery_background;
 GtkWidget *battery_tooltip;
 GtkWidget *battery_left_command, *battery_mclick_command, *battery_right_command, *battery_uwheel_command,
@@ -477,6 +477,7 @@ void create_panel(GtkWidget *parent)
     gtk_table_attach(GTK_TABLE(table), panel_combo_monitor, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
     col++;
     gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("All"));
+    gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("Primary"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("1"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("2"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("3"));
@@ -485,24 +486,6 @@ void create_panel(GtkWidget *parent)
     gtk_combo_box_append_text(GTK_COMBO_BOX(panel_combo_monitor), _("6"));
     gtk_combo_box_set_active(GTK_COMBO_BOX(panel_combo_monitor), 0);
     gtk_tooltips_set_tip(tooltips, panel_combo_monitor, _("The monitor on which the panel is placed"), NULL);
-
-    row++;
-    col = 2;
-    label = gtk_label_new(_("Primary monitor first"));
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-    gtk_widget_show(label);
-    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
-    col++;
-
-    panel_primary_monitor_first = gtk_check_button_new();
-    gtk_widget_show(panel_primary_monitor_first);
-    gtk_table_attach(GTK_TABLE(table), panel_primary_monitor_first, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
-    col++;
-    gtk_tooltips_set_tip(tooltips,
-                         panel_primary_monitor_first,
-                         _("If enabled, the primary monitor will have index 1 in the monitor list even if it is not "
-                           "top-left."),
-                         NULL);
 
     row++;
     col = 2;
@@ -1856,7 +1839,7 @@ void load_desktop_file(const char *file, gboolean selected)
             if (pixbuf)
                 g_object_unref(pixbuf);
         } else {
-            printf("Could not load %s\n", file);
+            fprintf(stderr, "tint2: Could not load %s\n", file);
             GdkPixbuf *pixbuf = load_icon(DEFAULT_ICON);
             GtkTreeIter iter;
             gtk_list_store_append(store, &iter);
@@ -1914,7 +1897,7 @@ void load_desktop_entry(const char *file, GList **entries)
 
     DesktopEntry *entry = calloc(1, sizeof(DesktopEntry));
     if (!read_desktop_file(file, entry))
-        printf("Could not load %s\n", file);
+        fprintf(stderr, "tint2: Could not load %s\n", file);
     if (entry->hidden_from_menus) {
         free(entry);
         return;
@@ -2497,7 +2480,7 @@ void create_launcher(GtkWidget *parent, GtkWindow *window)
 
     change_paragraph(parent);
 
-    fprintf(stderr, "Loading icon themes\n");
+    fprintf(stderr, "tint2: Loading icon themes\n");
     GList *themes = NULL;
     const GSList *location;
     for (location = get_icon_locations(); location; location = g_slist_next(location)) {
@@ -2526,9 +2509,9 @@ void create_launcher(GtkWidget *parent, GtkWindow *window)
         free_icon_theme((IconTheme *)l->data);
     }
     g_list_free(themes);
-    fprintf(stderr, "Icon themes loaded\n");
+    fprintf(stderr, "tint2: Icon themes loaded\n");
 
-    fprintf(stderr, "Loading .desktop files\n");
+    fprintf(stderr, "tint2: Loading .desktop files\n");
     GList *entries = NULL;
     for (location = get_apps_locations(); location; location = g_slist_next(location)) {
         const gchar *path = (gchar *)location->data;
@@ -2545,7 +2528,7 @@ void create_launcher(GtkWidget *parent, GtkWindow *window)
     icon_theme_changed(window);
     load_icons(launcher_apps);
     load_icons(all_apps);
-    fprintf(stderr, "Desktop files loaded\n");
+    fprintf(stderr, "tint2: Desktop files loaded\n");
 }
 
 void create_taskbar(GtkWidget *parent)
@@ -2650,6 +2633,19 @@ void create_taskbar(GtkWidget *parent)
                          _("If enabled, tasks that are not on the same monitor as the panel will not be displayed. "
                            "This behavior is enabled automatically if the panel monitor is set to 'All'."),
                          NULL);
+
+    col = 2;
+    row++;
+    label = gtk_label_new(_("Hide tasks from different desktops"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    taskbar_hide_diff_desktop = gtk_check_button_new();
+    gtk_widget_show(taskbar_hide_diff_desktop);
+    gtk_table_attach(GTK_TABLE(table), taskbar_hide_diff_desktop, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
 
     col = 2;
     row++;
@@ -5156,6 +5152,7 @@ void create_systemtray(GtkWidget *parent)
     gtk_widget_show(systray_monitor);
     gtk_table_attach(GTK_TABLE(table), systray_monitor, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
     col++;
+    gtk_combo_box_append_text(GTK_COMBO_BOX(systray_monitor), _("Primary"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(systray_monitor), _("1"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(systray_monitor), _("2"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(systray_monitor), _("3"));
@@ -5418,6 +5415,19 @@ void create_battery(GtkWidget *parent)
                          battery_alert_cmd,
                          _("Command to be executed when the alert threshold is reached."),
                          NULL);
+
+    row++, col = 2;
+    label = gtk_label_new(_("Battery full command"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    battery_alert_full_cmd = gtk_entry_new();
+    gtk_widget_show(battery_alert_full_cmd);
+    gtk_entry_set_width_chars(GTK_ENTRY(battery_alert_full_cmd), 50);
+    gtk_table_attach(GTK_TABLE(table), battery_alert_full_cmd, col, col + 3, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
 
     change_paragraph(parent);
 
@@ -5734,6 +5744,46 @@ void create_battery(GtkWidget *parent)
     gtk_tooltips_set_tip(tooltips,
                          battery_font_color,
                          _("Specifies the font clor used to display the battery text."),
+                         NULL);
+
+    row++, col = 2;
+    label = gtk_label_new(_("First line format"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    battery_format1 = gtk_entry_new();
+    gtk_widget_show(battery_format1);
+    gtk_entry_set_width_chars(GTK_ENTRY(battery_format1), 16);
+    gtk_table_attach(GTK_TABLE(table), battery_format1, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+    char *bat_format_spec = "Format specification:\n"
+                            " %s: State (charging, discharging, full, unknown).\n"
+                            " %m: Minutes left until completely charged/discharged (estimated).\n"
+                            " %h: Hours left until completely charged/discharged (estimated).\n"
+                            " %t: Time left. Shows \"hrs:mins\" when charging/discharging, or \"Full\".\n"
+                            " %p: Percentage. Includes the % sign.";
+    gtk_tooltips_set_tip(tooltips,
+                         battery_format1,
+                         _(bat_format_spec),
+                         NULL);
+
+    row++, col = 2;
+    label = gtk_label_new(_("Second line format"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    battery_format2 = gtk_entry_new();
+    gtk_widget_show(battery_format2);
+    gtk_entry_set_width_chars(GTK_ENTRY(battery_format2), 16);
+    gtk_table_attach(GTK_TABLE(table), battery_format2, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+    gtk_tooltips_set_tip(tooltips,
+                         battery_format2,
+                         _(bat_format_spec),
                          NULL);
 
     change_paragraph(parent);
