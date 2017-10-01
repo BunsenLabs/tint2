@@ -1,3 +1,9 @@
+tint2 (15.2-1+deb9) stretch-backports; urgency=medium
+
+  * New upstream release 15.2.
+
+ -- Jens John <dev@2ion.de>  Sun, 01 Oct 2017 20:10:49 +0200
+
 tint2 (15.2-1) jessie-backports; urgency=medium
 
   * New upstream release 15.2.
