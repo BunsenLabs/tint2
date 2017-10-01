@@ -104,7 +104,7 @@ void handle_event_property_notify(XEvent *e)
         // Change name of desktops
         else if (at == server.atom._NET_DESKTOP_NAMES) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_DESKTOP_NAMES\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_DESKTOP_NAMES\n", __func__, __LINE__);
             update_desktop_names();
         }
         // Change desktops
@@ -112,7 +112,7 @@ void handle_event_property_notify(XEvent *e)
                  at == server.atom._NET_DESKTOP_VIEWPORT || at == server.atom._NET_WORKAREA ||
                  at == server.atom._NET_CURRENT_DESKTOP) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d: win = root, atom = ?? desktops changed\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d: win = root, atom = ?? desktops changed\n", __func__, __LINE__);
             if (!taskbar_enabled)
                 return;
             int old_num_desktops = server.num_desktops;
@@ -202,7 +202,7 @@ void handle_event_property_notify(XEvent *e)
         // Window list
         else if (at == server.atom._NET_CLIENT_LIST) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_CLIENT_LIST\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_CLIENT_LIST\n", __func__, __LINE__);
             taskbar_refresh_tasklist();
             update_all_taskbars_visibility();
             schedule_panel_redraw();
@@ -210,12 +210,12 @@ void handle_event_property_notify(XEvent *e)
         // Change active
         else if (at == server.atom._NET_ACTIVE_WINDOW) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_ACTIVE_WINDOW\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d: win = root, atom = _NET_ACTIVE_WINDOW\n", __func__, __LINE__);
             reset_active_task();
             schedule_panel_redraw();
         } else if (at == server.atom._XROOTPMAP_ID || at == server.atom._XROOTMAP_ID) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d: win = root, atom = _XROOTPMAP_ID\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d: win = root, atom = _XROOTPMAP_ID\n", __func__, __LINE__);
             // change Wallpaper
             for (int i = 0; i < num_panels; i++) {
                 set_panel_background(&panels[i]);
@@ -234,7 +234,7 @@ void handle_event_property_notify(XEvent *e)
             char *atom_name = XGetAtomName(server.display, at);
             fprintf(stderr,
                     "%s %d: win = %ld, task = %s, atom = %s\n",
-                    __FUNCTION__,
+                    __func__,
                     __LINE__,
                     win,
                     task ? (task->title ? task->title : "??") : "null",
@@ -243,7 +243,7 @@ void handle_event_property_notify(XEvent *e)
         }
         if (!task) {
             if (debug)
-                fprintf(stderr, "tint2: %s %d\n", __FUNCTION__, __LINE__);
+                fprintf(stderr, "tint2: %s %d\n", __func__, __LINE__);
             if (at == server.atom._NET_WM_STATE) {
                 // xfce4 sends _NET_WM_STATE after minimized to tray, so we need to check if window is mapped
                 // if it is mapped and not set as skip_taskbar, we must add it to our task list
@@ -277,7 +277,7 @@ void handle_event_property_notify(XEvent *e)
                 Atom *atom_state = server_get_property(win, server.atom._NET_WM_STATE, XA_ATOM, &count);
                 for (int j = 0; j < count; j++) {
                     char *atom_state_name = XGetAtomName(server.display, atom_state[j]);
-                    fprintf(stderr, "tint2: %s %d: _NET_WM_STATE = %s\n", __FUNCTION__, __LINE__, atom_state_name);
+                    fprintf(stderr, "tint2: %s %d: _NET_WM_STATE = %s\n", __func__, __LINE__, atom_state_name);
                     XFree(atom_state_name);
                 }
                 XFree(atom_state);
@@ -576,30 +576,30 @@ void handle_x_events()
     }
 }
 
-void prepare_fd_set(fd_set *fd_set, int *max_fd)
+void prepare_fd_set(fd_set *set, int *max_fd)
 {
-    FD_ZERO(fd_set);
-    FD_SET(server.x11_fd, fd_set);
+    FD_ZERO(set);
+    FD_SET(server.x11_fd, set);
     *max_fd = server.x11_fd;
     if (sigchild_pipe_valid) {
-        FD_SET(sigchild_pipe[0], fd_set);
+        FD_SET(sigchild_pipe[0], set);
         *max_fd = MAX(*max_fd, sigchild_pipe[0]);
     }
     for (GList *l = panel_config.execp_list; l; l = l->next) {
         Execp *execp = (Execp *)l->data;
         int fd = execp->backend->child_pipe_stdout;
         if (fd > 0) {
-            FD_SET(fd, fd_set);
+            FD_SET(fd, set);
             *max_fd = MAX(*max_fd, fd);
         }
         fd = execp->backend->child_pipe_stderr;
         if (fd > 0) {
-            FD_SET(fd, fd_set);
+            FD_SET(fd, set);
             *max_fd = MAX(*max_fd, fd);
         }
     }
     if (uevent_fd > 0) {
-        FD_SET(uevent_fd, fd_set);
+        FD_SET(uevent_fd, set);
         *max_fd = MAX(*max_fd, uevent_fd);
     }
 }
@@ -742,13 +742,13 @@ void run_tint2_event_loop()
         if (panel_refresh)
             handle_panel_refresh();
 
-        fd_set fd_set;
+        fd_set fds;
         int max_fd;
-        prepare_fd_set(&fd_set, &max_fd);
+        prepare_fd_set(&fds, &max_fd);
 
         // Wait for an event and handle it
         ts_event_read = 0;
-        if (XPending(server.display) > 0 || select(max_fd + 1, &fd_set, 0, 0, get_next_timeout()) >= 0) {
+        if (XPending(server.display) > 0 || select(max_fd + 1, &fds, 0, 0, get_next_timeout()) >= 0) {
 #ifdef HAVE_TRACING
             start_tracing((void*)run_tint2_event_loop);
 #endif

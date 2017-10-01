@@ -40,7 +40,9 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <dirent.h>
+#if !defined(__OpenBSD__)
 #include <wordexp.h>
+#endif
 
 #ifdef HAVE_RSVG
 #include <librsvg/rsvg.h>
@@ -397,6 +399,7 @@ pid_t tint_exec(const char *command,
             chdir(dir);
         close_all_fds();
         if (terminal) {
+#if !defined(__OpenBSD__)
             fprintf(stderr, "tint2: executing in x-terminal-emulator: %s\n", command);
             wordexp_t words;
             words.we_offs = 2;
@@ -405,6 +408,7 @@ pid_t tint_exec(const char *command,
                 words.we_wordv[1] = (char*)"-e";
                 execvp("x-terminal-emulator", words.we_wordv);
             }
+#endif
             fprintf(stderr, "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n", command);
         }
         execlp("sh", "sh", "-c", command, NULL);
