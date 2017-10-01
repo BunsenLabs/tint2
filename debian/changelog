@@ -1,3 +1,9 @@
+tint2 (15.0-1) jessie-backports; urgency=medium
+
+  * New upstream release 15.0.
+
+ -- Jens John <dev@2ion.de>  Sat, 02 Sep 2017 16:30:11 +0200
+
 tint2 (0.14.6-1) jessie-backports; urgency=medium
 
   * New upstream release 0.14.6.
