@@ -160,7 +160,7 @@ def test(tint2path, config, use_asan):
   start_wm()
   sleep(1)
   os.environ["DEBUG_FPS"] = "1"
-  os.environ["ASAN_OPTIONS"] = "detect_leaks=1"
+  os.environ["ASAN_OPTIONS"] = "detect_leaks=1:exitcode=0"
   tint2 = run([tint2path, "-c", config], True)
   if tint2.poll() != None:
     raise RuntimeError("tint2 failed to start")
@@ -214,7 +214,7 @@ def test(tint2path, config, use_asan):
   if use_asan:
     fps_status = ok
   else:
-    fps_status = ok if min_fps > 60 else warning if min_fps > 40 else error
+    fps_status = ok if min_fps > 30 else warning if min_fps > 20 else error
   print("FPS:", "min:", min_fps, "median:", med_fps, fps_status)
   if mem_status != ok or leak_status != ok or fps_status != ok:
     print("Output:")
@@ -273,6 +273,29 @@ def compile_and_report(src_dir, use_asan):
     print("Output:")
     print("```\n" + out.strip() + "\n```")
     raise RuntimeError("compilation failed")
+  if "warning:" in out:
+    print("Status: Succeeded with warnings!", warning)
+    print("Warnings:")
+    print("```", end="")
+    for line in out.split("\n"):
+      if "warning:" in line:
+        print(line, end="")
+    print("```", end="")
+  else:
+    print("Status: Succeeded in %.1f seconds" % (duration,), ok)
+
+
+def compile_remotely_and_report(host):
+  print_err("Compiling on {0}...".format(host))
+  print("# Compilation on {0}".format(host))
+  start = time.time()
+  c = run("ssh worker@{0} 'cd tint2 && git pull && mkdir -p build && rm -rf build && mkdir -p build && cd build && cmake .. && make && ./tint2 --version'".format(host), True)
+  out, _ = c.communicate()
+  duration = time.time() - start
+  if c.returncode != 0:
+    print("Status: Failed!", error)
+    print("Output:")
+    print("```\n" + out.strip() + "\n```")
   if "warning:" in out:
     print("Status: Succeeded with warnings!", warning)
     print("Warnings:")
@@ -350,6 +373,8 @@ def main():
   show_timestamp()
   show_git_info(args.src_dir)
   show_system_info()
+  compile_remotely_and_report("freebsd")
+  compile_remotely_and_report("openbsd")
   for use_asan in [True, False]:
     compile_and_report(args.src_dir, use_asan)
     run_tests(use_asan)

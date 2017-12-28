@@ -350,6 +350,12 @@ void add_entry(char *key, char *value)
         id = (id < gradients->len && id >= 0) ? id : -1;
         if (id >= 0)
             bg->gradients[MOUSE_DOWN] = &g_array_index(gradients, GradientClass, id);
+    } else if (strcmp(key, "border_content_tint_weight") == 0) {
+        Background *bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
+        bg->border_content_tint_weight = MAX(0.0, MIN(1.0, atoi(value) / 100.));
+    } else if (strcmp(key, "background_content_tint_weight") == 0) {
+        Background *bg = &g_array_index(backgrounds, Background, backgrounds->len - 1);
+        bg->fill_content_tint_weight = MAX(0.0, MIN(1.0, atoi(value) / 100.));
     }
 
     /* Gradients */
@@ -1086,11 +1092,18 @@ void add_entry(char *key, char *value)
             panel_config.g_task.config_background_mask |= (1 << status);
             if (status == TASK_NORMAL)
                 panel_config.g_task.area.bg = panel_config.g_task.background[TASK_NORMAL];
+            if (panel_config.g_task.background[status]->border_content_tint_weight > 0 ||
+                panel_config.g_task.background[status]->fill_content_tint_weight > 0)
+                panel_config.g_task.has_content_tint = TRUE;
         }
     }
     // "tooltip" is deprecated but here for backwards compatibility
     else if (strcmp(key, "task_tooltip") == 0 || strcmp(key, "tooltip") == 0)
         panel_config.g_task.tooltip_enabled = atoi(value);
+    else if (strcmp(key, "task_thumbnail") == 0)
+        panel_config.g_task.thumbnail_enabled = atoi(value);
+    else if (strcmp(key, "task_thumbnail_size") == 0)
+        panel_config.g_task.thumbnail_width = MAX(8, atoi(value));
 
     /* Systray */
     else if (strcmp(key, "systray_padding") == 0) {
@@ -1133,8 +1146,11 @@ void add_entry(char *key, char *value)
     } else if (strcmp(key, "systray_monitor") == 0) {
         systray_monitor = MAX(0, config_get_monitor(value));
     } else if (strcmp(key, "systray_name_filter") == 0) {
-        if (systray_hide_name_filter)
+        if (systray_hide_name_filter) {
+            fprintf(stderr, "tint2: Error: duplicate option 'systray_name_filter'. Please use it only once. See "
+                            "https://gitlab.com/o9000/tint2/issues/652\n");
             free(systray_hide_name_filter);
+        }
         systray_hide_name_filter = strdup(value);
     }
 

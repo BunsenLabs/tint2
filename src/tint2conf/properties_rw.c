@@ -161,6 +161,8 @@ void config_write_backgrounds(FILE *fp)
 
         int r;
         int b;
+        double fill_weight;
+        double border_weight;
         gboolean sideTop;
         gboolean sideBottom;
         gboolean sideLeft;
@@ -228,6 +230,10 @@ void config_write_backgrounds(FILE *fp)
                            &sideLeft,
                            bgColBorderSidesRight,
                            &sideRight,
+                           bgColFillWeight,
+                           &fill_weight,
+                           bgColBorderWeight,
+                           &border_weight,
                            -1);
         fprintf(fp, "# Background %d: %s\n", index, text ? text : "");
         fprintf(fp, "rounded = %d\n", r);
@@ -244,6 +250,9 @@ void config_write_backgrounds(FILE *fp)
         if (sideRight)
             strcat(sides, "R");
         fprintf(fp, "border_sides = %s\n", sides);
+
+        fprintf(fp, "border_content_tint_weight = %d\n", (int)(border_weight));
+        fprintf(fp, "background_content_tint_weight = %d\n", (int)(fill_weight));
 
         config_write_color(fp, "background_color", *fillColor, fillOpacity);
         config_write_color(fp, "border_color", *borderColor, borderOpacity);
@@ -517,6 +526,11 @@ void config_write_task(FILE *fp)
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(task_font_set)))
         fprintf(fp, "task_font = %s\n", gtk_font_button_get_font_name(GTK_FONT_BUTTON(task_font)));
     fprintf(fp, "task_tooltip = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tooltip_task_show)) ? 1 : 0);
+    fprintf(fp, "task_thumbnail = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tooltip_task_thumbnail)) ? 1 : 0);
+    fprintf(fp,
+            "task_thumbnail_size = %d\n",
+            (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(tooltip_task_thumbnail_size)));
+
 
     // same for: "" _normal _active _urgent _iconified
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(task_default_color_set))) {
@@ -1225,6 +1239,12 @@ void add_entry(char *key, char *value)
         int id = gradient_index_safe(atoi(value));
         gtk_combo_box_set_active(GTK_COMBO_BOX(background_gradient_press), id);
         background_force_update();
+    } else if (strcmp(key, "border_content_tint_weight") == 0) {
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_border_content_tint_weight), atoi(value));
+        background_force_update();
+    } else if (strcmp(key, "background_content_tint_weight") == 0) {
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_fill_content_tint_weight), atoi(value));
+        background_force_update();
     }
 
     /* Panel */
@@ -1732,6 +1752,10 @@ void add_entry(char *key, char *value)
     else if (strcmp(key, "task_tooltip") == 0 || strcmp(key, "tooltip") == 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tooltip_task_show), atoi(value));
     }
+    else if (strcmp(key, "task_thumbnail") == 0)
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tooltip_task_thumbnail), atoi(value));
+    else if (strcmp(key, "task_thumbnail_size") == 0)
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(tooltip_task_thumbnail_size), MAX(8, atoi(value)));
 
     /* Systray */
     else if (strcmp(key, "systray") == 0) {

@@ -1,4 +1,4 @@
-# TINT2 1 "2017-11-05" 15.3
+# TINT2 1 "2017-12-20" 16.0
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -118,6 +118,10 @@ The tint2 config file starts with the options defining background elements with 
   * `border_color_pressed = color opacity` (default: same as `border_color_hover`) *(since 0.12.3)*
     * `color` is specified in hex RGB, e.g. #ff0000 is red
     * `opacity` varies from (0 to 100), where 0 is fully transparent, 100 is fully opaque
+
+  * `border_content_tint_weight = integer` : Mixes the border color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). *(since 16.0)*
+
+  * `background_content_tint_weight = integer` : Mixes the background color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). *(since 16.0)*
 
 You can define as many backgrounds as you want. For example, the following config defines two backgrounds:
 
@@ -409,6 +413,10 @@ The following options configure the task buttons in the taskbar:
 
   * `task_tooltip = boolean (0 or 1)` : Whether to show tooltips for tasks.
 
+  * `task_thumbnail = boolean (0 or 1)` : Whether to show thumbnail tooltips for tasks. *(since 16.0)*
+
+  * `task_thumbnail_size = width` : Thumbnail size. *(since 16.0)*
+
   * `task_maximum_size = width height`
     * `width` is used with horizontal panels to limit the size of the tasks. Use `width = 0` to get full taskbar width.
     * `height` is used with vertical panels.
@@ -591,7 +599,7 @@ The action semantics:
 
   * `execp_icon_h = integer` : See `execp_icon_w`. *(since 0.12.4)*
 
-  * `execp_tooltip = text` : The tooltip. Leave it empty to not display a tooltip. Not specifying this option leads to showing an automatically generated tooltip with information about when the command was last executed. *(since 0.12.4)*
+  * `execp_tooltip = text` : The tooltip. If left empty, no tooltip is displayed. If missing, the standard error of the command is shown as a tooltip (an ANSI clear screen sequence can reset the contents, bash: `printf '\e[2J'`, C: `printf("\x1b[2J");`). If the standard error is empty, the tooltip will show information about the time when the command was last executed. *(since 0.12.4)*
 
   * `execp_font = [FAMILY-LIST] [STYLE-OPTIONS] [SIZE]` : The font used to draw the text.  *(since 0.12.4)*
 

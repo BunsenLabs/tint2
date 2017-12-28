@@ -6,12 +6,18 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/extensions/XShm.h>
+
 #include "config.h"
 #include "drag_and_drop.h"
 #include "fps_distribution.h"
 #include "panel.h"
 #include "server.h"
 #include "signals.h"
+#include "test.h"
 #include "tooltip.h"
 #include "tracing.h"
 #include "uevent.h"
@@ -42,6 +48,9 @@ void handle_cli_arguments(int argc, char **argv)
             exit(0);
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             fprintf(stdout, "tint2 version %s\n", VERSION_STRING);
+            exit(0);
+        } else if (strcmp(argv[i], "--test") == 0) {
+            run_all_tests();
             exit(0);
         } else if (strcmp(argv[i], "-c") == 0) {
             if (i + 1 < argc) {
@@ -75,7 +84,7 @@ void handle_cli_arguments(int argc, char **argv)
         }
         if (error) {
             print_usage();
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -88,6 +97,7 @@ void handle_env_vars()
     debug_fps = getenv("DEBUG_FPS") != NULL;
     debug_frames = getenv("DEBUG_FRAMES") != NULL;
     debug_dnd = getenv("DEBUG_DND") != NULL;
+    debug_thumbnails = getenv("DEBUG_THUMBNAILS") != NULL;
     if (debug_fps) {
         init_fps_distribution();
         char *s = getenv("TRACING_FPS_THRESHOLD");
@@ -184,7 +194,7 @@ void init_X11_pre_config()
     server.display = XOpenDisplay(NULL);
     if (!server.display) {
         fprintf(stderr, "tint2: could not open display!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     server.x11_fd = ConnectionNumber(server.display);
     XSetErrorHandler((XErrorHandler)server_catch_error);
@@ -193,6 +203,7 @@ void init_X11_pre_config()
     server.screen = DefaultScreen(server.display);
     server.root_win = RootWindow(server.display, server.screen);
     server.desktop = get_current_desktop();
+    server.has_shm = XShmQueryExtension(server.display);
 
     // Needed since the config file uses '.' as decimal separator
     setlocale(LC_ALL, "");
@@ -251,6 +262,7 @@ void cleanup()
 #ifdef ENABLE_BATTERY
     cleanup_battery();
 #endif
+    cleanup_separator();
     cleanup_panel();
     cleanup_config();
 

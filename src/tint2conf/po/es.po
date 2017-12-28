@@ -1,128 +1,124 @@
-# Bosnian translation for tint2conf.
-# Copyright (C) 2015 tint2's copyright holder
-# This file is distributed under the same license as the tint2 package.
-# Dino Duratović <dinomol@mail.com>, 2015.
 msgid   ""
 msgstr  "Project-Id-Version: tint2conf 0.12\n"
         "Report-Msgid-Bugs-To: \n"
         "POT-Creation-Date: 2017-11-26 21:44+0100\n"
-        "PO-Revision-Date: 2015-06-14 13:32+0200\n"
-        "Last-Translator: Dino Duratović <dinomol@mail.com>\n"
-        "Language-Team: \n"
-        "Language: bs\n"
+        "PO-Revision-Date: 2017-10-29 12:49-0300\n"
+        "Last-Translator: Vic <vicmz@yandex.com>\n"
+        "Language-Team: Spanish <lang@llc>\n"
+        "Language: fr\n"
         "MIME-Version: 1.0\n"
         "Content-Type: text/plain; charset=UTF-8\n"
         "Content-Transfer-Encoding: 8bit\n"
-        "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 "
-        "&& n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+        "X-Generator: Poedit 1.6.10\n"
+        "X-Poedit-Language: Spanish\n"
 
 #: ../properties.c:230
 msgid   "Properties"
-msgstr  "Postavke"
+msgstr  "Propiedades"
 
 #: ../properties.c:264
 msgid   "Gradients"
-msgstr  ""
+msgstr  "Degradados"
 
 #: ../properties.c:272
 msgid   "Backgrounds"
-msgstr  "Pozadine"
+msgstr  "Fondos"
 
 #: ../properties.c:280 ../properties.c:624
 msgid   "Panel"
-msgstr  "Ploča"
+msgstr  "Panel"
 
 #: ../properties.c:288
 msgid   "Panel items"
-msgstr  "Stavke ploče"
+msgstr  "Elementos del panel"
 
 #: ../properties.c:296 ../properties.c:1089 ../properties.c:1305
 msgid   "Taskbar"
-msgstr  "Paleta poslova"
+msgstr  "Barra de tareas"
 
 #: ../properties.c:304
 msgid   "Task buttons"
-msgstr  "Dugmad poslova"
+msgstr  "Botones de tareas"
 
 #: ../properties.c:312 ../properties.c:1091 ../properties.c:1308
 #: ../properties.c:2271
 msgid   "Launcher"
-msgstr  "Pokretač"
+msgstr  "Lanzador"
 
 #: ../properties.c:320 ../properties.c:1085 ../properties.c:1299
 #: ../properties.c:3908
 msgid   "Clock"
-msgstr  "Sat"
+msgstr  "Reloj"
 
 #: ../properties.c:328 ../properties.c:1087 ../properties.c:1302
 msgid   "System tray"
-msgstr  "Sistemska traka"
+msgstr  "Bandeja del sistema"
 
 #: ../properties.c:336 ../properties.c:1083 ../properties.c:1296
 #: ../properties.c:5648
 msgid   "Battery"
-msgstr  "Baterija"
+msgstr  "Batería"
 
 #: ../properties.c:344 ../properties.c:4604 ../properties.c:4704
 #: ../properties.c:5907
 msgid   "Tooltip"
-msgstr  "Opisi"
+msgstr  "Mensaje emergente"
 
 #: ../properties.c:404
 msgid   "<b>Geometry</b>"
-msgstr  "<b>Geometrija</b>"
+msgstr  "<b>Geometría</b>"
 
 #: ../properties.c:421 ../gradient_gui.c:176
 msgid   "Position"
-msgstr  "Pozicija"
+msgstr  "Posición"
 
 #: ../properties.c:442
 msgid   "Position on screen: top-left, horizontal panel"
-msgstr  "Pozicija na ekranu: gore-lijevo, horizontalna ploča"
+msgstr  "Posición en pantalla: arriba-izquierda, panel horizontal"
 
 #: ../properties.c:444
 msgid   "Position on screen: top-center, horizontal panel"
-msgstr  "Pozicija na ekranu: gore-sredina, horizontalna ploča"
+msgstr  "Posición en pantalla: arriba-centro, panel horizontal"
 
 #: ../properties.c:446
 msgid   "Position on screen: top-right, horizontal panel"
-msgstr  "Pozicija na ekranu: gore-desno, horizontalna ploča"
+msgstr  "Posición en pantalla: arriba-derecha, panel horizontal"
 
 #: ../properties.c:448
 msgid   "Position on screen: top-left, vertical panel"
-msgstr  "Pozicija na ekranu: gore-lijevo, vertikalna ploča"
+msgstr  "Posición en pantalla: arriba-izquierda, panel vertical"
 
 #: ../properties.c:450
 msgid   "Position on screen: center-left, vertical panel"
-msgstr  "Pozicija na ekranu: sredina-lijevo, vertikalna ploča"
+msgstr  "Posición en pantalla: centro-izquierda, panel vertical"
 
 #: ../properties.c:452
 msgid   "Position on screen: bottom-left, vertical panel"
-msgstr  "Pozicija na ekranu: dole-lijevo, vertikalna ploča"
+msgstr  "Posición en la pantalla: abajo-izquierda, panel vertical"
 
 #: ../properties.c:454
 msgid   "Position on screen: top-right, vertical panel"
-msgstr  "Pozicija na ekranu: gore-desno, vertikalna ploča"
+msgstr  "Posición en pantalla: arriba-derecha, panel vertical"
 
 #: ../properties.c:456
 msgid   "Position on screen: center-right, vertical panel"
-msgstr  "Pozicija na ekranu: sredina-desno, vertikalna ploča"
+msgstr  "Posición en pantalla: centro-derecha, panel vertical"
 
 #: ../properties.c:458
 msgid   "Position on screen: bottom-right, vertical panel"
-msgstr  "Pozicija na ekranu: dole-desno, vertikalna ploča"
+msgstr  "Posición en pantalla: abajo-derecha, panel vertical"
 
 #: ../properties.c:460
 msgid   "Position on screen: bottom-left, horizontal panel"
-msgstr  "Pozicija na ekranu: dole-lijevo, horizontalna ploča"
+msgstr  "Posición en pantalla: abajo-izquierda, panel horizontal"
 
 #: ../properties.c:462
 msgid   "Position on screen: bottom-center, horizontal panel"
-msgstr  "Pozicija na ekranu: dole-sredina, horizontalna ploča"
+msgstr  "Posición en la pantalla: abajo-centro, panel horizontal"
 
 #: ../properties.c:464
 msgid   "Position on screen: bottom-right, horizontal panel"
-msgstr  "Pozicija na ekranu: dole-desno, horizontalna ploča"
+msgstr  "Posición en pantalla: abajo-derecha, panel horizontal"
 
 #: ../properties.c:469 ../properties.c:5175
 msgid   "Monitor"
@@ -130,11 +126,11 @@ msgstr  "Monitor"
 
 #: ../properties.c:479
 msgid   "All"
-msgstr  "Svi"
+msgstr  "Todo"
 
 #: ../properties.c:480 ../properties.c:5185
 msgid   "Primary"
-msgstr  ""
+msgstr  "Primario"
 
 #: ../properties.c:481 ../properties.c:5186
 msgid   "1"
@@ -162,322 +158,320 @@ msgstr  "6"
 
 #: ../properties.c:488
 msgid   "The monitor on which the panel is placed"
-msgstr  "Monitor na kojem je ploča"
+msgstr  "El monitor en el cual el panel está colocado"
 
 #: ../properties.c:492
 msgid   "Length"
-msgstr  "Dužina"
+msgstr  "Largo"
 
 #: ../properties.c:504
 msgid   "The length of the panel (width for horizontal panels, height for "
         "vertical panels)"
-msgstr  "Dužina ploče (širina za horizontalne, visina za vertikalne ploče)"
+msgstr  "El largo del panel (ancho para paneles horizontales, alto para "
+        "paneles verticales)"
 
 #: ../properties.c:511 ../properties.c:554
 msgid   "Percent"
-msgstr  "Postotak"
+msgstr  "Porcentaje"
 
 #: ../properties.c:512 ../properties.c:555
 msgid   "Pixels"
-msgstr  "Piksela"
+msgstr  "Pixeles"
 
 #: ../properties.c:516
 msgid   "The units used to specify the length of the panel: pixels or "
         "percentage of the monitor size"
-msgstr  "Jedinica za određivanje dužine ploče: pikseli ili postotak veličine "
-        "monitora"
+msgstr  "Las unidades para especificar el largo del panel: pixeles o "
+        "porcentaje del tamaño del monitor"
 
 #: ../properties.c:522
 msgid   "Compact"
-msgstr  ""
+msgstr  "Compacto"
 
 #: ../properties.c:535 ../properties.c:4176
 msgid   "Size"
-msgstr  "Veličina"
+msgstr  "Tamaño"
 
 #: ../properties.c:547
 msgid   "The size of the panel (height for horizontal panels, width for "
         "vertical panels)"
-msgstr  "Veličina ploče (visina za horizontalne, širina za vertikalne ploče"
+msgstr  "El tamaño del panel (alto para paneles horizontales, ancho para "
+        "paneles verticales)"
 
 #: ../properties.c:559
 msgid   "The units used to specify the size of the panel: pixels or "
         "percentage of the monitor size"
-msgstr  "Jedinica za određivanje veličine ploče: pikseli ili postotak "
-        "veličine minotora"
+msgstr  "Las unidades para especificar el tamaño del panel: pixeles o "
+        "porcentaje del tamaño del monitor"
 
 #: ../properties.c:564
 msgid   "Horizontal margin"
-msgstr  "Horizontalna margina"
+msgstr  "Margen horizontal"
 
 #: ../properties.c:576
 msgid   "Creates a space between the panel and the edge of the monitor. For "
         "left-aligned panels, the space is created on the right of the panel; "
         "for right-aligned panels, it is created on the left; for centered "
         "panels, it is evenly distributed on both sides of the panel."
-msgstr  "Pravi prostor između ploče i ivice monitora. Za ploče poravnate "
-        "prema lijevo prostor se pravi desno od ploče; za ploče poravnate "
-        "prema desno, prostor je lijevo; za centrirane ploče, jednako je "
-        "podijeljen sa obe strane."
+msgstr  "Crea un espacio entre el panel y el borde del monitor. Para paneles "
+        "alineados a la izquierda, el espacio se crea a la derecha del panel; "
+        "para paneles alineados a la derecha, se crea a la izquierda; para "
+        "paneles centrados, se distribuye por igual en los dos lados del "
+        "panel."
 
 #: ../properties.c:584
 msgid   "Vertical margin"
-msgstr  "Vertikalna margina"
+msgstr  "Margen vertical"
 
 #: ../properties.c:596
 msgid   "Creates a space between the panel and the edge of the monitor. For "
         "top-aligned panels, the space is created on the bottom of the panel; "
         "for bottom-aligned panels, it is created on the top; for centered "
         "panels, it is evenly distributed on both sides of the panel."
-msgstr  "Pravi prostor između ploče i ivice monitora. Za ploče poravnate "
-        "prema gore prostor se pravi na dnu ploče; za ploče poravnate prema "
-        "dole, prostor je gore; za centrirane ploče, jednako je podijeljen sa "
-        "obe strane."
+msgstr  "Crea un espacio entre el panel y el borde del monitor. Para paneles "
+        "alineados arriba, el espacio se crea abajo del panel; para paneles "
+        "alineados abajo, se crea arriba; para paneles centrados, se "
+        "distribuye por igual en los dos lados del panel."
 
 #: ../properties.c:604 ../properties.c:2252 ../properties.c:2728
 #: ../properties.c:3220 ../properties.c:3889 ../properties.c:4118
 #: ../properties.c:4461 ../properties.c:4817 ../properties.c:5201
 #: ../properties.c:5629 ../properties.c:5888
 msgid   "<b>Appearance</b>"
-msgstr  "<b>Izgled</b>"
+msgstr  "<b>Apariencia</b>"
 
 #: ../properties.c:618 ../properties.c:2265 ../properties.c:3657
 #: ../properties.c:3902 ../properties.c:4131 ../properties.c:4474
 #: ../properties.c:4830 ../properties.c:5214 ../properties.c:5642
 #: ../properties.c:5901
 msgid   "Background"
-msgstr  "Pozadina"
+msgstr  "Fondo"
 
 #: ../properties.c:630
 msgid   "Selects the background used to display the panel. Backgrounds can be "
         "edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za ploču. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el panel. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:636 ../properties.c:2299 ../properties.c:2742
 #: ../properties.c:2863 ../properties.c:3348 ../properties.c:3919
 #: ../properties.c:4189 ../properties.c:4491 ../properties.c:4847
 #: ../properties.c:5232 ../properties.c:5659 ../properties.c:5918
 msgid   "Horizontal padding"
-msgstr  "Horizontalna popuna"
+msgstr  "Relleno horizontal"
 
 #: ../properties.c:648
 msgid   "Specifies the horizontal padding of the panel. This is the space "
         "between the border of the panel and the elements inside."
-msgstr  "Određuje horizontalno popunjivanje ploče. To je prostor između ivice "
-        "ploče i unutrašnjih elemenata."
+msgstr  "Especifica el margen horizontal del panel. Esto es el espacio entre "
+        "el borde del panel y los elementos interiores."
 
 #: ../properties.c:654 ../properties.c:2316 ../properties.c:2760
 #: ../properties.c:2881 ../properties.c:3365 ../properties.c:3936
 #: ../properties.c:4202 ../properties.c:4508 ../properties.c:4864
 #: ../properties.c:5250 ../properties.c:5676 ../properties.c:5935
 msgid   "Vertical padding"
-msgstr  "Vertikalna popuna"
+msgstr  "Margen vertical"
 
 #: ../properties.c:666
 msgid   "Specifies the vertical padding of the panel. This is the space "
         "between the border of the panel and the elements inside."
-msgstr  "Određuje verikalno popunjivanje ploče. To je prostor između ivice "
-        "ploče i unutrašnjih elemenata."
+msgstr  "Especifica el margen vertical del panel. Esto es el espacio entre el "
+        "borde del panel y los elementos interiores."
 
 #: ../properties.c:672 ../properties.c:2333 ../properties.c:2778
 #: ../properties.c:3382 ../properties.c:5268
 msgid   "Spacing"
-msgstr  "Razmak"
+msgstr  "Espacio"
 
 #: ../properties.c:682
 msgid   "Specifies the spacing between elements inside the panel."
-msgstr  "Određuje razmak između elemenata unutar ploče."
+msgstr  "Especifica el espacio entre los elementos dentro del panel."
 
 #: ../properties.c:686
 msgid   "Ignore compositor"
-msgstr  "Ignoriši kompozitor"
+msgstr  "Ignorar compositor"
 
 #: ../properties.c:698
 msgid   "If enabled, the compositor will not be used to draw a transparent "
         "panel. May fix display corruption problems on broken graphics stacks."
-msgstr  "Ako je uključeno, kompozitor se neće koristiti za prikazivanje "
-        "transparentne ploče. Može pomoći kod pokvarenih grafičkih sistema."
+msgstr  "Si se activa, el compositor no se usa para dibujar un panel "
+        "transparente. Puede arreglar problemas de corrupción de pantalla en "
+        "bloques de gráficos rotos."
 
 #: ../properties.c:703
 msgid   "Font shadows"
-msgstr  "Sjena fonta"
+msgstr  "Sombras de fuente"
 
 #: ../properties.c:715
 msgid   "If enabled, a shadow will be drawn behind text. This may improve "
         "legibility on transparent panels."
-msgstr  "Ako je uključeno, svi tekstovi će imati sjenu. Ovo može poboljšati "
-        "čitljivost kod prozirnih ploča."
+msgstr  "Si se activa, se dibuja una sombra detrás del texto. Esto puede "
+        "mejorar la legibilidad en paneles transparentes."
 
 #: ../properties.c:721
-#, fuzzy
 msgid   "Mouse effects"
-msgstr  "<b>Radnje miša</b>"
+msgstr  "Efectos de ratón"
 
 #: ../properties.c:733
 msgid   "Clickable interface items change appearance when the mouse is moved "
         "over them."
-msgstr  ""
+msgstr  "Los elementos cliqueables cambian la apariencia al pasarles el ratón "
+        "encima."
 
 #: ../properties.c:738
-#, fuzzy
 msgid   "Icon opacity (hovered)"
-msgstr  "Prozirnost ikona"
+msgstr  "Opacidad de icono (al pasar el ratón)"
 
 #: ../properties.c:751
-#, fuzzy
 msgid   "Specifies the opacity adjustment of the icons under the mouse, in "
         "percent."
-msgstr  "Određuje zasićenost boja u ikonama pokretača, u postotcima."
+msgstr  "Especifica la opacidad de los iconos debajo del ratón, en porcentaje."
 
 #: ../properties.c:756
-#, fuzzy
 msgid   "Icon saturation (hovered)"
-msgstr  "Zasićenost ikona"
+msgstr  "Saturación de icono (al pasar el ratón)"
 
 #: ../properties.c:769
-#, fuzzy
 msgid   "Specifies the saturation adjustment of the icons under the mouse, in "
         "percent."
-msgstr  "Određuje zasićenost boja u ikonama pokretača, u postotcima."
+msgstr  "Especifica la saturación de los iconos debajo del ratón, en "
+        "porcentaje."
 
 #: ../properties.c:774
-#, fuzzy
 msgid   "Icon brightness (hovered)"
-msgstr  "Svjetloća ikona"
+msgstr  "Brillo de icono (al pasar el ratón)"
 
 #: ../properties.c:787
-#, fuzzy
 msgid   "Specifies the brightness adjustment of the icons under the mouse, in "
         "percent."
-msgstr  "Određuje svjetloću ikona u pokretaču, u postotcima."
+msgstr  "Especifica el ajuste de brillo de los iconos debajo del ratón, en "
+        "porcentaje."
 
 #: ../properties.c:792
-#, fuzzy
 msgid   "Icon opacity (pressed)"
-msgstr  "Prozirnost ikona"
+msgstr  "Opacidad de icono (presionado)"
 
 #: ../properties.c:805
-#, fuzzy
 msgid   "Specifies the opacity adjustment of the icons on mouse button press, "
         "in percent."
-msgstr  "Određuje zasićenost boja ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica la opacidad de los iconos al presionar el botón del "
+        "ratón, en porcentaje."
 
 #: ../properties.c:810
-#, fuzzy
 msgid   "Icon saturation (pressed)"
-msgstr  "Zasićenost ikona"
+msgstr  "Saturación de icono (presionado)"
 
 #: ../properties.c:823
-#, fuzzy
 msgid   "Specifies the saturation adjustment of the icons on mouse button "
         "press, in percent."
-msgstr  "Određuje zasićenost boja ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica la saturación de los iconos al presionar el botón del "
+        "ratón, en porcentaje."
 
 #: ../properties.c:828
-#, fuzzy
 msgid   "Icon brightness (pressed)"
-msgstr  "Svjetloća ikona"
+msgstr  "Brillo de icono (presionado)"
 
 #: ../properties.c:841
-#, fuzzy
 msgid   "Specifies the brightness adjustment of the icons on mouse button "
         "press, in percent."
-msgstr  "Određuje svjetlost ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica el ajuste de brillo de los iconos al presionar un botón "
+        "del ratón, en porcentaje."
 
 #: ../properties.c:846
 msgid   "<b>Autohide</b>"
-msgstr  "<b>Automatsko skrivanje</b>"
+msgstr  "<b>Ocultar automáticamente</b>"
 
 #: ../properties.c:860
 msgid   "Autohide"
-msgstr  "Automatsko skrivanje"
+msgstr  "Ocultar automáticamente"
 
 #: ../properties.c:872
 msgid   "If enabled, the panel is hidden when the mouse cursor leaves the "
         "panel."
-msgstr  "Ako je uključeno, ploča se skriva kada kursor miša napusti ploču."
+msgstr  "Si se activa, el panel se oculta al salir el cursor del panel."
 
 #: ../properties.c:877
 msgid   "Show panel after"
-msgstr  "Prikaži ploču nakon"
+msgstr  "Mostrar panel después"
 
 #: ../properties.c:889
 msgid   "Specifies a delay after which the panel is shown when the mouse "
         "cursor enters the panel."
-msgstr  "Određuje vrijeme nakon kojeg se ploča prikazuje kad kursor miša "
-        "pređe preko ploče."
+msgstr  "Especifica un atraso luego del cual el panel se muestra al mover "
+        "encima el cursor."
 
 #: ../properties.c:892 ../properties.c:932 ../properties.c:5857
 #: ../properties.c:5880
 msgid   "seconds"
-msgstr  "sekunde"
+msgstr  "segundos"
 
 #: ../properties.c:900
 msgid   "Hidden size"
-msgstr  "Veličina skrivene"
+msgstr  "Tamaño oculto"
 
 #: ../properties.c:912
 msgid   "Specifies the size of the panel when hidden, in pixels."
-msgstr  "Određuje veličinu ploče kad je skrivena, u pikselima"
+msgstr  "Especifica el tamaño del panel al ocultarse, en pixeles."
 
 #: ../properties.c:917
 msgid   "Hide panel after"
-msgstr  "Sakrij ploču nakon"
+msgstr  "Ocultar el panel después de"
 
 #: ../properties.c:929
 msgid   "Specifies a delay after which the panel is hidden when the mouse "
         "cursor leaves the panel."
-msgstr  "Određuje vrijeme nakon kojeg se ploča skriva kad kursor miša napusti "
-        "ploču."
+msgstr  "Especifica un atraso luego del cual el panel se oculta al quitar de "
+        "encima el cursor."
 
 #: ../properties.c:940
 msgid   "<b>Window manager interaction</b>"
-msgstr  "<b>Interakcija sa upravljačem prozora</b>"
+msgstr  "<b>Interacción del gestor de ventanas</b>"
 
 #: ../properties.c:954
 msgid   "Forward mouse events"
-msgstr  "Proslijedi radnje miša"
+msgstr  "Retransmitir eventos de ratón"
 
 #: ../properties.c:966
 msgid   "If enabled, mouse events not handled by panel elements are forwarded "
         "to the desktop. Useful on desktop environments that show a start "
         "menu when right clicking the desktop, or switch the desktop when "
         "rotating the mouse wheel over the desktop."
-msgstr  "Ako je uključeno, radnje miša nisu rukovane od strane ploče, već se "
-        "proslijede radnoj površini. Korisno je kod radnih okruženja koja "
-        "prikazuju startni meni pri desnom kliku na površinu ili koji "
-        "mijenjaju površinu rotiranjem kolutića miša."
+msgstr  "Si se activa, los eventos del ratón no controlados por elementos del "
+        "panel se redirigen al escritorio. Útil en entornos de escritorio que "
+        "muestran un menú de inicio al hacer clic derecho en el escritorio, o "
+        "cambian el escritorio al girar la rueda del ratón sobre el "
+        "escritorio."
 
 #: ../properties.c:973
 msgid   "Place panel in dock"
-msgstr  "Usidri ploču"
+msgstr  "Poner panel en dock"
 
 #: ../properties.c:985
 msgid   "If enabled, places the panel in the dock area of the window manager. "
         "Windows placed in the dock are usually treated differently than "
         "normal windows. The exact behavior depends on the window manager and "
         "its configuration."
-msgstr  "Ako je uključeno, postavlja ploču u prostor za sidro (dock) "
-        "upravljača prozora. Prozori postavljeni u sidro (dock) su obično "
-        "posebno tretirani od strane upravljača prozora. Tačno ponašanje "
-        "zavisi od upravljača prozora."
+msgstr  "Si se activa, pone el panel en el área de dock del gestor de "
+        "ventanas. Las ventanas colocadas en el dock suelen ser tratadas "
+        "diferente de las normales. El comportamiento exacto depende del "
+        "gestor de ventanas y su configuración."
 
 #: ../properties.c:992
 msgid   "Panel layer"
-msgstr  "Sloj ploče"
+msgstr  "Posición del panel"
 
 #: ../properties.c:1002 ../background_gui.c:361
 msgid   "Top"
-msgstr  "Vrh"
+msgstr  "Arriba"
 
 #: ../properties.c:1003
 msgid   "Normal"
-msgstr  "Normalno"
+msgstr  "Normal"
 
 #: ../properties.c:1004 ../background_gui.c:366
 msgid   "Bottom"
-msgstr  "Ispod"
+msgstr  "Abajo"
 
 #: ../properties.c:1008
 msgid   "Specifies the layer on which the panel window should be placed. \n"
@@ -487,29 +481,30 @@ msgid   "Specifies the layer on which the panel window should be placed. \n"
         "depending on which has focus. \n"
         "Note that some window managers prevent this option from working "
         "correctly if the panel is placed in the dock."
-msgstr  "Određuje sloj za postavljanje ploče. \n"
-        "Vrh: ploča uvijek pokriva druge prozore. \n"
-        "Ispod: drugi prozori uvijek pokrivaju plоču. \n"
-        "Normalno: drugi prozori mogu pokriti ploču, zavisno od toga koji je "
-        "fokusiran. \n"
-        "Napomena: neki upravljači prozora spriječavaju da ovo radi pravilno "
-        "ako se ploča usidri (postavi u dock)."
+msgstr  "Especifica la capa en la cual la ventana del panel se debe "
+        "colocar. \n"
+        "Arriba significa que el panel siempre debe cubrir otras ventanas. \n"
+        "Abajo significa que otras ventanas siempre deben cubrir el panel. \n"
+        "Normal significa que otras ventanas pueden o no cubrir el panel, "
+        "dependiendo de cuál está enfocada. \n"
+        "Nótese que algunos gestores de ventanas impiden que esta opción "
+        "funcione correctamente si el panel está en el dock."
 
 #: ../properties.c:1019
 msgid   "Maximized windows"
-msgstr  "Uvećani prozori"
+msgstr  "Ventanas maximizadas"
 
 #: ../properties.c:1029
 msgid   "Match the panel size"
-msgstr  "Upari sa veličinom ploče"
+msgstr  "Adaptar al tamaño del panel"
 
 #: ../properties.c:1030
 msgid   "Match the hidden panel size"
-msgstr  "Upari sa veličinom skrivene ploče"
+msgstr  "Adaptar al tamaño del panel oculto"
 
 #: ../properties.c:1031
 msgid   "Fill the screen"
-msgstr  "Popuni ekran"
+msgstr  "Llenar la pantalla"
 
 #: ../properties.c:1035
 msgid   "Specifies the size of maximized windows. \n"
@@ -524,77 +519,81 @@ msgid   "Specifies the size of maximized windows. \n"
         "Note: on multi-monitor (Xinerama) setups, the panel must be placed "
         "at the edge (not in the middle) of the virtual screen for this to "
         "work correctly."
-msgstr  "Određuje veličinu uvećanih prozora. \n"
-        "Upari sa veličinom ploče: uvećani prozori se protežu do ivice "
-        "ploče. \n"
-        "Upari sa veličinom srivene ploče: uvećani prozori se protežu do "
-        "ivice ploče dok je skrivena; ako je vidljiva prozori i ploča će se "
-        "preklapati. \n"
-        "Popuni ekran: uvećani prozori će uvijek prekrivati cijeli ekran. \n"
-        "Napomena: u slučaju višestrukih monitora (Xinerama), ploča se mora "
-        "postaviti uz ivicu (ne u sredinu) virtualnog ekrana da bi ovo radilo "
-        "ispravno."
+msgstr  "Especifica el tamaño de las ventanas maximizadas. \n"
+        "Coincidir con el tamaño del panel significa que las ventanas "
+        "maximizadas se deberían extender a los bordes del panel al "
+        "ocultarse; al mostrarse, el panel y las ventanas se superponen. \n"
+        "Llenar la pantalla significa que las ventanas maximizadas siempre "
+        "tienen el mismo tamaño que la ventana. \n"
+        "\n"
+        "Nota: en configuraciones multi-monitor (Xinerama), el panel se debe "
+        "colocar al borde (no en el medio) de la pantalla virtual para que "
+        "esto funcione correctamente."
 
 #: ../properties.c:1051
 msgid   "Window name"
-msgstr  "Ime prozora"
+msgstr  "Nombre de ventana"
 
 #: ../properties.c:1065
 msgid   "Specifies the name of the panel window. This is useful if you want "
         "to configure special treatment of tint2 windows in your window "
         "manager or compositor."
-msgstr  "Određuje ime prozora ploče. Ovo je korisno ako želite da tint2 "
-        "prozori imaju poseban tretman kod upravljača prozora ili kompozitora."
+msgstr  "Especifica el nombre de la ventana del panel. Esto es útil si se "
+        "quiere configurar un tratamiento especial de las ventanas de tint2 "
+        "en el gestor de ventanas o el compositor."
 
 #: ../properties.c:1093 ../properties.c:1311
 msgid   "Free space"
-msgstr  "Slobodni prostor"
+msgstr  "Espacio libre"
 
 #: ../properties.c:1095 ../properties.c:1315 ../properties.c:4100
 #: ../properties.c:4137 ../properties.c:5036 ../properties.c:5054
 msgid   "Separator"
-msgstr  ""
+msgstr  "Separador"
 
 #: ../properties.c:1097 ../properties.c:1321 ../properties.c:4226
 #: ../properties.c:4480 ../properties.c:5068 ../properties.c:5086
 msgid   "Executor"
-msgstr  ""
+msgstr  "Ejecutor"
 
 #: ../properties.c:1099 ../properties.c:1327 ../properties.c:4647
 #: ../properties.c:4836 ../properties.c:5100 ../properties.c:5118
 msgid   "Button"
-msgstr  ""
+msgstr  "Botón"
 
 #: ../properties.c:1115
 msgid   "Specifies the elements that will appear in the panel and their "
         "order. Elements can be added by selecting them in the list of "
         "available elements, then clicking on the add left button."
-msgstr  "Određuje elemente i njihov redoslijed u ploči. Elementi se mogu "
-        "dodati odabirom iz liste dostupnih elemenata, a zatim klikom na "
-        "Dodaj dugme."
+msgstr  "Especifica los elementos que aparecen en el panel y su orden. Se "
+        "puede agregar elementos seleccionándolos en la lista de elementos "
+        "disponibles, luego haciendo clic en el botón agregar a la izquierda."
 
 #: ../properties.c:1135
 msgid   "Lists all the possible elements that can appear in the panel. "
         "Elements can be added to the panel by selecting them, then clicking "
         "on the add left button."
-msgstr  "Prikazuje sve moguće elemente ploče. Elementi se mogu dodati na "
-        "ploču odabirom, a zatim klikom na Dodaj dugme."
+msgstr  "Lista todos los elementos posibles que pueden aparecer en el panel. "
+        "Se puede agregar elementos al panel seleccionándolos, luego haciendo "
+        "clic en el botón agregar a la izquierda."
 
 #: ../properties.c:1146
 msgid   "<b>Elements selected</b>"
-msgstr  "<b>Odabrani elementi</b>"
+msgstr  "<b>Elementos seleccionados</b>"
 
 #: ../properties.c:1152
 msgid   "<b>Elements available</b>"
-msgstr  "<b>Dostupni elementi</b>"
+msgstr  "<b>Elementos disponibles</b>"
 
 #: ../properties.c:1169
 msgid   "Moves up the current element in the list of selected elements."
-msgstr  "Pomijera trenutni element gore u listi odabranih elemenata."
+msgstr  "Mueve arriba el elemento actual en la lista de elementos "
+        "seleccionados."
 
 #: ../properties.c:1177
 msgid   "Moves down the current element in the list of selected elements."
-msgstr  "Pomijera trenutni element dole u listi odabranih elemenata."
+msgstr  "Mueve abajo el elemento actual en la lista de elementos "
+        "seleccionados."
 
 #: ../properties.c:1179 ../properties.c:2179
 msgid   " "
@@ -603,59 +602,62 @@ msgstr  " "
 #: ../properties.c:1192
 msgid   "Copies the current element in the list of available elements to the "
         "list of selected elements."
-msgstr  "Kopira trenutni element iz liste elemenata u listu odabranih "
-        "elemenata."
+msgstr  "Copia el elemento actual de la lista de elementos disponibles a la "
+        "lista de elementos seleccionados."
 
 #: ../properties.c:1202
 msgid   "Removes the current element from the list of selected elements."
-msgstr  "Uklanja trenutni element iz liste odabranih elemenata."
+msgstr  "Quita el elemento actual de la lista de elementos seleccionados."
 
 #: ../properties.c:2099
 msgid   "Specifies the application launchers that will appear in the launcher "
         "and their order. Launchers can be added by selecting an item in the "
         "list of available applications, then clicking on the add left button."
-msgstr  "Određuje pokretače aplikacija koji će biti u pokretaču i njihov "
-        "redoslijed. Pokretači se mogu dodati odabirom iz liste dostupnih "
-        "aplikacija, pa klikom na Dodaj dugme."
+msgstr  "Especifica las aplicaciones que aparecen en el lanzador y su orden. "
+        "Los lanzadores se pueden agregar seleccionando un ítem de la lista "
+        "de aplicaciones disponibles, luego haciendo clic en el botón agregar "
+        "a la izquierda."
 
 #: ../properties.c:2126
 msgid   "Lists all the applications detected on the system. Launchers can be "
         "added to the launcher by selecting an application, then clicking on "
         "the add left button."
-msgstr  "Prikazuje sve aplikacije pronađene u sistemu. Pokretači se mogu "
-        "dodati odabirom iz liste dostupnih aplikacija, pa klikom na Dodaj "
-        "dugme. "
+msgstr  "Lista todas las aplicaciones detectadas en el sistema. Los "
+        "lanzadores se pueden agregar al lanzador seleccionando una "
+        "aplicación, luego haciendo clic en el botón agregar a la izquierda."
 
 #: ../properties.c:2140
 msgid   "<b>Applications selected</b>"
-msgstr  "<b>Odabrane aplikacije</b>"
+msgstr  "<b>Aplicaciones seleccionadas</b>"
 
 #: ../properties.c:2146
 msgid   "<b>Applications available</b>"
-msgstr  "<b>Dostupne aplikacije</b>"
+msgstr  "<b>Aplicaciones disponibles</b>"
 
 #: ../properties.c:2165
 msgid   "Moves up the current launcher in the list of selected applications."
-msgstr  "Pomjera trenutni pokretač u listi odabranih aplikacija gore."
+msgstr  "Mueve arriba el lanzador actual en la lista de aplicaciones "
+        "seleccionadas."
 
 #: ../properties.c:2176
 msgid   "Moves down the current launcher in the list of selected applications."
-msgstr  "Pomjera trenutni pokretač u listi odabranih aplikacija dole."
+msgstr  "Mueve abajo el lanzador actual en la lista de aplicaciones "
+        "seleccionadas."
 
 #: ../properties.c:2192
 msgid   "Copies the current application in the list of available applications "
         "to the list of selected applications."
-msgstr  "Kopira trenutnu aplikaciju iz liste dostupnih aplikacija u listu "
-        "odabranih aplikacija."
+msgstr  "Copia la aplicación actual de la lista de aplicaciones disponibles a "
+        "la lista de aplicaciones seleccionadas."
 
 #: ../properties.c:2204
 msgid   "Removes the current application from the list of selected "
         "application."
-msgstr  "Uklanja trenutnu aplikaciju iz liste odabranih aplikacija."
+msgstr  "Quita la aplicación actual de la lista de temas seleccionados."
 
 #: ../properties.c:2235
 msgid   "<b>Additional application directories</b>"
-msgstr  "<b>Dodatni direktorijumi za aplikacije</b>"
+msgstr  "<b>Directorios de aplicación adicionales</b>"
 
 #: ../properties.c:2246
 msgid   "Specifies a path to a directory from which the launcher is loading "
@@ -663,221 +665,224 @@ msgid   "Specifies a path to a directory from which the launcher is loading "
         "Can be used multiple times, in which case the paths must be "
         "separated by commas. Leading ~ is expaned to the path of the user's "
         "home directory."
-msgstr  "Određuje putanju do direktorijuma (fascikle, foldera) gdje se "
-        "nalaze .desktop fajlovi (zalazi rekurzivno u poddirektorijume). Može "
-        "se dodati više njih, a u tom slučaju se putanje trebaju odvojiti sa "
-        "zarezom. ~ prefiks se proširuje u putanju korinikovog Home "
-        "direktorija."
+msgstr  "Especifica una ruta a un directorio desde el cual el lanzador carga "
+        "todos los archivos .desktop (todos los subdirectorios son explorados "
+        "en forma recursiva). Se puede usar muchas veces, y en ese caso las "
+        "rutas deben estar separadas por comas. El símbolo ~ se extiende a la "
+        "ruta del directorio de inicio del usuario."
 
 #: ../properties.c:2277
 msgid   "Selects the background used to display the launcher. Backgrounds can "
         "be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za pokretač. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el lanzador. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:2282
-#, fuzzy
 msgid   "Icon background"
-msgstr  "Neaktivna pozadina"
+msgstr  "Fondo de icono"
 
 #: ../properties.c:2288
-#, fuzzy
 msgid   "Launcher icon"
-msgstr  "Pokretač"
+msgstr  "Icono del lanzador"
 
 #: ../properties.c:2294
-#, fuzzy
 msgid   "Selects the background used to display the launcher icon. "
         "Backgrounds can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za pokretač. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el icono de lanzador. Los "
+        "fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:2311
 msgid   "Specifies the horizontal padding of the launcher. This is the space "
         "between the border and the elements inside."
-msgstr  "Određuje horizontalno popunjivanje pokretača. To je prostor između "
-        "ivice i unutrašnjih elemenata."
+msgstr  "Especifica el margen horizontal del lanzador. Esto es el espacio "
+        "entre el borde y los elementos interiores."
 
 #: ../properties.c:2328
 msgid   "Specifies the vertical padding of the launcher. This is the space "
         "between the border and the elements inside."
-msgstr  "Određuje vertikalno popunjivanje pokretača. To je prostor između "
-        "ivice i unutrašnjih elemenata."
+msgstr  "Especifica el margen vertical del lanzador. Esto es el espacio entre "
+        "el borde y los elementos interiores."
 
 #: ../properties.c:2345
 msgid   "Specifies the spacing between the elements inside the launcher."
-msgstr  "Određuje razmak između elemenata unutar pokretača."
+msgstr  "Especifica el tamaño entre los elementos dentro del lanzador."
 
 #: ../properties.c:2349 ../properties.c:5282
 msgid   "Icon size"
-msgstr  "Veličina ikone"
+msgstr  "Tamaño de icono"
 
 #: ../properties.c:2359
 msgid   "Specifies the size of the launcher icons, in pixels."
-msgstr  "Određuje veličinu ikona u pokretaču, u pikselima."
+msgstr  "Especifica el tamaño de los iconos de lanzador, en pixeles."
 
 #: ../properties.c:2363 ../properties.c:3603 ../properties.c:5299
 msgid   "Icon opacity"
-msgstr  "Prozirnost ikona"
+msgstr  "Opacidad de icono"
 
 #: ../properties.c:2376
 msgid   "Specifies the opacity of the launcher icons, in percent."
-msgstr  "Određuje prozirnost ikona u pokretaču, u postotcima."
+msgstr  "Especifica la opacidad de los iconos del lanzador, en porcentaje."
 
 #: ../properties.c:2381 ../properties.c:3617 ../properties.c:5317
 msgid   "Icon saturation"
-msgstr  "Zasićenost ikona"
+msgstr  "Saturación de icono"
 
 #: ../properties.c:2394
 msgid   "Specifies the saturation adjustment of the launcher icons, in "
         "percent."
-msgstr  "Određuje zasićenost boja u ikonama pokretača, u postotcima."
+msgstr  "Especifica la saturación de los iconos de lanzadores, en porcentaje."
 
 #: ../properties.c:2399 ../properties.c:3631 ../properties.c:5335
 msgid   "Icon brightness"
-msgstr  "Svjetloća ikona"
+msgstr  "Brillo de icono"
 
 #: ../properties.c:2412
 msgid   "Specifies the brightness adjustment of the launcher icons, in "
         "percent."
-msgstr  "Određuje svjetloću ikona u pokretaču, u postotcima."
+msgstr  "Especifica el ajuste de brillo de los iconos de lanzadores, en "
+        "porcentaje."
 
 #: ../properties.c:2416
 msgid   "Icon theme"
-msgstr  "Tema ikona"
+msgstr  "Tema de icono"
 
 #: ../properties.c:2432
 msgid   "The icon theme used to display launcher icons. If left blank, tint2 "
         "will detect and use the icon theme of your desktop as long as you "
         "have an XSETTINGS manager running (most desktop environments do)."
-msgstr  "Tema ikona koja se koristi u pokretaču. Ako se ostavi prazno, tint2 "
-        "će otrkiti i koristiti temu koju koristi okruženje ako postoji neki "
-        "XSETTINGS upravljač (ima u većini radnih okruženja)."
+msgstr  "El tema de iconos para mostrar los iconos de lanzadores. Si se deja "
+        "vacío, tint2 detecta y usa el tema de iconos del escritorio mientras "
+        "se tenga un gestor de XSETTINGS ejecutándose (la mayoría de los "
+        "entornos de escritorio lo tienen)."
 
 #: ../properties.c:2437
 msgid   "Overrides XSETTINGS"
-msgstr  "Zanemari XSETTINGS"
+msgstr  "Anula XSETTINGS"
 
 #: ../properties.c:2443
 msgid   "If enabled, the icon theme selected here will override the one "
         "provided by XSETTINGS."
-msgstr  "Ako je uključeno, izabrana tema će zamjeniti onu iz XSETTINGSa."
+msgstr  "Si se activa, el tema de icono seleccionado aquí reemplaza al dado "
+        "por XSETTINGS."
 
 #: ../properties.c:2447
 msgid   "Startup notifications"
-msgstr  "Obavještenja o pokretanju"
+msgstr  "Notificationes de inicio"
 
 #: ../properties.c:2459
 msgid   "If enabled, startup notifications are shown when starting "
         "applications from the launcher. The appearance may vary depending on "
         "your desktop environment configuration; normally, a busy mouse "
         "cursor is displayed until the application starts."
-msgstr  "Ako je uključeno, obavještenje o pokretanju aplikacije se prikazuje "
-        "tokom pokretanja. Izgled zavisi od radnog okruženja; obično se "
-        "koristi zauzeti kursor miša dok se aplikacija ne pokrene."
+msgstr  "Si se activa, se muestran notificaciones de inicio al iniciar "
+        "aplicaciones desde el lanzador. La apariencia puede variar "
+        "dependiendo de la configuración del entorno de escritorio; "
+        "normalmente, un cursor de ratón ocupado se muestra hasta que la "
+        "aplicación se inicia."
 
 #: ../properties.c:2465 ../properties.c:5525
 msgid   "Tooltips"
-msgstr  "Opisi"
+msgstr  "Mensajes emergentes"
 
 #: ../properties.c:2477
 msgid   "If enabled, shows a tooltip with the application name when the mouse "
         "is moved over an application launcher."
-msgstr  "Ako je uključeno, prikazuje ime aplikacije ako se mišom pređe preko "
-        "pokretača aplikacije."
+msgstr  "Si se activa, muestra un mensaje con el nombre de la aplicación al "
+        "poner el cursor encima de un lanzador de aplicación."
 
 #: ../properties.c:2540 ../properties.c:5135
 msgid   "<b>Options</b>"
-msgstr  "<b>Mogućnosti</b>"
+msgstr  "<b>Opciones</b>"
 
 #: ../properties.c:2555
 msgid   "Show a taskbar for each desktop"
-msgstr  "Prikaži paletu za svaku radnu površinu"
+msgstr  "Mostrar una barra para cada escritorio"
 
 #: ../properties.c:2567
 msgid   "If enabled, the taskbar is split into multiple smaller taskbars, one "
         "for each virtual desktop."
-msgstr  "Ako je uključeno, paleta poslova je podijeljena na dijelove, jedan "
-        "dio za svaku virtuelnu radnu površinu."
+msgstr  "Si se activa, la barra se divide en múltiples tareas más pequeñas, "
+        "una para cada escritorio."
 
 #: ../properties.c:2573
-#, fuzzy
 msgid   "Hide taskbars for empty desktops"
-msgstr  "Prikaži paletu za svaku radnu površinu"
+msgstr  "Ocultar las barras para escritorios vacíos"
 
 #: ../properties.c:2586
 msgid   "Distribute size between taskbars"
-msgstr  "Raspodijeli prostor ravnomjerno"
+msgstr  "Distribuir tamaño entre barras"
 
 #: ../properties.c:2598
 msgid   "If enabled and 'Show a taskbar for each desktop' is also enabled, "
         "the available size is distributed between taskbars proportionally to "
         "the number of tasks."
-msgstr  "Ako je 'Prikaži paletu za svaku radnu površinu' i ovo uključeno, "
-        "prostor će biti raspodijeljen među trakama proporcionalno broju "
-        "njihovih zadataka."
+msgstr  "Si se activa y 'Mostrar una barra para cada escritorio' también está "
+        "activado, el tamaño se distribuye entre las barras proporcionalmente "
+        "al número de tareas."
 
 #: ../properties.c:2604
 msgid   "Hide inactive tasks"
-msgstr  "Sakrij neaktivne zadatke"
+msgstr  "Ocultar tareas inactivas"
 
 #: ../properties.c:2616
 msgid   "If enabled, only the active task will be shown in the taskbar."
-msgstr  "Ako je uključeno, samo će aktivni zadatak biti prikazan na traci."
+msgstr  "Si se activa, solo la tarea activa se muestra en la barra."
 
 #: ../properties.c:2621
 msgid   "Hide tasks from different monitors"
-msgstr  "Sakrij zadatke sa različitih monitora"
+msgstr  "Ocultar las tareas de monitores diferentes"
 
 #: ../properties.c:2633
 msgid   "If enabled, tasks that are not on the same monitor as the panel will "
         "not be displayed. This behavior is enabled automatically if the "
         "panel monitor is set to 'All'."
-msgstr  "Ako je uključeno, zadaci koji nisu na istom monitoru kao i ploča "
-        "neće biti prikazani. Ovo ponašanje je uključeno automatski ako je "
-        "monitor ploče postaljen na 'Svi'."
+msgstr  "Si se activa, las tareas que no están en el mismo monitor que el "
+        "panel no se muestran. Este comportamiento se activa automáticamente "
+        "si el monitor del panel está ajustado en 'Todo'."
 
 #: ../properties.c:2639
-#, fuzzy
 msgid   "Hide tasks from different desktops"
-msgstr  "Sakrij zadatke sa različitih monitora"
+msgstr  "Ocultar las tareas de escritorios diferentes"
 
 #: ../properties.c:2652
 msgid   "Always show all desktop tasks"
-msgstr  ""
+msgstr  "Siempre mostrar todas las tareas"
 
 #: ../properties.c:2673
 msgid   "Has effect only if 'Show a taskbar for each desktop' is enabled. If "
         "enabled, tasks that appear on all desktops are shown on all "
         "taskbars. Otherwise, they are shown only on the taskbar of the "
         "current desktop."
-msgstr  ""
+msgstr  "Tiene efecto solo si se activa 'Mostrar una tarea para cada "
+        "escritorio'. Si se activa, las tareas que aparecen en todos los "
+        "escritorios se muestran en todas las barras. De lo contrario, se "
+        "muestran solo en la barra del escritorio actual."
 
 #: ../properties.c:2680
 msgid   "Task sorting"
-msgstr  "Sortiranje zadataka"
+msgstr  "Orden de tareas"
 
 #: ../properties.c:2690 ../properties.c:3034 ../properties.c:3073
 #: ../properties.c:3112 ../properties.c:3151 ../properties.c:3190
 #: ../gradient_gui.c:215
 msgid   "None"
-msgstr  "Ništa"
+msgstr  "Ninguna"
 
 #: ../properties.c:2691
 msgid   "By title"
-msgstr  "Po imenu"
+msgstr  "Por título"
 
 #: ../properties.c:2692
 msgid   "By center"
-msgstr  "Po sredini"
+msgstr  "Por posición"
 
 #: ../properties.c:2693
 msgid   "Most recently used first"
-msgstr  ""
+msgstr  "Primero el último usado"
 
 #: ../properties.c:2694
 msgid   "Most recently used last"
-msgstr  ""
+msgstr  "Último el último usado"
 
 #: ../properties.c:2698
 msgid   "Specifies how tasks should be sorted on the taskbar. \n"
@@ -886,224 +891,225 @@ msgid   "Specifies how tasks should be sorted on the taskbar. \n"
         "'By title' means that tasks are sorted by their window titles. \n"
         "'By center' means that tasks are sorted geometrically by their "
         "window centers."
-msgstr  "Određuje sortiranje zadataka u paleti. \n"
-        "Ništa: novi zadaci se dodaju na kraj, korisnik ih može poredati "
-        "klikom i pomjeranjem. \n"
-        "Po imenu: zadaci su poredani po imenu njihovih prozora. \n"
-        "Po sredini: zadaci su poredani geometrijski po središtima njihovih "
-        "prozora."
+msgstr  "Especifica cuántas tareas se deben organizar en la barra. \n"
+        "'Ninguna' significa que las nuevas tareas se agregan al final, y el "
+        "usuario también puede reordenar los botones arrastrando con el "
+        "ratón. \n"
+        "'Por título' significa que las tareas se ordenan por el título de "
+        "las ventanas. \n"
+        "'Por centro' significa que las tareas se ordenan geométricamente por "
+        "el centro de las ventanas."
 
 #: ../properties.c:2707
 msgid   "Task alignment"
-msgstr  "Poravnanje zadataka"
+msgstr  "Alineación de tareas"
 
 #: ../properties.c:2717 ../background_gui.c:371
 msgid   "Left"
-msgstr  "Lijevo"
+msgstr  "Izquierda"
 
 #: ../properties.c:2718
 msgid   "Center"
-msgstr  "Sredina"
+msgstr  "Centrar"
 
 #: ../properties.c:2719 ../background_gui.c:376
 msgid   "Right"
-msgstr  "Desno"
+msgstr  "Derecha"
 
 #: ../properties.c:2723
 msgid   "Specifies how tasks should be positioned on the taskbar."
-msgstr  "Određuje kako da se pozicioniraju zadaci u traci."
+msgstr  "Especifica cuántas tareas se deben poner en la barra."
 
 #: ../properties.c:2754
 msgid   "Specifies the horizontal padding of the taskbar. This is the space "
         "between the border and the elements inside."
-msgstr  "Određuje horizontalno popunjavanje trake. To je prostor između trake "
-        "i unutrašnjih elemenata."
+msgstr  "Especifica el margen horizontal de la barra de tareas. Esto es el "
+        "espacio entre el borde y los elementos interiores."
 
 #: ../properties.c:2772
 msgid   "Specifies the vertical padding of the taskbar. This is the space "
         "between the border and the elements inside."
-msgstr  "Određuje vertikalno popunjavanje trake. To je prostor između trake i "
-        "unutrašnjih elemenata."
+msgstr  "Especifica el margen vertical de la barra de tareas. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:2790
 msgid   "Specifies the spacing between the elements inside the taskbar."
-msgstr  "Određuje razmak između elemenata unutar trake zadataka."
+msgstr  "Especifica el espacio entre los elementos dentro de la barra de "
+        "tareas."
 
 #: ../properties.c:2795 ../properties.c:2968
 msgid   "Active background"
-msgstr  "Aktivna pozadina"
+msgstr  "Fondo activo"
 
 #: ../properties.c:2801
-#, fuzzy
 msgid   "Active taskbar"
-msgstr  "Aktivni zadatak"
+msgstr  "Barra de tareas activa"
 
 #: ../properties.c:2807
 msgid   "Selects the background used to display the taskbar of the current "
         "desktop. Backgrounds can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za traku aktivne radne površine. Pozadine se mogu "
-        "uređivati u kartici za Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar la barra del escritorio "
+        "actual. Los fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:2812 ../properties.c:2986
 msgid   "Inactive background"
-msgstr  "Neaktivna pozadina"
+msgstr  "Fondo inactivo"
 
 #: ../properties.c:2818
-#, fuzzy
 msgid   "Inactive taskbar"
-msgstr  "Aktivni zadatak"
+msgstr  "Barra inactiva"
 
 #: ../properties.c:2824
 msgid   "Selects the background used to display taskbars of inactive "
         "desktops. Backgrounds can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za traku neaktivne radne površine. Pozadine se mogu "
-        "uređivati u kartici za Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar tareas de escritorios "
+        "inactivos. Los fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:2830
 msgid   "<b>Desktop name</b>"
-msgstr  "<b>Ime radne površine</b>"
+msgstr  "<b>Nombre del escritorio</b>"
 
 #: ../properties.c:2845
 msgid   "Show desktop name"
-msgstr  "Prikaži ime radne površine"
+msgstr  "Mostrar nombre de escritorio"
 
 #: ../properties.c:2857
 msgid   "If enabled, displays the name of the desktop at the top/left of the "
         "taskbar. The name is set by your window manager; you might be able "
         "to configure it there."
-msgstr  "Ako je uključeno, prikazuje ime radne površine u gornjem-lijevom "
-        "uglu trake. Ime određuje upravljač prozora; možda ga možete "
-        "promijeniti u postavkama."
+msgstr  "Si se activa, muestra el nombre del escritorio arriba a la izquierda "
+        "de la barra. El nombre lo pone el gestor de ventanas; se podría "
+        "configurar desde allí."
 
 #: ../properties.c:2875
 msgid   "Specifies the horizontal padding of the desktop name. This is the "
         "space between the border and the text inside."
-msgstr  "Određuje horizontalno popunjavanje imena radne površine. To je "
-        "prostor između ivice i unutrašnjeg teksta."
+msgstr  "Especifica el margen horizontal del nombre de escritorio. Esto es el "
+        "espacio entre el borde y el texto interior."
 
 #: ../properties.c:2893
 msgid   "Specifies the vertical padding of the desktop name. This is the "
         "space between the border and the text inside."
-msgstr  "Određuje vertikalno popunjavanje imena radne površine. To je prostor "
-        "između ivice i unutrašnjeg teksta."
+msgstr  "Especifica el margen vertical del nombre de escritorio. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:2899
 msgid   "Active font color"
-msgstr  "Boja aktivnog fonta"
+msgstr  "Color de fuente activo"
 
 #: ../properties.c:2912
 msgid   "Specifies the font color used to display the name of the current "
         "desktop."
-msgstr  "Određuje boju fonta koji se koristi za ime aktivne radne površine."
+msgstr  "Especifica el color de fuente para mostrar el nombre del escritorio "
+        "actual."
 
 #: ../properties.c:2917
 msgid   "Inactive font color"
-msgstr  "Boja neaktivnog fonta"
+msgstr  "Color de fuente inactivo"
 
 #: ../properties.c:2930
 msgid   "Specifies the font color used to display the name of inactive "
         "desktops."
-msgstr  "Određuje boju fonta koji se koristi za ime neaktivne radne površine."
+msgstr  "Especifica el color de fuente para mostrar el nombre de los "
+        "escritorios inactivos."
 
 #: ../properties.c:2940 ../properties.c:3400 ../properties.c:3958
 #: ../properties.c:3994 ../properties.c:4530 ../properties.c:4886
 #: ../properties.c:5698 ../properties.c:5733 ../properties.c:5957
 msgid   "If not checked, the desktop theme font is used. If checked, the "
         "custom font specified here is used."
-msgstr  ""
+msgstr  "Si no se marca, se usa la fuente del tema de escritorio. Si se "
+        "marca, se usa la fuente personalizada especificada aquí."
 
 #: ../properties.c:2945 ../properties.c:3405 ../properties.c:4535
 #: ../properties.c:4891 ../properties.c:5962
 msgid   "Font"
-msgstr  "Font"
+msgstr  "Fuente"
 
 #: ../properties.c:2959
 msgid   "Specifies the font used to display the desktop name."
-msgstr  "Određuje font koji se koristi za prikaz imena radne površine."
+msgstr  "Especifica la fuente usada para mostrar el nombre del escritorio."
 
 #: ../properties.c:2974
-#, fuzzy
 msgid   "Active desktop name"
-msgstr  "Prikaži ime radne površine"
+msgstr  "Nombre del escritorio activo"
 
 #: ../properties.c:2980
 msgid   "Selects the background used to display the name of the current "
         "desktop. Backgrounds can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za prikaz imena trenutne radne površine. Pozadine se "
-        "mogu uređivati u kartici za Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el nombre del escritorio "
+        "actual. Los fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:2992
-#, fuzzy
 msgid   "Inactive desktop name"
-msgstr  "Prikaži ime radne površine"
+msgstr  "Nombre de escritorio inactivo"
 
 #: ../properties.c:2998
 msgid   "Selects the background used to display the name of inactive "
         "desktops. Backgrounds can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za prikaz imena neaktivne radne površine. Pozadine "
-        "se mogu uređivati u kartici za Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el nombre de los escritorios "
+        "inactivos. Los fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:3011 ../properties.c:3790 ../properties.c:4362
 #: ../properties.c:4718 ../properties.c:5512
 msgid   "<b>Mouse events</b>"
-msgstr  "<b>Radnje miša</b>"
+msgstr  "<b>Eventos de ratón</b>"
 
 #: ../properties.c:3024
 msgid   "Left click"
-msgstr  "Lijevi klik"
+msgstr  "Clic izquierdo"
 
 #: ../properties.c:3035 ../properties.c:3074 ../properties.c:3113
 #: ../properties.c:3152 ../properties.c:3191
 msgid   "Close"
-msgstr  "Zatvori"
+msgstr  "Cerrar"
 
 #: ../properties.c:3036 ../properties.c:3075 ../properties.c:3114
 #: ../properties.c:3153 ../properties.c:3192
 msgid   "Toggle"
-msgstr  "Prebaci"
+msgstr  "Cambiar"
 
 #: ../properties.c:3037 ../properties.c:3076 ../properties.c:3115
 #: ../properties.c:3154 ../properties.c:3193
 msgid   "Iconify"
-msgstr  "Umanji"
+msgstr  "Minimizar"
 
 #: ../properties.c:3038 ../properties.c:3077 ../properties.c:3116
 #: ../properties.c:3155 ../properties.c:3194
 msgid   "Shade"
-msgstr  "Zatamni"
+msgstr  "Reducir"
 
 #: ../properties.c:3039 ../properties.c:3078 ../properties.c:3117
 #: ../properties.c:3156 ../properties.c:3195
 msgid   "Toggle or iconify"
-msgstr  "Prebaci ili  umanji"
+msgstr  "Mostrar o minimizar"
 
 #: ../properties.c:3040 ../properties.c:3079 ../properties.c:3118
 #: ../properties.c:3157 ../properties.c:3196
 msgid   "Maximize or restore"
-msgstr  "Uvećaj ili povrati"
+msgstr  "Maximizar o restaurar"
 
 #: ../properties.c:3041 ../properties.c:3080 ../properties.c:3119
 #: ../properties.c:3158 ../properties.c:3197
 msgid   "Desktop left"
-msgstr  "Lijeva radna površina"
+msgstr  "Escritorio a la izquierda"
 
 #: ../properties.c:3042 ../properties.c:3081 ../properties.c:3120
 #: ../properties.c:3159 ../properties.c:3198
 msgid   "Desktop right"
-msgstr  "Desna radna površina"
+msgstr  "Escritorio a la derecha"
 
 #: ../properties.c:3043 ../properties.c:3082 ../properties.c:3121
 #: ../properties.c:3160 ../properties.c:3199
 msgid   "Next task"
-msgstr  "Sljedeći zadatak"
+msgstr  "Tarea siguiente"
 
 #: ../properties.c:3044 ../properties.c:3083 ../properties.c:3122
 #: ../properties.c:3161 ../properties.c:3200
 msgid   "Previous task"
-msgstr  "Prethodni zadatak"
+msgstr  "Tarea anterior"
 
 #: ../properties.c:3048
-#, fuzzy
 msgid   "Specifies the action performed when task buttons receive a left "
         "click event: \n"
         "'None' means that no action is taken. \n"
@@ -1117,22 +1123,23 @@ msgid   "Specifies the action performed when task buttons receive a left "
         "'Desktop right' sends the task to the next desktop. \n"
         "'Next task' sends the focus to the next task. \n"
         "'Previous task' sends the focus to the previous task."
-msgstr  "Određuje akciju nakon lijevog klika na zadatak: \n"
-        "Ništa: ništa se ne poduzme. \n"
-        "Zatvori: zatvara zadatak. \n"
-        "Prebaci: prebaci zadatak. \n"
-        "Umanji: umanji (minimizira) zadatak. \n"
-        "Zatamni: zatamni (urola) zadatak. \n"
-        "Prebaci ili umanji: prebaci ili umanji zadatak. \n"
-        "Uvećaj ili povrati: uvećava ili umanjuje zadatak. \n"
-        "Lijeva radna površina: šalje zadatak na prethodnu površinu. \n"
-        "Desna radna površina: šalje zadatak na sljedeću površinu. \n"
-        "Sljedeći zadatak: fokusira sljedeći zadatak. \n"
-        "Prethodni zadatak: fokusira prethodni zadatak."
+msgstr  "Especifica la acción realizada al recibir los botones de tareas un "
+        "clic izquierdo: \n"
+        "'Ninguna' significa que nada se hace. \n"
+        "'Cerrar' cierra la tarea. \n"
+        "'Cambiar' pasa de una tarea a otra. \n"
+        "'Minimizar' minimiza la tarea. \n"
+        "'Ocultar' oculta la tarea. \n"
+        "'Mostrar o minimizar' muestra o minimiza la tarea. \n"
+        "'Maximizar o restaurar' maximiza o restaura la tarea. \n"
+        "'Escritorio izquierdo' envía la tarea al escritorio anterior. \n"
+        "'Escritorio derecho' envía la tarea al escritorio siguiente. \n"
+        "'Tarea siguiente' cambia a la tarea siguiente. \n"
+        "'Tarea anterior' cambia a la tarea anterior."
 
 #: ../properties.c:3063
 msgid   "Wheel scroll up"
-msgstr  "Kolutić miša gore"
+msgstr  "Girar rueda hacia arriba"
 
 #: ../properties.c:3087
 msgid   "Specifies the action performed when task buttons receive a scroll up "
@@ -1148,22 +1155,23 @@ msgid   "Specifies the action performed when task buttons receive a scroll up "
         "'Desktop right' sends the task to the next desktop. \n"
         "'Next task' sends the focus to the next task. \n"
         "'Previous task' sends the focus to the previous task."
-msgstr  "Određuje akciju nakon pomijeranja kolutića miša gore na zadatku: \n"
-        "Ništa: ništa se ne poduzme. \n"
-        "Zatvori: zatvara zadatak. \n"
-        "Prebaci: prebaci zadatak. \n"
-        "Umanji: umanji (minimizira) zadatak. \n"
-        "Zatamni: zatamni (urola) zadatak. \n"
-        "Prebaci ili umanji: prebaci ili umanji zadatak. \n"
-        "Uvećaj ili povrati: uvećava ili umanjuje zadatak. \n"
-        "Lijeva radna površina: šalje zadatak na prethodnu površinu. \n"
-        "Desna radna površina: šalje zadatak na sljedeću površinu. \n"
-        "Sljedeći zadatak: fokusira sljedeći zadatak. \n"
-        "Prethodni zadatak: fokusira prethodni zadatak."
+msgstr  "Especifica la acción realizada al girar la rueda hacia arriba en los "
+        "botones de tareas: \n"
+        "'Ninguna' significa que nada se hace. \n"
+        "'Cerrar' cierra la tarea. \n"
+        "'Cambiar' pasa de una tarea a otra. \n"
+        "'Minimizar' minimiza la tarea. \n"
+        "'Ocultar' oculta la tarea. \n"
+        "'Mostrar o minimizar' muestra o minimiza la tarea. \n"
+        "'Maximizar o restaurar' maximiza o restaura la tarea. \n"
+        "'Escritorio izquierdo' envía la tarea al escritorio anterior. \n"
+        "'Escritorio derecho' envía la tarea al escritorio siguiente. \n"
+        "'Tarea siguiente' cambia a la tarea siguiente. \n"
+        "'Tarea anterior' cambia a la tarea anterior."
 
 #: ../properties.c:3102
 msgid   "Middle click"
-msgstr  "Srednji klik"
+msgstr  "Clic medio"
 
 #: ../properties.c:3126
 msgid   "Specifies the action performed when task buttons receive a middle "
@@ -1179,22 +1187,23 @@ msgid   "Specifies the action performed when task buttons receive a middle "
         "'Desktop right' sends the task to the next desktop. \n"
         "'Next task' sends the focus to the next task. \n"
         "'Previous task' sends the focus to the previous task."
-msgstr  "Određuje akciju nakon srednjeg klika na zadatak: \n"
-        "Ništa: ništa se ne poduzme. \n"
-        "Zatvori: zatvara zadatak. \n"
-        "Prebaci: prebaci zadatak. \n"
-        "Umanji: umanji (minimizira) zadatak. \n"
-        "Zatamni: zatamni (urola) zadatak. \n"
-        "Prebaci ili umanji: prebaci ili umanji zadatak. \n"
-        "Uvećaj ili povrati: uvećava ili umanjuje zadatak. \n"
-        "Lijeva radna površina: šalje zadatak na prethodnu površinu. \n"
-        "Desna radna površina: šalje zadatak na sljedeću površinu. \n"
-        "Sljedeći zadatak: fokusira sljedeći zadatak. \n"
-        "Prethodni zadatak: fokusira prethodni zadatak."
+msgstr  "Especifica la acción realizada al recibir los botones de tareas un "
+        "clic medio: \n"
+        "'Ninguna' significa que nada se hace. \n"
+        "'Cerrar' cierra la tarea. \n"
+        "'Cambiar' pasa de una tarea a otra. \n"
+        "'Minimizar' minimiza la tarea. \n"
+        "'Ocultar' oculta la tarea. \n"
+        "'Mostrar o minimizar' muestra o minimiza la tarea. \n"
+        "'Maximizar o restaurar' maximiza o restaura la tarea. \n"
+        "'Escritorio izquierdo' envía la tarea al escritorio anterior. \n"
+        "'Escritorio derecho' envía la tarea al escritorio siguiente. \n"
+        "'Tarea siguiente' cambia a la tarea siguiente. \n"
+        "'Tarea anterior' cambia a la tarea anterior."
 
 #: ../properties.c:3141
 msgid   "Wheel scroll down"
-msgstr  "Kolutić miša dole"
+msgstr  "Girar rueda hacia abajo"
 
 #: ../properties.c:3165
 msgid   "Specifies the action performed when task buttons receive a scroll "
@@ -1210,22 +1219,23 @@ msgid   "Specifies the action performed when task buttons receive a scroll "
         "'Desktop right' sends the task to the next desktop. \n"
         "'Next task' sends the focus to the next task. \n"
         "'Previous task' sends the focus to the previous task."
-msgstr  "Određuje akciju nakon pomijeranja kolutića miša dole na zadatku: \n"
-        "Ništa: ništa se ne poduzme. \n"
-        "Zatvori: zatvara zadatak. \n"
-        "Prebaci: prebaci zadatak. \n"
-        "Umanji: umanji (minimizira) zadatak. \n"
-        "Zatamni: zatamni (urola) zadatak. \n"
-        "Prebaci ili umanji: prebaci ili umanji zadatak. \n"
-        "Uvećaj ili povrati: uvećava ili umanjuje zadatak. \n"
-        "Lijeva radna površina: šalje zadatak na prethodnu površinu. \n"
-        "Desna radna površina: šalje zadatak na sljedeću površinu. \n"
-        "Sljedeći zadatak: fokusira sljedeći zadatak. \n"
-        "Prethodni zadatak: fokusira prethodni zadatak."
+msgstr  "Especifica la acción realizada al girar la rueda hacia abajo en los "
+        "botones de tareas: \n"
+        "'Ninguna' significa que nada se hace. \n"
+        "'Cerrar' cierra la tarea. \n"
+        "'Cambiar' pasa de una tarea a otra. \n"
+        "'Minimizar' minimiza la tarea. \n"
+        "'Ocultar' oculta la tarea. \n"
+        "'Mostrar o minimizar' muestra o minimiza la tarea. \n"
+        "'Maximizar o restaurar' maximiza o restaura la tarea. \n"
+        "'Escritorio izquierdo' envía la tarea al escritorio anterior. \n"
+        "'Escritorio derecho' envía la tarea al escritorio siguiente. \n"
+        "'Tarea siguiente' cambia a la tarea siguiente. \n"
+        "'Tarea anterior' cambia a la tarea anterior."
 
 #: ../properties.c:3180
 msgid   "Right click"
-msgstr  "Desni klik"
+msgstr  "Clic derecho"
 
 #: ../properties.c:3204
 msgid   "Specifies the action performed when task buttons receive a right "
@@ -1241,182 +1251,184 @@ msgid   "Specifies the action performed when task buttons receive a right "
         "'Desktop right' sends the task to the next desktop. \n"
         "'Next task' sends the focus to the next task. \n"
         "'Previous task' sends the focus to the previous task."
-msgstr  "Određuje akciju nakon desnog klika na zadatak: \n"
-        "Ništa: ništa se ne poduzme. \n"
-        "Zatvori: zatvara zadatak. \n"
-        "Prebaci: prebaci zadatak. \n"
-        "Umanji: umanji (minimizira) zadatak. \n"
-        "Zatamni: zatamni (urola) zadatak. \n"
-        "Prebaci ili umanji: prebaci ili umanji zadatak. \n"
-        "Uvećaj ili povrati: uvećava ili umanjuje zadatak. \n"
-        "Lijeva radna površina: šalje zadatak na prethodnu površinu. \n"
-        "Desna radna površina: šalje zadatak na sljedeću površinu. \n"
-        "Sljedeći zadatak: fokusira sljedeći zadatak. \n"
-        "Prethodni zadatak: fokusira prethodni zadatak."
+msgstr  "Especifica la acción realizada al recibir los botones de tareas un "
+        "clic derecho: \n"
+        "'Ninguna' significa que nada se hace. \n"
+        "'Cerrar' cierra la tarea. \n"
+        "'Cambiar' pasa de una tarea a otra. \n"
+        "'Minimizar' minimiza la tarea. \n"
+        "'Ocultar' oculta la tarea. \n"
+        "'Mostrar o minimizar' muestra o minimiza la tarea. \n"
+        "'Maximizar o restaurar' maximiza o restaura la tarea. \n"
+        "'Escritorio izquierdo' envía la tarea al escritorio anterior. \n"
+        "'Escritorio derecho' envía la tarea al escritorio siguiente. \n"
+        "'Tarea siguiente' cambia a la tarea siguiente. \n"
+        "'Tarea anterior' cambia a la tarea anterior."
 
 #: ../properties.c:3233 ../properties.c:4288
 msgid   "Show icon"
-msgstr  "Prikaži ikonu"
+msgstr  "Mostrar icono"
 
 #: ../properties.c:3243
 msgid   "If enabled, the window icon is shown on task buttons."
-msgstr  "Ako je uključeno, prikazuje ikonu prozora na dugmetu zadatka."
+msgstr  "Si se activa, el icono de ventana se muestra en los botones de "
+        "tareas."
 
 #: ../properties.c:3246
 msgid   "Show text"
-msgstr  "Prikaži tekst"
+msgstr  "Mostrar texto"
 
 #: ../properties.c:3256
 msgid   "If enabled, the window title is shown on task buttons."
-msgstr  "Ako je uključeno, prikazuje ime prоzora na dugmetu zadatka."
+msgstr  "Si se activa, el título de la ventana se muestra en los botones de "
+        "tareas."
 
 #: ../properties.c:3259
 msgid   "Center text"
-msgstr  "Centriraj tekst"
+msgstr  "Centrar texto"
 
 #: ../properties.c:3271
 msgid   "If enabled, the text is centered on task buttons. Otherwise, it is "
         "left-aligned."
-msgstr  "Ako je uključeno, tekst se centrira na dugmetu zadatka. U suprotnom "
-        "je poredano ulijevo."
+msgstr  "Si se activa, se centra el texto en los botones de tareas. De lo "
+        "contrario, se alínea a la izquierda."
 
 #: ../properties.c:3275
 msgid   "Show tooltips"
-msgstr  "Prikaži opise"
+msgstr  "Mostrar mensajes"
 
 #: ../properties.c:3287
 msgid   "If enabled, a tooltip showing the window title is displayed when the "
         "mouse cursor moves over task buttons."
-msgstr  "Ako je uključeno, prikazuje ime prozora kad se mišom pređe preko "
-        "dugmeta zadatka."
+msgstr  "Si se activa, se muestra un mensaje con el título de la ventana al "
+        "poner el cursor sobre los botones de tareas."
 
 #: ../properties.c:3292
 msgid   "Thumbnails"
-msgstr  ""
+msgstr  "Miniaturas"
 
 #: ../properties.c:3304
-#, fuzzy
 msgid   "If enabled, a tooltip showing the window thumbnail is displayed when "
         "the mouse cursor moves over task buttons."
-msgstr  "Ako je uključeno, prikazuje ime prozora kad se mišom pređe preko "
-        "dugmeta zadatka."
+msgstr  "Si se activa, se muestra la miniatura de la ventana al poner el "
+        "cursor sobre los botones de tareas."
 
 #: ../properties.c:3309
 msgid   "Thumbnail size"
-msgstr  ""
+msgstr  "Tamaño de la miniatura"
 
 #: ../properties.c:3322
 msgid   "Maximum width"
-msgstr  "Maksimalna širina"
+msgstr  "Ancho máximo"
 
 #: ../properties.c:3332
 msgid   "Specifies the maximum width of the task buttons."
-msgstr  "Određuje maksimalnu širinu dugmadi zadataka."
+msgstr  "Especifica el ancho máximo de los botones de tareas."
 
 #: ../properties.c:3335
 msgid   "Maximum height"
-msgstr  "Maksimalna visina"
+msgstr  "Altura máxima"
 
 #: ../properties.c:3345
 msgid   "Specifies the maximum height of the task buttons."
-msgstr  "Određuje maksimalnu visinu dugmadi zadataka."
+msgstr  "Especifica el alto máximo de los botones de tareas."
 
 #: ../properties.c:3360
 msgid   "Specifies the horizontal padding of the task buttons. This is the "
         "space between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje dugmadi. To je prostor između "
-        "ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal de los botones de tareas. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:3377
 msgid   "Specifies the vertical padding of the task buttons. This is the "
         "space between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje dugmadi. To je prostor između ivice "
-        "i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical de los botones de tareas. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:3392
 msgid   "Specifies the spacing between the icon and the text."
-msgstr  "Određuje razmak između ikone i teksta."
+msgstr  "Especifica el espacio entre el icono y el texto."
 
 #: ../properties.c:3416
 msgid   "Specifies the font used to display the task button text."
-msgstr  "Određuje font za prikaz teksta na dugmetu zadatka."
+msgstr  "Especifica la fuente para mostrar el texto del botón de la tarea."
 
 #: ../properties.c:3428
 msgid   "Default style"
-msgstr  "Standardni izgled"
+msgstr  "Estilo predeterminado"
 
 #: ../properties.c:3429
-#, fuzzy
 msgid   "Default task"
-msgstr  "Standardni izgled"
+msgstr  "Tarea predeterminada"
 
 #: ../properties.c:3439 ../properties.c:3440
 msgid   "Normal task"
-msgstr  "Normalni zadatak"
+msgstr  "Tarea normal"
 
 #: ../properties.c:3450 ../properties.c:3451
 msgid   "Active task"
-msgstr  "Aktivni zadatak"
+msgstr  "Tarea activa"
 
 #: ../properties.c:3461 ../properties.c:3462
 msgid   "Urgent task"
-msgstr  "Hitni zadatak"
+msgstr  "Tarea urgente"
 
 #: ../properties.c:3472 ../properties.c:3473
 msgid   "Iconified task"
-msgstr  "Umanjeni zadatak"
+msgstr  "Tarea minimizada"
 
 #: ../properties.c:3574
 msgid   "If enabled, a custom font color is used to display the task text."
-msgstr  "Ako je uključeno, koristi izabranu boju fonta za prikaz teksta "
-        "zadatka."
+msgstr  "Si se activa, se usa un color de fuente personalizado para mostrar "
+        "el texto de la tarea."
 
 #: ../properties.c:3577 ../properties.c:4025 ../properties.c:4553
 #: ../properties.c:4909 ../properties.c:5763 ../properties.c:5978
 msgid   "Font color"
-msgstr  "Boja fonta"
+msgstr  "Color de fondo"
 
 #: ../properties.c:3588
 msgid   "Specifies the font color used to display the task text."
-msgstr  "Određuje boju fonta koja se koristi za prikaz teksta zadatka."
+msgstr  "Especifica el color de fuente para mostrar el texto de la tarea."
 
 #: ../properties.c:3600
 msgid   "If enabled, a custom opacity/saturation/brightness is used to "
         "display the task icon."
-msgstr  "Ako je uključeno, koriste se vrijednost izabrane od korisnika za "
-        "prozirnost/zasićenje/svjetlost ikone zadatka."
+msgstr  "Si se activa, se usa opacidad/saturación/brillo personalizado para "
+        "mostrar el icono de la tarea."
 
 #: ../properties.c:3614
 msgid   "Specifies the opacity (in %) used to display the task icon."
-msgstr  "Određuje prozirnost (u %) za prikaz ikone zadatka."
+msgstr  "Especifica la opacidad (en %) para mostrar el icono de la tarea."
 
 #: ../properties.c:3628
 msgid   "Specifies the saturation adjustment (in %) used to display the task "
         "icon."
-msgstr  "Određuje zasićenost boja (u %) za prikaz ikone zadatka"
+msgstr  "Especifica la saturación (en %) para mostrar el icono de tarea."
 
 #: ../properties.c:3642
 msgid   "Specifies the brightness adjustment (in %) used to display the task "
         "icon."
-msgstr  "Određuje svjetlost (u %) za prikaz ikone zadatka."
+msgstr  "Especifica el ajuste de brillo (en %) usado para mostrar el icono de "
+        "tarea."
 
 #: ../properties.c:3654
 msgid   "If enabled, a custom background is used to display the task."
-msgstr  "Ako je uključeno, posebna pozadina se koristi pri prikazu zadatka."
+msgstr  "Si se activa, se usa un fondo personalizado para mostrar la tarea."
 
 #: ../properties.c:3667
 msgid   "Selects the background used to display the task. Backgrounds can be "
         "edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za zadatak. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar la tarea. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:3672
 msgid   "Blinks"
-msgstr  "Treptanje"
+msgstr  "Parpadeos"
 
 #: ../properties.c:3680
 msgid   "Specifies how many times urgent tasks blink."
-msgstr  "Određuje koliko će puta trepnuti hitni zadaci."
+msgstr  "Especifica cuántas veces parpadean las tareas urgentes."
 
 #: ../properties.c:3702 ../properties.c:4244 ../properties.c:4665
 msgid   "<b>Format</b>"
@@ -1424,229 +1436,229 @@ msgstr  "<b>Format</b>"
 
 #: ../properties.c:3715 ../properties.c:5780
 msgid   "First line format"
-msgstr  "Format prve linije"
+msgstr  "Formato de primera línea"
 
 #: ../properties.c:3728
 msgid   "Specifies the format used to display the first line of the clock "
         "text. See 'man date' for all the available options."
-msgstr  "Određuje format za prikaz prve linije sata. Pogledaj 'man date' za "
-        "sve dostupne mogućnosti."
+msgstr  "Especifica el formato para mostrar la primera línea del texto del "
+        "reloj. Ver opciones disponibles en 'man date'."
 
 #: ../properties.c:3733 ../properties.c:5803
 msgid   "Second line format"
-msgstr  "Format druge linije"
+msgstr  "Formato de segunda línea"
 
 #: ../properties.c:3746
 msgid   "Specifies the format used to display the second line of the clock "
         "text. See 'man date' for all the available options."
-msgstr  "Određuje format za prikaz druge linije sata. Pogledaj 'man date' za "
-        "sve dostupne mogućnosti."
+msgstr  "Especifica el formato para mostrar la segunda línea del texto del "
+        "reloj. Ver opciones disponibles en 'man date'."
 
 #: ../properties.c:3751
 msgid   "First line timezone"
-msgstr  "Vremenska zona prve linije"
+msgstr  "Huso horario de primera línea"
 
 #: ../properties.c:3764
 msgid   "Specifies the timezone used to display the first line of the clock "
         "text. If empty, the current timezone is used. Otherwise, it must be "
         "set to a valid value of the TZ environment variable."
-msgstr  "Određuje vremensku zonu pri prikazu vremena prve linije. Ako je "
-        "prazno koristi se trenutna vremenska zona. U suprotnom, mora biti "
-        "unešena u obliku važeće TZ promjenljive okruženja (environment "
-        "variable)."
+msgstr  "Especifica el huso horario para mostrar la primera línea del texto "
+        "del reloj. Si está vacío, se usa el huso horario actual. De lo "
+        "contrario, se debe ajustar a un valor válido de la variable "
+        "ambiental TZ."
 
 #: ../properties.c:3770
 msgid   "Second line timezone"
-msgstr  "Vremenska zona druge linije"
+msgstr  "Huso horario de segunda línea"
 
 #: ../properties.c:3783
 msgid   "Specifies the timezone used to display the second line of the clock "
         "text. If empty, the current timezone is used. Otherwise, it must be "
         "set to a valid value of the TZ environment variable."
-msgstr  "Određuje vremensku zonu pri prikazu vremena druge linije. Ako je "
-        "prazno koristi se trenutna vremenska zona. U suprotnom, mora biti "
-        "unešena u obliku važeće TZ promjenljive okruženja (environment "
-        "variable)."
+msgstr  "Especifica el uso horario para mostrar la segunda línea del texto "
+        "del reloj. Si está vacío, se usa el huso horario actual. De lo "
+        "contrario, se debe ajustar a un valor válido de la variable "
+        "ambiental TZ."
 
 #: ../properties.c:3803 ../properties.c:4375 ../properties.c:4731
 #: ../properties.c:5543
 msgid   "Left click command"
-msgstr  "Komanda lijevog klika"
+msgstr  "Comando de clic izquierdo"
 
 #: ../properties.c:3816
 msgid   "Specifies a command that will be executed when the clock receives a "
         "left click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el reloj un clic "
+        "izquierdo."
 
 #: ../properties.c:3820 ../properties.c:4392 ../properties.c:4748
 #: ../properties.c:5560
 msgid   "Right click command"
-msgstr  "Komanda desnog klika"
+msgstr  "Comando de clic derecho"
 
 #: ../properties.c:3833
 msgid   "Specifies a command that will be executed when the clock receives a "
         "right click."
-msgstr  "Određuje komandu koja će biti izvršena nakon desnog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el reloj un clic "
+        "derecho."
 
 #: ../properties.c:3837 ../properties.c:4409 ../properties.c:4765
 #: ../properties.c:5577
-#, fuzzy
 msgid   "Middle click command"
-msgstr  "Komanda lijevog klika"
+msgstr  "Comando de clic medio"
 
 #: ../properties.c:3850
-#, fuzzy
 msgid   "Specifies a command that will be executed when the clock receives a "
         "middle click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el reloj un clic "
+        "medio."
 
 #: ../properties.c:3854 ../properties.c:4426 ../properties.c:4782
 #: ../properties.c:5594
-#, fuzzy
 msgid   "Wheel scroll up command"
-msgstr  "Kolutić miša gore"
+msgstr  "Comando al girar rueda hacia arriba"
 
 #: ../properties.c:3867
-#, fuzzy
 msgid   "Specifies a command that will be executed when the clock receives a "
         "mouse scroll up."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia arriba sobre el reloj."
 
 #: ../properties.c:3871 ../properties.c:4443 ../properties.c:4799
 #: ../properties.c:5611
-#, fuzzy
 msgid   "Wheel scroll down command"
-msgstr  "Kolutić miša dole"
+msgstr  "Comando al girar rueda hacia abajo"
 
 #: ../properties.c:3884
-#, fuzzy
 msgid   "Specifies a command that will be executed when the clock receives a "
         "mouse scroll down."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia abajo sobre el reloj."
 
 #: ../properties.c:3914
 msgid   "Selects the background used to display the clock. Backgrounds can be "
         "edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za sat. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el reloj. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:3931
 msgid   "Specifies the horizontal padding of the clock. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje oko sata. To je prostor između "
-        "ivica i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal del reloj. Esto es el espacio entre "
+        "el borde y el contenido interior."
 
 #: ../properties.c:3948
 msgid   "Specifies the vertical padding of the clock. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje oko sata. To je prostor između "
-        "ivica i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical del reloj. Esto es el espacio entre el "
+        "borde y el contenido interior."
 
 #: ../properties.c:3963 ../properties.c:5703
 msgid   "Font first line"
-msgstr  "Font prve linije"
+msgstr  "Fuente de primera línea"
 
 #: ../properties.c:3980
 msgid   "Specifies the font used to display the first line of the clock."
-msgstr  "Određuje font korišten za prikaz prve linije sata."
+msgstr  "Especifica la fuente para mostrar la primera línea del reloj."
 
 #: ../properties.c:3999 ../properties.c:5738
 msgid   "Font second line"
-msgstr  "Font druge linije"
+msgstr  "Fuente de segunda línea"
 
 #: ../properties.c:4016
 msgid   "Specifies the font used to display the second line of the clock."
-msgstr  "Određuje font korišten za prikaz druge linije sata."
+msgstr  "Especifica la fuente para mostrar la segunda línea del reloj."
 
 #: ../properties.c:4036
 msgid   "Specifies the font color used to display the clock."
-msgstr  "Određuje boju fonta korištenog za prikaz sata."
+msgstr  "Especifica el color de fuente usado para mostrar el reloj."
 
 #: ../properties.c:4040
 msgid   "<b>Tooltip</b>"
-msgstr  "<b>Opisi</b>"
+msgstr  "<b>Notas</b>"
 
 #: ../properties.c:4053
 msgid   "Format"
-msgstr  "Format"
+msgstr  "Formato"
 
 #: ../properties.c:4066
-#, fuzzy
 msgid   "Specifies the format used to display the clock tooltip. See 'man "
         "date' for the available options."
-msgstr  "Određuje format korišten pri prikazivanju opisa sata. Pogledaj 'man "
-        "strftime' za sve mogućnosti."
+msgstr  "Especifica el formato para mostrar el mensaje emergente del reloj. "
+        "Ver opciones disponibles en 'man date'."
 
 #: ../properties.c:4071
 msgid   "Timezone"
-msgstr  "Vremenska zona"
+msgstr  "Huso horário"
 
 #: ../properties.c:4084
 msgid   "Specifies the timezone used to display the clock tooltip. If empty, "
         "the current timezone is used. Otherwise, it must be set to a valid "
         "value of the TZ environment variable."
-msgstr  "Određuje vremensku zonu prikazanu u opisu sata. Ako je prazno, "
-        "trenutna vremenska zona se koristi. U suprotnom, mora biti unešena u "
-        "obliku važeće TZ promjenljive okruženja (environment variable)."
+msgstr  "Especifica el huso horario para mostrar el mensaje emergente del "
+        "reloj. Si está vacío, se usa el huso horario actual. De lo "
+        "contrario, se debe ajustar a un valor válido de la variable "
+        "ambiental TZ."
 
 #: ../properties.c:4143
 msgid   "Foreground color"
-msgstr  "Boja"
+msgstr  "Color de primer plano"
 
 #: ../properties.c:4160
 msgid   "Style"
-msgstr  ""
+msgstr  "Estilo"
 
 #: ../properties.c:4170
 msgid   "Empty"
-msgstr  ""
+msgstr  "Vacío"
 
 #: ../properties.c:4171
 msgid   "Line"
-msgstr  ""
+msgstr  "Línea"
 
 #: ../properties.c:4172
 msgid   "Dots"
-msgstr  ""
+msgstr  "Puntos"
 
 #: ../properties.c:4257
-#, fuzzy
 msgid   "Command"
-msgstr  "Komanda upozorenja"
+msgstr  "Comando"
 
 #: ../properties.c:4268
-#, fuzzy
 msgid   "Specifies the command to execute."
-msgstr  "Određuje font koji se koristi za prikaz imena radne površine."
+msgstr  "Especifica el comando para ejecutar."
 
 #: ../properties.c:4271
 msgid   "Interval"
-msgstr  ""
+msgstr  "Intervalo"
 
 #: ../properties.c:4283
 msgid   "Specifies the interval at which the command is executed, in seconds. "
         "If zero, the command is executed only once."
-msgstr  ""
+msgstr  "Especifica el intervalo al cual el comando se ejecuta, en segundos. "
+        "Si es cero, el comando se ejecuta solo una vez."
 
 #: ../properties.c:4300
 msgid   "If enabled, the first line printed by the command is interpreted as "
         "a path to an image file."
-msgstr  ""
+msgstr  "Si se activa, la primera línea impresa por el comando se interpreta "
+        "como una ruta a un archivo de imagen."
 
 #: ../properties.c:4305
-#, fuzzy
 msgid   "Cache icon"
-msgstr  "Pokretač"
+msgstr  "Ocultar icono"
 
 #: ../properties.c:4318
 msgid   "If enabled, the image is not reloaded from disk every time the "
         "command is executed if the path remains unchanged. Enabling this is "
         "recommended."
-msgstr  ""
+msgstr  "Si se activa, la imagen no se recarga desde el disco cada vez que el "
+        "comando se ejecuta si la ruta permanece sin cambios. Se recomienda "
+        "activar esto."
 
 #: ../properties.c:4323
 msgid   "Continuous output"
-msgstr  ""
+msgstr  "Salida continua"
 
 #: ../properties.c:4335
 msgid   "If non-zero, the last execp_continuous lines from the output of the "
@@ -1654,191 +1666,187 @@ msgid   "If non-zero, the last execp_continuous lines from the output of the "
         "for showing the output of commands that run indefinitely, such as "
         "'ping 127.0.0.1'. If zero, the output of the command is displayed "
         "after it finishes executing."
-msgstr  ""
+msgstr  "Si no es cero, se muestran las últimas líneas execp_continuous de la "
+        "salida del comando, cada execp_continuous líneas; esto es útil para "
+        "mostrar la salida de comandos que se ejecutan indefinidamente, como "
+        "'ping 127.0.0.1'. Si es cero, la salida del comando se muestra "
+        "después de que se termina de ejecutar."
 
 #: ../properties.c:4342
 msgid   "Display markup"
-msgstr  ""
+msgstr  "Mostrar código"
 
 #: ../properties.c:4355
 msgid   "If enabled, the output of the command is treated as Pango markup, "
         "which allows rich text formatting. Note that using this with "
         "commands that print data downloaded from the Internet is a potential "
         "security risk."
-msgstr  ""
+msgstr  "Si se activa, la salida del comando se trata como marcado Pango, el "
+        "cual permite formato de texto enriquecido. Nótese que usar esto con "
+        "comandos que imprimen datos descargados de Internet es un potencial "
+        "riesgo de seguridad."
 
 #: ../properties.c:4388
-#, fuzzy
 msgid   "Specifies a command that will be executed when the executor receives "
         "a left click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el ejecutor un "
+        "clic izquierdo."
 
 #: ../properties.c:4405
-#, fuzzy
 msgid   "Specifies a command that will be executed when the executor receives "
         "a right click."
-msgstr  "Određuje komandu koja će biti izvršena nakon desnog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el ejecutor un "
+        "clic derecho."
 
 #: ../properties.c:4422
-#, fuzzy
 msgid   "Specifies a command that will be executed when the executor receives "
         "a middle click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el ejecutor un "
+        "clic medio."
 
 #: ../properties.c:4439
-#, fuzzy
 msgid   "Specifies a command that will be executed when the executor receives "
         "a mouse scroll up."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia arriba sobre el ejecutor."
 
 #: ../properties.c:4456
-#, fuzzy
 msgid   "Specifies a command that will be executed when the executor receives "
         "a mouse scroll down."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia abajo sobre el ejecutor."
 
 #: ../properties.c:4486
-#, fuzzy
 msgid   "Selects the background used to display the executor. Backgrounds can "
         "be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za sat. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar el ejecutor. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:4503
-#, fuzzy
 msgid   "Specifies the horizontal padding of the executor. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje oko sata. To je prostor između "
-        "ivica i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal del ejecutor. Esto es el espacio "
+        "entre el borde y el contenido interior."
 
 #: ../properties.c:4520
-#, fuzzy
 msgid   "Specifies the vertical padding of the executor. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje oko sata. To je prostor između "
-        "ivica i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical del ejecutor. Esto es el espacio entre "
+        "el borde y el contenido interior."
 
 #: ../properties.c:4566 ../properties.c:4922
-#, fuzzy
 msgid   "Centered"
-msgstr  "Sredina"
+msgstr  "Centrado"
 
 #: ../properties.c:4578
-#, fuzzy
 msgid   "Icon width"
-msgstr  "Tema ikona"
+msgstr  "Ancho de icono"
 
 #: ../properties.c:4588
 msgid   "If non-zero, the image is resized to this width."
-msgstr  ""
+msgstr  "Si no es cero, la imagen se redimensiona a este ancho."
 
 #: ../properties.c:4591
-#, fuzzy
 msgid   "Icon height"
-msgstr  "Svjetloća ikona"
+msgstr  "Altura de icono"
 
 #: ../properties.c:4601
 msgid   "If non-zero, the image is resized to this height."
-msgstr  ""
+msgstr  "Si no es cero, la imagen se redimensiona a este alto."
 
 #: ../properties.c:4617
-#, fuzzy
 msgid   "Tooltip text"
-msgstr  "Opisi"
+msgstr  "Texto de mensaje"
 
 #: ../properties.c:4630
 msgid   "The tooltip text to display. Leave this empty to display an "
         "automatically generated tooltip with information about when the "
         "command was last executed."
-msgstr  ""
+msgstr  "El texto para mostrar en mesajes emergentes. Dejar vacío para "
+        "mostrar uno generado automáticamente con información sobre cuándo el "
+        "comando fue ejecutado por última vez."
 
 #: ../properties.c:4678
-#, fuzzy
 msgid   "Icon"
-msgstr  "Umanji"
+msgstr  "Icono"
 
 #: ../properties.c:4691
 msgid   "Text"
-msgstr  ""
+msgstr  "Texto"
 
 #: ../properties.c:4744
-#, fuzzy
 msgid   "Specifies a command that will be executed when the button receives a "
         "left click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el botón un clic "
+        "izquierdo."
 
 #: ../properties.c:4761
-#, fuzzy
 msgid   "Specifies a command that will be executed when the button receives a "
         "right click."
-msgstr  "Određuje komandu koja će biti izvršena nakon desnog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el botón un clic "
+        "derecho."
 
 #: ../properties.c:4778
-#, fuzzy
 msgid   "Specifies a command that will be executed when the button receives a "
         "middle click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir el botón un clic "
+        "medio."
 
 #: ../properties.c:4795
-#, fuzzy
 msgid   "Specifies a command that will be executed when the button receives a "
         "mouse scroll up."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia arriba sobre el botón."
 
 #: ../properties.c:4812
-#, fuzzy
 msgid   "Specifies a command that will be executed when the button receives a "
         "mouse scroll down."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia abajo sobre el botón."
 
 #: ../properties.c:4842
-#, fuzzy
 msgid   "Selects the background used to display the button. Backgrounds can "
         "be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za prikaz nivoa baterije. Pozadine se mogu uređivati "
-        "u kartici za Pozadine. "
+msgstr  "Selecciona el fondo usado para mostrar el botón. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:4859
-#, fuzzy
 msgid   "Specifies the horizontal padding of the button. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje dugmadi. To je prostor između "
-        "ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal del botón. Esto es el espacio entre "
+        "el borde y el contenido interior."
 
 #: ../properties.c:4876
-#, fuzzy
 msgid   "Specifies the vertical padding of the button. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje dugmadi. To je prostor između ivice "
-        "i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical del botón. Esto es el espacio entre el "
+        "borde y el contenido interior."
 
 #: ../properties.c:4934
-#, fuzzy
 msgid   "Maximum icon size"
-msgstr  "Veličina ikone"
+msgstr  "Tamaño máximo de icono"
 
 #: ../properties.c:5149
 msgid   "Icon ordering"
-msgstr  "Redoslijed ikona"
+msgstr  "Orden de iconos"
 
 #: ../properties.c:5159
 msgid   "Ascending"
-msgstr  "Uzlazno"
+msgstr  "Ascendente"
 
 #: ../properties.c:5160
 msgid   "Descending"
-msgstr  "Silazno"
+msgstr  "Descendente"
 
 #: ../properties.c:5161
 msgid   "Left to right"
-msgstr  "Lijevo prema desno"
+msgstr  "De derecha a izquierda"
 
 #: ../properties.c:5162
 msgid   "Right to left"
-msgstr  "Desno prema lijevo"
+msgstr  "De derecha a izquierda"
 
 #: ../properties.c:5166
-#, fuzzy
 msgid   "Specifies the order used to arrange the system tray icons. \n"
         "'Ascending' means that icons are sorted in ascending order of their "
         "window names. \n"
@@ -1846,81 +1854,90 @@ msgid   "Specifies the order used to arrange the system tray icons. \n"
         "their window names. \n"
         "'Left to right' means that icons are always added to the right. \n"
         "'Right to left' means that icons are always added to the left."
-msgstr  "Određuje redoslijed kojim se aranžiraju ikone u alatnoj traci. \n"
-        "Uzlazno: poredane su uzlazno po imenu njihovog prozora. \n"
-        "Silazno: poredane su silazno po imenu njihovog prozora. \n"
-        "Lijevo prema desno: ikone se uvijek dodaju s lijeva nadesno. \n"
-        "Desno prema lijevo: ikone se uvijek dodaju s desna nalijevo."
+msgstr  "Especifica el orden para organizar los iconos de la bandeja del "
+        "sistema. \n"
+        "'Ascendente' significa que los iconos se organizan en orden "
+        "ascendente por los nombres de las ventanas. \n"
+        "'Descendente' significa que los iconos se organizan en orden "
+        "descendente por los nombres de las ventanas. \n"
+        "'Izquierda a derecha' significa que los iconos siempre se agregan a "
+        "la derecha. \n"
+        "'Derecha a izquierda' significa que los iconos siempre se agregan a "
+        "la izquierda."
 
 #: ../properties.c:5195
 msgid   "Specifies the monitor on which to place the system tray. Due to "
         "technical limitations, the system tray cannot be displayed on "
         "multiple monitors."
-msgstr  "Određuje mоnitor na kom da se prikaže sistemska traka. Zbog tehnički "
-        "ograničenja, traka ne može biti prikazana na više monitora."
+msgstr  "Especifica el monitor en el cual colocar la bandeja del sistema. "
+        "Debido a limitaciones técnicas, la bandeja del sistema no se puede "
+        "mostrar en múltiples monitores."
 
 #: ../properties.c:5220
-#, fuzzy
 msgid   "Systray"
-msgstr  "Sistemska traka"
+msgstr  "Bandeja del sistema"
 
 #: ../properties.c:5226
 msgid   "Selects the background used to display the system tray. Backgrounds "
         "can be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za sistemsku traku. Pozadine se mogu uređivati u "
-        "kartici za Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar la bandeja del sistema. Los "
+        "fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:5244
 msgid   "Specifies the horizontal padding of the system tray. This is the "
         "space between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje sistemske trake. To je prostor "
-        "između ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal de la bandeja del sistema. Esto es "
+        "el espacio entre el borde y el contenido interior."
 
 #: ../properties.c:5262
 msgid   "Specifies the vertical padding of the system tray. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje sistemske trake. To je prostor "
-        "između ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical de la bandeja del sistema. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:5278
 msgid   "Specifies the spacing between system tray icons."
-msgstr  "Određuje razmak između ikona u sistemskoj traci."
+msgstr  "Especifica el espacio entre los iconos de la bandeja del sistema."
 
 #: ../properties.c:5294
 msgid   "Specifies the size of the system tray icons, in pixels."
-msgstr  "Određuje veličinu ikona u traci, u pikselima."
+msgstr  "Especifica el tamaño de los iconos de la bandeja del sistema, en "
+        "pixeles."
 
 #: ../properties.c:5312
 msgid   "Specifies the opacity of the system tray icons, in percent."
-msgstr  "Određuje prozirnost ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica la opacidad de los iconos de la bandeja del sistema, en "
+        "porcentaje."
 
 #: ../properties.c:5330
 msgid   "Specifies the saturation adjustment of the system tray icons, in "
         "percent."
-msgstr  "Određuje zasićenost boja ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica la saturación de los iconos de la bandeja del sistema, en "
+        "porcentaje."
 
 #: ../properties.c:5348
 msgid   "Specifies the brightness adjustment of the system tray icons, in "
         "percent."
-msgstr  "Određuje svjetlost ikona u sistemskoj traci, u postotcima."
+msgstr  "Especifica el ajuste de brillo de los iconos de la bandeja del "
+        "sistema, en porcentaje."
 
 #: ../properties.c:5352
 msgid   "Name filter"
-msgstr  ""
+msgstr  "Filtrar por nombre"
 
 #: ../properties.c:5378
 msgid   "<b>Thresholds</b>"
-msgstr  "<b>Prag</b>"
+msgstr  "<b>Límites</b>"
 
 #: ../properties.c:5391
 msgid   "Hide if charge higher than"
-msgstr  "Sakrij ako je punija od"
+msgstr  "Ocultar si la carga es mayor a"
 
 #: ../properties.c:5403
 msgid   "Minimum battery level for which to hide the batter applet. Use 101 "
         "to always show the batter applet."
-msgstr  "Najmanji nivo baterijе kod kojeg da se sakrije aplet (prikaz). "
-        "Koristi 101 da se uvijek prikazuje."
+msgstr  "Nivel mínimo de batería para el cual ocultar el icono de batería. "
+        "Usar 101 para mostrar siempre."
 
 #: ../properties.c:5407 ../properties.c:5426
 msgid   "%"
@@ -1928,179 +1945,178 @@ msgstr  "%"
 
 #: ../properties.c:5414
 msgid   "Alert if charge lower than"
-msgstr  "Upozori ako spane ispod"
+msgstr  "Alerta si la carga es menor a"
 
 #: ../properties.c:5424
 msgid   "Battery level for which to display an alert."
-msgstr  "Nivo baterije za prikaz upozorenja."
+msgstr  "Nivel de batería para el cual mostrar un alerta."
 
 #: ../properties.c:5433
 msgid   "Alert command"
-msgstr  "Komanda upozorenja"
+msgstr  "Comando de alerta"
 
 #: ../properties.c:5446
 msgid   "Command to be executed when the alert threshold is reached."
-msgstr  "Komanda koja se izvodi kad se dostigne prag."
+msgstr  "Comando para ejecutar al alcanzar el límite de alerta."
 
 #: ../properties.c:5450
-#, fuzzy
 msgid   "Battery full command"
-msgstr  "Komanda upozorenja"
+msgstr  "Comando de batería llena"
 
 #: ../properties.c:5464
-#, fuzzy
 msgid   "<b>AC connection events</b>"
-msgstr  "<b>Radnje miša</b>"
+msgstr  "<b>Eventos de conexión AC</b>"
 
 #: ../properties.c:5477
-#, fuzzy
 msgid   "AC connected command"
-msgstr  "Komanda upozorenja"
+msgstr  "Comando de AC conectado"
 
 #: ../properties.c:5490
-#, fuzzy
 msgid   "Specifies a command that will be executed when AC is connected to "
         "the system."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al conectar la alimentación "
+        "al sistema."
 
 #: ../properties.c:5494
-#, fuzzy
 msgid   "AC disconnected command"
-msgstr  "Komanda upozorenja"
+msgstr  "Comando de AC desconectado"
 
 #: ../properties.c:5507
-#, fuzzy
 msgid   "Specifies a command that will be executed when AC is disconnected to "
         "the system."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al desconectar la "
+        "alimentación al sistema."
 
 #: ../properties.c:5538
-#, fuzzy
 msgid   "If enabled, shows a tooltip with detailed battery information when "
         "the mouse is moved over the battery widget."
-msgstr  "Ako je uključeno, prikazuje ime aplikacije ako se mišom pređe preko "
-        "pokretača aplikacije."
+msgstr  "Si se activa, muestra un mensaje con información detallada al poner "
+        "el cursor sobre el icono de batería."
 
 #: ../properties.c:5556
-#, fuzzy
 msgid   "Specifies a command that will be executed when the battery receives "
         "a left click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir la batería un "
+        "clic izquierdo."
 
 #: ../properties.c:5573
-#, fuzzy
 msgid   "Specifies a command that will be executed when the battery receives "
         "a right click."
-msgstr  "Određuje komandu koja će biti izvršena nakon desnog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir la batería un "
+        "clic derecho."
 
 #: ../properties.c:5590
-#, fuzzy
 msgid   "Specifies a command that will be executed when the battery receives "
         "a middle click."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al recibir la batería un "
+        "clic medio."
 
 #: ../properties.c:5607
-#, fuzzy
 msgid   "Specifies a command that will be executed when the battery receives "
         "a mouse scroll up."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia arriba sobre la batería."
 
 #: ../properties.c:5624
-#, fuzzy
 msgid   "Specifies a command that will be executed when the battery receives "
         "a mouse scroll down."
-msgstr  "Određuje komandu koja će biti izvršena nakon lijevog klika na sat."
+msgstr  "Especifica un comando que será ejecutado al girar la rueda del ratón "
+        "hacia abajo sobre la batería."
 
 #: ../properties.c:5654
 msgid   "Selects the background used to display the battery. Backgrounds can "
         "be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine za prikaz nivoa baterije. Pozadine se mogu uređivati "
-        "u kartici za Pozadine. "
+msgstr  "Selecciona el fondo usado para mostrar la batería. Los fondos se "
+        "pueden editar en la pestaña Fondos."
 
 #: ../properties.c:5671
 msgid   "Specifies the horizontal padding of the battery. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje oko baterije. To je prostor "
-        "između ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal de la batería. Esto es el espacio "
+        "entre el borde y el contenido interior."
 
 #: ../properties.c:5688
 msgid   "Specifies the vertical padding of the battery. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje oko baterije. To je prostor između "
-        "ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical de la batería. Esto es el espacio "
+        "entre el borde y el contenido interior."
 
 #: ../properties.c:5719
 msgid   "Specifies the font used to display the first line of the battery "
         "text."
-msgstr  "Određuje font za prikaz prve linije baterijskog teksta."
+msgstr  "Especifica la fuente para mostrar la primera línea del texto de la "
+        "batería."
 
 #: ../properties.c:5754
 msgid   "Specifies the font used to display the second line of the battery "
         "text."
-msgstr  "Određuje font za prikaz druge linije baterijskog teksta."
+msgstr  "Especifica la fuente para mostrar la segunda línea del texto de la "
+        "batería."
 
 #: ../properties.c:5776
 msgid   "Specifies the font clor used to display the battery text."
-msgstr  "Određuje boju fonta za prikaz baterijskog teksta."
+msgstr  "Especifica el color de fuente usado para mostrar el texto de la "
+        "batería."
 
 #: ../properties.c:5829
-#, fuzzy
 msgid   "<b>Timing</b>"
-msgstr  "<b>Tajming</b>"
+msgstr  "<b>Sincronización</b>"
 
 #: ../properties.c:5842
 msgid   "Show delay"
-msgstr  "Zakašnjenje prikazivanja"
+msgstr  "Mostrar atraso"
 
 #: ../properties.c:5854
 msgid   "Specifies a delay after which to show the tooltip when moving the "
         "mouse over an element."
-msgstr  "Određuje zakašnjenje nakon kojeg će se prikazati opis tokom "
-        "pomjeranja kursora preko elementa."
+msgstr  "Especifica un atraso luego del cual se muestra el mensaje emergente "
+        "al mover el cursor dentro de un elemento."
 
 #: ../properties.c:5864
 msgid   "Hide delay"
-msgstr  "Zakašnjenje skrivanja"
+msgstr  "Atraso antes de ocultar"
 
 #: ../properties.c:5875
 msgid   "Specifies a delay after which to hide the tooltip when moving the "
         "mouse outside an element."
-msgstr  "Određuje zakašnjenje nakon kojeg da se sakrije opis nakon pomjeranja "
-        "kursora van nekog elementa."
+msgstr  "Especifica un atraso luego del cual se oculta el mensaje emergente "
+        "al mover el cursor fuera de un elemento."
 
 #: ../properties.c:5913
 msgid   "Selects the background used to display the tooltip. Backgrounds can "
         "be edited in the Backgrounds tab."
-msgstr  "Odabir pozadine opisa. Pozadine se mogu uređivati u kartici za "
-        "Pozadine."
+msgstr  "Selecciona el fondo usado para mostrar los mensajes emergentes. Los "
+        "fondos se pueden editar en la pestaña Fondos."
 
 #: ../properties.c:5930
 msgid   "Specifies the horizontal padding of the tooltip. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje horizontalno popunjavanje za opis. To je prostor između "
-        "ivice i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen horizontal del mensaje emergente. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:5947
 msgid   "Specifies the vertical padding of the tooltip. This is the space "
         "between the border and the content inside."
-msgstr  "Određuje vertikalno popunjavanje za opis. To je prostor između ivice "
-        "i unutrašnjeg sadržaja."
+msgstr  "Especifica el margen vertical del mensaje emergente. Esto es el "
+        "espacio entre el borde y el contenido interior."
 
 #: ../properties.c:5973
 msgid   "Specifies the font used to display the text of the tooltip."
-msgstr  "Određuje font za prikaz teksta unutar opisa."
+msgstr  "Especifica la fuente para mostrar el texto de los mensajes "
+        "emergentes."
 
 #: ../properties.c:5991
 msgid   "Specifies the font color used to display the text of the tooltip."
-msgstr  "Određuje boju fonta za prikaz teksta unutar opisa."
+msgstr  "Especifica el color de fuente para mostrar el texto de los mensajes "
+        "emergentes."
 
 #: ../properties.c:6008
 msgid   "Please wait..."
-msgstr  ""
+msgstr  "Espere por favor..."
 
 #: ../properties.c:6011
 msgid   "Loading..."
-msgstr  ""
+msgstr  "Cargando..."
 
 #: ../main.c:234
 msgid   "tint2conf"
@@ -2108,7 +2124,7 @@ msgstr  "tint2conf"
 
 #: ../main.c:242
 msgid   "Tint2 panel themes"
-msgstr  "Izgled ploče"
+msgstr  "Temas del panel Tint2"
 
 #: ../main.c:252
 msgid   "_Theme"
@@ -2116,212 +2132,198 @@ msgstr  "_Tema"
 
 #: ../main.c:255
 msgid   "_Import theme..."
-msgstr  "_Importuj temu..."
+msgstr  "_Importar tema..."
 
 #: ../main.c:257
-#, fuzzy
 msgid   "Import theme(s) from file system"
-msgstr  "Importuj temu(e)"
+msgstr  "Importar temas del sistema de archivos"
 
 #: ../main.c:261
 msgid   "_Save as..."
-msgstr  "_Snimiti kao..."
+msgstr  "_Guardar como..."
 
 #: ../main.c:263
-#, fuzzy
 msgid   "Save the theme with a new name"
-msgstr  "Izaberi temu za snimanje."
+msgstr  "Guardar tema con nuevo nombre"
 
 #: ../main.c:265
 msgid   "_Delete"
-msgstr  "Iz_briši"
+msgstr  "_Borrar"
 
 #: ../main.c:265
-#, fuzzy
 msgid   "Delete the selected theme"
-msgstr  "Uredi odabranu temu"
+msgstr  "Eliminar el tema seleccionado"
 
 #: ../main.c:268
 msgid   "_Reset"
-msgstr  ""
+msgstr  "_Reiniciar"
 
 #: ../main.c:270
-#, fuzzy
 msgid   "Reset the selected theme to default"
-msgstr  "Uredi odabranu temu"
+msgstr  "Resetear el tema seleccionado a predeterminado"
 
 #: ../main.c:274
 msgid   "_Edit theme..."
-msgstr  "Ur_edi temu..."
+msgstr  "_Editar tema..."
 
 #: ../main.c:276
-#, fuzzy
 msgid   "Edit the selected theme"
-msgstr  "Uredi odabranu temu"
+msgstr  "Modificar el tema seleccionado"
 
 #: ../main.c:280
 msgid   "_Make default"
-msgstr  ""
+msgstr  "_Predeterminar"
 
 #: ../main.c:282
 msgid   "Replace the default theme with the selected one"
-msgstr  ""
+msgstr  "Reemplaza el tema predeterminado por el seleccionado"
 
 #: ../main.c:286
 msgid   "Refresh"
-msgstr  "Osvježi"
+msgstr  "Actualizar"
 
 #: ../main.c:288
-#, fuzzy
 msgid   "Redraw the selected theme"
-msgstr  "Uredi odabranu temu"
+msgstr  "Actualizar tema seleccionado"
 
 #: ../main.c:290
 msgid   "Refresh all"
-msgstr  "Osvježi sve"
+msgstr  "Actualizar todo"
 
 #: ../main.c:290
 msgid   "Redraw all themes"
-msgstr  ""
+msgstr  "Actualizar todos los temas"
 
 #: ../main.c:291
 msgid   "_Quit"
-msgstr  "_Napusti"
+msgstr  "_Salir"
 
 #: ../main.c:291
 msgid   "Quit"
-msgstr  "Napusti"
+msgstr  "Salir"
 
 #: ../main.c:292
 msgid   "_Help"
-msgstr  "_Pomoć"
+msgstr  "_Ayuda"
 
 #: ../main.c:293
 msgid   "_About"
-msgstr  "_O programu"
+msgstr  "A_cerda de"
 
 #: ../main.c:293
 msgid   "About"
-msgstr  "O programu"
+msgstr  "Acerca de"
 
 #: ../main.c:313
 msgid   "Command to run tint2: "
-msgstr  "Komanda za pokretanje tint2: "
+msgstr  "Comando para ejecutar tint2:"
 
 #: ../main.c:367
 msgid   "Theming tool for tint2 panel"
-msgstr  "Alat za uređivanje tint2 tema"
+msgstr  "Herramienta de temas para el panel Tint2"
 
 #: ../main.c:371
-#, fuzzy
 msgid   "Copyright 2009-2017 tint2 team\n"
         "Tint2 License GNU GPL version 2\n"
         "Tintwizard License GNU GPL version 3"
-msgstr  "Autorska prava 2009-2015 tint2 tim\n"
-        "Tint2 licenca GNU GPL verzija 2\n"
-        "Tintwizard licenca GNU GPL verzija 3"
+msgstr  "Copyright 2009-2017 equipo de tint2\n"
+        "Tint2 License GNU GPL version 2\n"
+        "Tintwizard License GNU GPL version 3"
 
 #: ../main.c:380
 msgid   "translator-credits"
-msgstr  "Dino Duratović <dinomol@mail.com>"
+msgstr  "Créditos a traductores"
 
 #: ../main.c:389
 msgid   "Import theme(s)"
-msgstr  "Importuj temu(e)"
+msgstr  "Importar temas"
 
 #: ../main.c:439
-#, fuzzy
 msgid   "Please select a theme."
-msgstr  "Uredi odabranu temu"
+msgstr  "Seleccionar un tema."
 
 #: ../main.c:456
 msgid   "Save theme as"
-msgstr  "Snimiti temu kao"
+msgstr  "Guardar tema como"
 
 #: ../main.c:486
 #, c-format
 msgid   "A file named \"%s\" already exists.  Do you want to replace it?"
-msgstr  ""
+msgstr  "Ya existe un archivo llamado \"%s\". ¿Desea reemplazarlo?"
 
 #: ../main.c:515
-#, fuzzy
 msgid   "Do you really want to delete the selected theme?"
-msgstr  "Uredi odabranu temu"
+msgstr  "¿Realmente desea eliminar el tema seleccionado?"
 
 #: ../main.c:554
 msgid   "Do you really want to reset the selected theme to default?"
-msgstr  ""
+msgstr  "¿Realmente desea cambiar el tema seleccionado a predeterminado?"
 
 #: ../main.c:725
 msgid   "Do you really want to replace the default theme with the selected "
         "theme?"
-msgstr  ""
+msgstr  "¿Realmente desea reemplazar el tema predeterminado con el tema "
+        "seleccionado?"
 
 #: ../gradient_gui.c:51
-#, fuzzy
 msgid   "<b>Gradient</b>"
-msgstr  "<b>Format</b>"
+msgstr  "<b>Degradado</b>"
 
 #: ../gradient_gui.c:82
 msgid   "Type"
-msgstr  ""
+msgstr  "Tipo"
 
 #: ../gradient_gui.c:92
-#, fuzzy
 msgid   "Vertical"
-msgstr  "Vertikalna margina"
+msgstr  "Vertical"
 
 #: ../gradient_gui.c:93
-#, fuzzy
 msgid   "Horizontal"
-msgstr  "Horizontalna margina"
+msgstr  "Horizontal"
 
 #: ../gradient_gui.c:94
 msgid   "Radial"
-msgstr  ""
+msgstr  "Radial"
 
 #: ../gradient_gui.c:98
-#, fuzzy
 msgid   "Start color"
-msgstr  "Boja fonta"
+msgstr  "Color inicial"
 
 #: ../gradient_gui.c:111
-#, fuzzy
 msgid   "End color"
-msgstr  "Boja fonta"
+msgstr  "Color de fin"
 
 #: ../gradient_gui.c:132
-#, fuzzy
 msgid   "<b>Color stop</b>"
-msgstr  "<b>Opisi</b>"
+msgstr  "<b>Color intermedio</b>"
 
 #: ../gradient_gui.c:163
 msgid   "Color"
-msgstr  ""
+msgstr  "Color"
 
 #: ../background_gui.c:133
 msgid   "<b>Background</b>"
-msgstr  "<b>Pozadina</b>"
+msgstr  "<b>Fondo</b>"
 
 #: ../background_gui.c:144
 msgid   "Selects the background you would like to modify"
-msgstr  "Odabir pozadine koju želite izmjeniti"
+msgstr  "Selecciona el fondo que desea modificar"
 
 #: ../background_gui.c:151
 msgid   "Creates a copy of the current background"
-msgstr  "Pravi kopiju trenutne pozadine"
+msgstr  "Crea una copia del fondo actual"
 
 #: ../background_gui.c:158
 msgid   "Deletes the current background"
-msgstr  "Briše trenutnu pozadinu"
+msgstr  "Elimina el fondo actual"
 
 #: ../background_gui.c:167
 msgid   "Fill color"
-msgstr  "Boja"
+msgstr  "Color de relleno"
 
 #: ../background_gui.c:178
 msgid   "The fill color of the current background"
-msgstr  "Boja trenutne pozadine"
+msgstr  "El color de relleno del fondo actual"
 
 #: ../background_gui.c:181
 msgid   "Fill tint"
@@ -2333,118 +2335,84 @@ msgstr  ""
 
 #: ../background_gui.c:194
 msgid   "Border color"
-msgstr  "Boja ivice"
+msgstr  "Color de borde"
 
 #: ../background_gui.c:205
 msgid   "The border color of the current background"
-msgstr  "Boja ivice trenutne pozadine"
+msgstr  "El color del borde del fondo actual"
 
 #: ../background_gui.c:208
-#, fuzzy
 msgid   "Border tint"
-msgstr  "Širina ivice"
+msgstr  ""
 
 #: ../background_gui.c:221
 msgid   "Gradient"
-msgstr  ""
+msgstr  "Degradado"
 
 #: ../background_gui.c:233
-#, fuzzy
 msgid   "Fill color (mouse over)"
-msgstr  "Boja"
+msgstr  "Color de relleno (al pasar el ratón)"
 
 #: ../background_gui.c:246
-#, fuzzy
 msgid   "The fill color of the current background on mouse over"
-msgstr  "Boja trenutne pozadine"
+msgstr  "El color de relleno del fondo actual al pasar el ratón encima"
 
 #: ../background_gui.c:250
-#, fuzzy
 msgid   "Border color (mouse over)"
-msgstr  "Boja ivice"
+msgstr  "Color de borde (al pasar el ratón)"
 
 #: ../background_gui.c:263
-#, fuzzy
 msgid   "The border color of the current background on mouse over"
-msgstr  "Boja ivice trenutne pozadine"
+msgstr  "El color del borde del fondo actual al pasar el ratón encima"
 
 #: ../background_gui.c:267
-#, fuzzy
 msgid   "Gradient (mouse over)"
-msgstr  "Boja ivice"
+msgstr  "Degradado (al pasar el ratón)"
 
 #: ../background_gui.c:279
-#, fuzzy
 msgid   "Fill color (pressed)"
-msgstr  "Boja"
+msgstr  "Color de relleno (presionado)"
 
 #: ../background_gui.c:292
-#, fuzzy
 msgid   "The fill color of the current background on mouse button press"
-msgstr  "Boja trenutne pozadine"
+msgstr  "El color de relleno del fondo actual al presionar un botón del ratón"
 
 #: ../background_gui.c:296
-#, fuzzy
 msgid   "Border color (pressed)"
-msgstr  "Boja ivice"
+msgstr  "Color de borde (presionado)"
 
 #: ../background_gui.c:309
-#, fuzzy
 msgid   "The border color of the current background on mouse button press"
-msgstr  "Boja ivice trenutne pozadine"
+msgstr  "El color del borde del fondo actual al presionar un botón del ratón"
 
 #: ../background_gui.c:313
-#, fuzzy
 msgid   "Gradient (pressed)"
-msgstr  "Zasićenost ikona"
+msgstr  "Degradado (al hacer clic)"
 
 #: ../background_gui.c:325
 msgid   "Border width"
-msgstr  "Širina ivice"
+msgstr  "Ancho de borde"
 
 #: ../background_gui.c:337
 msgid   "The width of the border of the current background, in pixels"
-msgstr  "Širina ivice trenutne pozadine, u pikselima"
+msgstr  "El ancho del borde del fondo actual, en pixeles"
 
 #: ../background_gui.c:341
 msgid   "Corner radius"
-msgstr  "Prečnik ugla"
+msgstr  "Radio de esquina"
 
 #: ../background_gui.c:351
 msgid   "The corner radius of the current background"
-msgstr  "Prečnik ugla trenutne pozadine"
+msgstr  "El radio de la esquina del fondo actual"
 
 #: ../background_gui.c:355
-#, fuzzy
 msgid   "Border sides"
-msgstr  "Širina ivice"
+msgstr  "Lados de borde"
 
-#, fuzzy
-#~ msgid        "Secondary fill color"
-#~ msgstr       "Boja"
+#~ msgid        "If enabled, the primary monitor will have index 1 in the "
+#~      "monitor list even if it is not top-left."
+#~ msgstr       "Si se activa, el monitor primario tiene index 1 en la lista "
+#~      "de monitores incluso si no está arriba a la izquierda."
 
-#, fuzzy
-#~ msgid        "Color to fade into when using gradient background."
-#~ msgstr       "Boja trenutne pozadine"
-
-#~ msgid        "Import theme"
-#~ msgstr       "Importuj temu"
-
-#~ msgid        "Delete theme"
-#~ msgstr       "Izbriši temu"
-
-#, fuzzy
-#~ msgid        "Reset theme"
-#~ msgstr       "Izbriši temu"
-
-#~ msgid        "_Import default theme..."
-#~ msgstr       "_Importuj standardnu temu..."
-
-#~ msgid        "Import default theme"
-#~ msgstr       "Importuj standardnu temu"
-
-#~ msgid        "Edit"
-#~ msgstr       "Uredi"
-
-#~ msgid        "Save default theme as"
-#~ msgstr       "Snimiti standardnu temu kao"
+#~ msgid        "Primary monitor first"
+#~ msgstr       "Primero el monitor principal"

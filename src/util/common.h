@@ -12,12 +12,7 @@
 #include <Imlib2.h>
 #include <pango/pangocairo.h>
 #include "area.h"
-
-#define GREEN "\033[1;32m"
-#define YELLOW "\033[1;33m"
-#define RED "\033[1;31m"
-#define BLUE "\033[1;34m"
-#define RESET "\033[0m"
+#include "colors.h"
 
 #define MAX3(a, b, c) MAX(MAX(a, b), c)
 #define MIN3(a, b, c) MIN(MIN(a, b), c)
@@ -109,6 +104,7 @@ Imlib_Image load_image(const char *path, int cached);
 //   *  1 = white
 void adjust_asb(DATA32 *data, int w, int h, float alpha_adjust, float satur_adjust, float bright_adjust);
 Imlib_Image adjust_icon(Imlib_Image original, int alpha, int saturation, int brightness);
+void adjust_color(Color *color, int alpha, int saturation, int brightness);
 
 void create_heuristic_mask(DATA32 *data, int w, int h);
 
@@ -149,6 +145,8 @@ GSList *slist_remove_duplicates(GSList *list, GCompareFunc eq, GDestroyNotify fr
 gint cmp_ptr(gconstpointer a, gconstpointer b);
 
 GString *tint2_g_string_replace(GString *s, const char *from, const char *to);
+
+void get_image_mean_color(const Imlib_Image image, Color *mean_color);
 
 #define free_and_null(p) \
     {                    \
