@@ -31,7 +31,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "common.h"
-#include "../server.h"
+#include "server.h"
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -406,12 +406,14 @@ pid_t tint_exec(const char *command,
             wordexp_t words;
             words.we_offs = 2;
             if (wordexp(command, &words, WRDE_DOOFFS | WRDE_SHOWERR) == 0) {
-                words.we_wordv[0] = (char*)"x-terminal-emulator";
-                words.we_wordv[1] = (char*)"-e";
+                words.we_wordv[0] = (char *)"x-terminal-emulator";
+                words.we_wordv[1] = (char *)"-e";
                 execvp("x-terminal-emulator", words.we_wordv);
             }
 #endif
-            fprintf(stderr, "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n", command);
+            fprintf(stderr,
+                    "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n",
+                    command);
         }
         execlp("sh", "sh", "-c", command, NULL);
         fprintf(stderr, "tint2: Failed to execute %s\n", command);
@@ -808,7 +810,7 @@ Imlib_Image load_image(const char *path, int cached)
                     GdkPixbuf *pixbuf = rsvg_handle_get_pixbuf(svg);
                     gdk_pixbuf_save(pixbuf, tmp_filename, "png", NULL, NULL);
                 }
-                exit(0);
+                _exit(0);
             } else {
                 // Parent
                 close(fd);
@@ -935,10 +937,9 @@ void get_text_size2(const PangoFontDescription *font,
 
     available_width = MAX(0, available_width);
     available_height = MAX(0, available_height);
-    Pixmap pmap = XCreatePixmap(server.display, server.root_win, available_height, available_width, server.depth);
 
     cairo_surface_t *cs =
-        cairo_xlib_surface_create(server.display, pmap, server.visual, available_height, available_width);
+        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, available_height, available_width);
     cairo_t *c = cairo_create(cs);
 
     PangoLayout *layout = pango_cairo_create_layout(c);
@@ -962,7 +963,6 @@ void get_text_size2(const PangoFontDescription *font,
     g_object_unref(layout);
     cairo_destroy(c);
     cairo_surface_destroy(cs);
-    XFreePixmap(server.display, pmap);
 }
 
 #if !GLIB_CHECK_VERSION(2, 34, 0)
@@ -1056,4 +1056,58 @@ GString *tint2_g_string_replace(GString *s, const char *from, const char *to)
     g_string_assign(s, result->str);
     g_string_free(result, TRUE);
     return s;
+}
+
+void get_image_mean_color(const Imlib_Image image, Color *mean_color)
+{
+    bzero(mean_color, sizeof(*mean_color));
+
+    if (!image)
+        return;
+    imlib_context_set_image(image);
+    imlib_image_set_has_alpha(1);
+    size_t size = (size_t)imlib_image_get_width() * (size_t)imlib_image_get_height();
+    DATA32 *data = imlib_image_get_data_for_reading_only();
+    DATA32 sum_r, sum_g, sum_b, count;
+    sum_r = sum_g = sum_b = count = 0;
+    for (size_t i = 0; i < size; i++) {
+        DATA32 argb, a, r, g, b;
+        argb = data[i];
+        a = (argb >> 24) & 0xff;
+        r = (argb >> 16) & 0xff;
+        g = (argb >> 8) & 0xff;
+        b = (argb) & 0xff;
+        if (a) {
+            sum_r += r;
+            sum_g += g;
+            sum_b += b;
+            count++;
+        }
+    }
+
+    if (!count)
+        count = 1;
+    mean_color->alpha = 1.0;
+    mean_color->rgb[0] = sum_r / 255.0 / count;
+    mean_color->rgb[1] = sum_g / 255.0 / count;
+    mean_color->rgb[2] = sum_b / 255.0 / count;
+}
+
+void adjust_color(Color *color, int alpha, int saturation, int brightness)
+{
+    if (alpha == 100 && saturation == 0 && brightness == 0)
+        return;
+    DATA32 argb = (((DATA32)(color->alpha * 255) & 0xff) << 24) |
+            (((DATA32)(color->rgb[0] * 255) & 0xff) << 16) |
+            (((DATA32)(color->rgb[1] * 255) & 0xff) << 8) |
+            (((DATA32)(color->rgb[2] * 255) & 0xff) << 0);
+    adjust_asb(&argb, 1, 1, alpha / 100.0, saturation / 100.0, brightness / 100.0);
+    DATA32 a = (argb >> 24) & 0xff;
+    DATA32 r = (argb >> 16) & 0xff;
+    DATA32 g = (argb >> 8) & 0xff;
+    DATA32 b = (argb) & 0xff;
+    color->alpha = a / 255.;
+    color->rgb[0] = r / 255.;
+    color->rgb[1] = g / 255.;
+    color->rgb[2] = b / 255.;
 }

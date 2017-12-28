@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+
 set -e
 set -x
 
@@ -11,7 +13,7 @@ exec 2>&1
 cd ~/tint2
 git reset --hard
 git pull
-last=$(cat .last-reg-test)
+last=$(cat .last-reg-test || true)
 curr=$(git rev-parse --verify HEAD)
 [ "$last" == "$curr" ] && exit 0
 
