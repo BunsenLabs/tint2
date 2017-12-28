@@ -1,6 +1,6 @@
-tint2 (15.3-1+deb8) jessie-backports; urgency=medium
+tint2 (16.0-1+deb9) jessie-backports; urgency=medium
 
-  * New upstream release 15.3.
+  * New upstream release 16.0.
 
  -- Jens John <dev@2ion.de>  Fri, 10 Nov 2017 15:08:28 +0100
 
