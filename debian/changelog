@@ -1,4 +1,4 @@
-tint2 (16.0-1+deb9) jessie-backports; urgency=medium
+tint2 (16.0-1+deb9) stretch-backports; urgency=medium
 
   * New upstream release 16.0.
 
