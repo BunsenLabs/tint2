@@ -1,3 +1,9 @@
+tint2 (16.1-1+deb9) stretch-backports; urgency=medium
+
+  * Release 16.1.
+
+ -- Jens John <dev@2ion.de>  Wed, 10 Jan 2018 23:29:15 +0100
+
 tint2 (16.0-1+deb9) stretch-backports; urgency=medium
 
   * New upstream release 16.0.
