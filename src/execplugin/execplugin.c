@@ -41,6 +41,7 @@ Execp *create_execp()
     execp->backend->cache_icon = TRUE;
     execp->backend->centered = TRUE;
     execp->backend->font_color.alpha = 0.5;
+    INIT_TIMER(execp->backend->timer);
     return execp;
 }
 
@@ -67,8 +68,7 @@ void destroy_execp(void *obj)
         free_and_null(execp);
     } else {
         // This is a backend element
-        stop_timeout(execp->backend->timer);
-        execp->backend->timer = NULL;
+        destroy_timer(&execp->backend->timer);
 
         free_icon(execp->backend->icon);
         free_and_null(execp->backend->buf_stdout);
@@ -192,7 +192,7 @@ void init_execp_panel(void *p)
         execp->area.on_screen = TRUE;
         instantiate_area_gradients(&execp->area);
 
-        execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+        change_timer(&execp->backend->timer, true, 10, 0, execp_timer_callback, execp);
 
         execp_update_post_read(execp);
     }
@@ -486,7 +486,7 @@ void draw_execp(void *obj, cairo_t *c)
 
     // draw layout
     pango_layout_set_font_description(layout, execp->backend->font_desc);
-    pango_layout_set_width(layout, execp->frontend->textw * PANGO_SCALE);
+    pango_layout_set_width(layout, (execp->frontend->textw + 1) * PANGO_SCALE);
     pango_layout_set_alignment(layout, execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -540,10 +540,8 @@ void execp_force_update(Execp *execp)
     if (execp->backend->child_pipe_stdout > 0) {
         // Command currently running, nothing to do
     } else {
-        if (execp->backend->timer)
-            stop_timeout(execp->backend->timer);
         // Run command right away
-        execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+        change_timer(&execp->backend->timer, true, 10, 0, execp_timer_callback, execp);
     }
 }
 
@@ -757,8 +755,7 @@ gboolean read_execp(void *obj)
         close(execp->backend->child_pipe_stderr);
         execp->backend->child_pipe_stderr = -1;
         if (execp->backend->interval)
-            execp->backend->timer =
-                add_timeout(execp->backend->interval * 1000, 0, execp_timer_callback, execp, &execp->backend->timer);
+            change_timer(&execp->backend->timer, true, execp->backend->interval * 1000, 0, execp_timer_callback, execp);
     }
 
     char *ansi_clear_screen = (char*)"\x1b[2J";
@@ -882,22 +879,22 @@ gboolean read_execp(void *obj)
     return FALSE;
 }
 
-const char *time_to_string(int seconds, char *buffer)
+const char *time_to_string(int seconds, char *buffer, size_t buffer_size)
 {
     if (seconds < 60) {
-        sprintf(buffer, "%ds", seconds);
+        snprintf(buffer, buffer_size, "%ds", seconds);
     } else if (seconds < 60 * 60) {
         int m = seconds / 60;
         seconds = seconds % 60;
         int s = seconds;
-        sprintf(buffer, "%d:%ds", m, s);
+        snprintf(buffer, buffer_size, "%d:%ds", m, s);
     } else {
         int h = seconds / (60 * 60);
         seconds = seconds % (60 * 60);
         int m = seconds / 60;
         seconds = seconds % 60;
         int s = seconds;
-        sprintf(buffer, "%d:%d:%ds", h, m, s);
+        snprintf(buffer, buffer_size, "%d:%d:%ds", h, m, s);
     }
     return buffer;
 }
@@ -923,35 +920,39 @@ char *execp_get_tooltip(void *obj)
         if (execp->backend->last_update_finish_time) {
             // We updated at least once
             if (execp->backend->interval > 0) {
-                sprintf(execp->backend->tooltip_text,
-                        "Last update finished %s ago (took %s). Next update starting in %s.",
-                        time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                        time_to_string((int)execp->backend->last_update_duration, tmp_buf2),
-                        time_to_string((int)(execp->backend->interval - (now - execp->backend->last_update_finish_time)),
-                                       tmp_buf3));
+                snprintf(execp->backend->tooltip_text,
+                         sizeof(execp->backend->tooltip_text),
+                         "Last update finished %s ago (took %s). Next update starting in %s.",
+                         time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                         time_to_string((int)execp->backend->last_update_duration, tmp_buf2, sizeof(tmp_buf2)),
+                         time_to_string((int)(execp->backend->interval - (now - execp->backend->last_update_finish_time)),
+                                        tmp_buf3, sizeof(tmp_buf3)));
             } else {
-                sprintf(execp->backend->tooltip_text,
-                        "Last update finished %s ago (took %s).",
-                        time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                        time_to_string((int)execp->backend->last_update_duration, tmp_buf2));
+                snprintf(execp->backend->tooltip_text,
+                         sizeof(execp->backend->tooltip_text),
+                         "Last update finished %s ago (took %s).",
+                         time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                         time_to_string((int)execp->backend->last_update_duration, tmp_buf2, sizeof(tmp_buf2)));
             }
         } else {
             // we never requested an update
-            sprintf(execp->backend->tooltip_text, "Never updated. No update scheduled.");
+            snprintf(execp->backend->tooltip_text, sizeof(execp->backend->tooltip_text), "Never updated. No update scheduled.");
         }
     } else {
         // Currently executing command
         if (execp->backend->last_update_finish_time) {
             // we finished updating at least once
-            sprintf(execp->backend->tooltip_text,
-                    "Last update finished %s ago. Update in progress (started %s ago).",
-                    time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                    time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf3));
+            snprintf(execp->backend->tooltip_text,
+                     sizeof(execp->backend->tooltip_text),
+                     "Last update finished %s ago. Update in progress (started %s ago).",
+                     time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                     time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf3, sizeof(tmp_buf3)));
         } else {
             // we never finished an update
-            sprintf(execp->backend->tooltip_text,
-                    "First update in progress (started %s seconds ago).",
-                    time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf1));
+            snprintf(execp->backend->tooltip_text,
+                     sizeof(execp->backend->tooltip_text),
+                     "First update in progress (started %s seconds ago).",
+                     time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf1, sizeof(tmp_buf1)));
         }
     }
     return strdup(execp->backend->tooltip_text);

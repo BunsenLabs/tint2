@@ -58,10 +58,17 @@ err:
     free(output_name);
 }
 
+static void crash(int sig)
+{
+    kill(getpid(), SIGSEGV);
+}
+
 __attribute__((noreturn))
 static void run_test_child(TestListItem *item)
 {
     reset_signals();
+    struct sigaction sa = {.sa_handler = crash};
+    sigaction(SIGINT, &sa, 0);
     redirect_test_output(item->name);
     bool result = true;
     item->test(&result);
@@ -120,10 +127,12 @@ static Status run_test(TestListItem *item)
     pid_t pid = fork();
     if (pid == 0)
         run_test_child(item);
+    struct sigaction sa = {.sa_handler = SIG_IGN};
+    sigaction(SIGINT, &sa, 0);
     return run_test_parent(item, pid);
 }
 
-void run_all_tests()
+void run_all_tests(bool verbose)
 {
     fprintf(stdout, BLUE "tint2: Running %d tests..." RESET "\n", g_list_length(all_tests));
     size_t count = 0, succeeded = 0, failed = 0;
@@ -138,6 +147,19 @@ void run_all_tests()
         } else {
             fprintf(stdout, RED "failed" RESET "\n");
             failed++;
+            if (verbose) {
+                char *log_name = test_log_name_from_test_name(item->name);
+                FILE *log = fopen(log_name, "rt");
+                if (log) {
+                    char buffer[4096];
+                    size_t num_read;
+                    while ((num_read = fread(buffer, 1, sizeof(buffer), log)) > 0) {
+                        fwrite(buffer, 1, num_read, stdout);
+                    }
+                    fclose(log);
+                }
+                free(log_name);
+            }
         }
     }
     if (failed == 0)
@@ -146,14 +168,16 @@ void run_all_tests()
         fprintf(stdout, BLUE "tint2: " RED "%lu" BLUE " out of %lu tests " RED "failed." RESET "\n", failed, count);
 }
 
+#if 0
 TEST(dummy) {
     int x = 2;
     int y = 2;
     ASSERT_EQUAL(x, y);
 }
 
-TEST(dummyBad) {
+TEST(dummy_bad) {
     int x = 2;
     int y = 3;
     ASSERT_EQUAL(x, y);
 }
+#endif

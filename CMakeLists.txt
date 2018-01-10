@@ -134,6 +134,7 @@ set( SOURCES src/config.c
              src/util/tracing.c
              src/mouse_actions.c
              src/drag_and_drop.c
+             src/default_icon.c
              src/clock/clock.c
              src/systray/systraybar.c
              src/launcher/launcher.c
@@ -157,6 +158,7 @@ set( SOURCES src/config.c
              src/util/timer.c
              src/util/cache.c
              src/util/color.c
+             src/util/strlcat.c
              src/util/print.c
              src/util/gradient.c
              src/util/test.c
@@ -246,7 +248,7 @@ else()
   SET(TRACING_L_FLAGS "")
 endif()
 
-add_custom_target( version ALL "${PROJECT_SOURCE_DIR}/get_version.sh" -- "\"${PROJECT_SOURCE_DIR}/\"" )
+add_custom_target( version ALL "${PROJECT_SOURCE_DIR}/get_version.sh" )
 
 link_directories( ${X11_LIBRARY_DIRS}
                   ${PANGOCAIRO_LIBRARY_DIRS}

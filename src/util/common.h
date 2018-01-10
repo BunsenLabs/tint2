@@ -13,6 +13,7 @@
 #include <pango/pangocairo.h>
 #include "area.h"
 #include "colors.h"
+#include "strlcat.h"
 
 #define MAX3(a, b, c) MAX(MAX(a, b), c)
 #define MIN3(a, b, c) MIN(MIN(a, b), c)
@@ -147,6 +148,8 @@ gint cmp_ptr(gconstpointer a, gconstpointer b);
 GString *tint2_g_string_replace(GString *s, const char *from, const char *to);
 
 void get_image_mean_color(const Imlib_Image image, Color *mean_color);
+
+void dump_image_data(const char *file_name, const char *name);
 
 #define free_and_null(p) \
     {                    \

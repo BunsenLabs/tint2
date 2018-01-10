@@ -23,8 +23,12 @@ set(SOURCES ../util/common.c
             ../util/strnatcmp.c
             ../util/cache.c
             ../util/timer.c
+            ../util/test.c
+            ../util/print.c
+            ../util/signals.c
             ../config.c
             ../util/server.c
+            ../util/strlcat.c
             ../launcher/apps-common.c
             ../launcher/icon-theme-common.c
             md4.c

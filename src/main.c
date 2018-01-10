@@ -723,7 +723,7 @@ void handle_panel_refresh()
     if (debug_frames) {
         for (int i = 0; i < num_panels; i++) {
             char path[256];
-            sprintf(path, "tint2-%d-panel-%d-frame-%d.png", getpid(), i, frame);
+            snprintf(path, sizeof(path), "tint2-%d-panel-%d-frame-%d.png", getpid(), i, frame);
             save_panel_screenshot(&panels[i], path);
         }
     }
@@ -748,7 +748,7 @@ void run_tint2_event_loop()
 
         // Wait for an event and handle it
         ts_event_read = 0;
-        if (XPending(server.display) > 0 || select(max_fd + 1, &fds, 0, 0, get_next_timeout()) >= 0) {
+        if (XPending(server.display) > 0 || select(max_fd + 1, &fds, 0, 0, get_duration_to_next_timer_expiration()) >= 0) {
 #ifdef HAVE_TRACING
             start_tracing((void*)run_tint2_event_loop);
 #endif

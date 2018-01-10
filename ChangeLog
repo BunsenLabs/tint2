@@ -1,3 +1,10 @@
+2017-12-30 16.1
+- Fixes:
+  - Fixed several use-after-free errors in the timer code
+  - Merged patches and fixed other warnings on OpenBSD
+  - Task, Button, Executor: add a bit of slack in the pango text layout,
+    to avoid wrapping due to rounding errors
+
 2017-12-20 16.0
 - Fixes:
   - Taskbar: `taskbar_distribute_size = 1` now playes well with `task_align = center` and
@@ -6,7 +13,8 @@
   - Added Spanish translation (contributed by Vicmz)
   - Executor: updated tooltip documentation (issue #676)
   - Systray: warn on duplicate config option systray_name_filter (issue #652)
-  - Changed standard from C99 to C11 to support generic printing for unit tests
+  - Taskbar: thumbnail support in tooltips
+  - Use C11 if possible to support generic printing for unit tests (should fall back to C99)
 
 2017-11-05 15.3
 - Fixes:
@@ -971,6 +979,7 @@ released tint-0.2
 2008-04-22
 - fork ttm projet from p://code.google.com/p/ttm/ (by Pål Staurland staura@gmail.com)
   while the projet is no longer in developpement, have not changed the name of 'tint'.
+.
 .
 .
 .

@@ -21,44 +21,51 @@
 #include <glib.h>
 #include <time.h>
 #include <sys/time.h>
+#include "bool.h"
 
-// Single shot timers (i.e. timers with interval_msec == 0) are deleted automatically as soon as they expire,
-// i.e. you do not need to stop them, however it is safe to call stop_timeout for these timers.
-// You can pass the address of the variable storing the pointer to the timer as 'self' in add_timeout, in which
-// case it is used to clear the pointer if the timer is destroyed automatically. This enforces the timeout pointers
-// to be either valid or NULL.
-// Periodic timeouts are aligned to each other whenever possible, i.e. one interval_msec is an
-// integral multiple of the other.
+extern bool debug_timers;
 
-typedef struct _timeout timeout;
+typedef void TimerCallback(void *arg);
 
-// Initializes default global data.
-void default_timeout();
+typedef struct {
+    char name_[64];
+    bool enabled_;
+    long long expiration_time_ms_;
+    int period_ms_;
+    TimerCallback *callback_;
+    void *arg_;
+    bool handled_;
+} Timer;
 
-// Cleans up: stops all timers and frees memory.
-void cleanup_timeout();
+#define DEFAULT_TIMER {"", 0, 0, 0, 0, 0, 0}
 
-// Installs a timer with the first timeout after 'value_msec' and then an optional periodic timeout every
-// 'interval_msec' (set it to 0 to prevent periodic timeouts).
-// '_callback' is the function called when the timer reaches the timeout.
-// 'arg' is the argument passed to the callback function.
-// 'self' is an optional pointer to a timeout* variable. If non-NULL, the variable is set to NULL when the timer
-// is destroyed (with stop_timeout, cleanup_timeout or when the timer expires and it is single-shot).
-// Returns a pointer to the timer, which is needed for stopping/changing it.
-timeout *add_timeout(int value_msec, int interval_msec, void (*_callback)(void *), void *arg, timeout **self);
+#define INIT_TIMER(t) init_timer(&t, #t)
 
-// Changes timer 't'. If it does not exist, a new timer is created, with self set to 't'.
-void change_timeout(timeout **t, int value_msec, int interval_msec, void (*_callback)(void *), void *arg);
+// Initialize the timer module.
+void default_timers();
 
-// Stops the timer 't'
-void stop_timeout(timeout *t);
+// Destroy the timer module.
+void cleanup_timers();
 
-// Get the time when the next installed timer will expire, or NULL if there is no timer.
-// Do not free the pointer; but it is safe to change its contents.
-struct timeval *get_next_timeout();
+// Initialize a timer. Caller keeps ownership.
+void init_timer(Timer *timer, const char *name);
 
-// Callback of all expired timeouts
+// Destroy a timer. Does not free() the pointer.
+void destroy_timer(Timer *timer);
+
+// Modify a timer.
+void change_timer(Timer *timer, bool enabled, int delay_ms, int period_ms, TimerCallback *callback, void *arg);
+
+void stop_timer(Timer *timer);
+
+// Get the time duration to the next expiration time, or NULL if there is no active timer.
+// Do not free the pointer; it is harmless to change its contents.
+struct timeval *get_duration_to_next_timer_expiration();
+
+// Trigger all expired timers, and reschedule them if they are periodic timers
 void handle_expired_timers();
+
+// Time helper functions.
 
 // Returns -1 if t1 < t2, 0 if t1 == t2, 1 if t1 > t2
 gint compare_timespecs(const struct timespec *t1, const struct timespec *t2);
@@ -69,6 +76,7 @@ struct timespec add_msec_to_timespec(struct timespec ts, int msec);
 // At the first call returns zero.
 double profiling_get_time();
 
+// Get current time in seconds, from an unspecified origin.
 double get_time();
 
 #endif // TIMER_H
