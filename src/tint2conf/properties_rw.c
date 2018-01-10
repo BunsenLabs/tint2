@@ -69,23 +69,23 @@ void config_read_file(const char *path)
     if (!config_has_panel_items) {
         char panel_items[256];
         panel_items[0] = 0;
-        strcat(panel_items, "T");
+        strlcat(panel_items, "T", sizeof(panel_items));
         if (config_has_battery) {
             if (config_battery_enabled)
-                strcat(panel_items, "B");
+                strlcat(panel_items, "B", sizeof(panel_items));
         } else {
             if (no_items_battery_enabled)
-                strcat(panel_items, "B");
+                strlcat(panel_items, "B", sizeof(panel_items));
         }
         if (config_has_systray) {
             if (config_systray_enabled)
-                strcat(panel_items, "S");
+                strlcat(panel_items, "S", sizeof(panel_items));
         } else {
             if (no_items_systray_enabled)
-                strcat(panel_items, "S");
+                strlcat(panel_items, "S", sizeof(panel_items));
         }
         if (no_items_clock_enabled)
-            strcat(panel_items, "C");
+            strlcat(panel_items, "C", sizeof(panel_items));
         set_panel_items(panel_items);
     }
 }
@@ -242,13 +242,13 @@ void config_write_backgrounds(FILE *fp)
         char sides[10];
         sides[0] = '\0';
         if (sideTop)
-            strcat(sides, "T");
+            strlcat(sides, "T", sizeof(sides));
         if (sideBottom)
-            strcat(sides, "B");
+            strlcat(sides, "B", sizeof(sides));
         if (sideLeft)
-            strcat(sides, "L");
+            strlcat(sides, "L", sizeof(sides));
         if (sideRight)
-            strcat(sides, "R");
+            strlcat(sides, "R", sizeof(sides));
         fprintf(fp, "border_sides = %s\n", sides);
 
         fprintf(fp, "border_content_tint_weight = %d\n", (int)(border_weight));
@@ -478,7 +478,7 @@ void config_write_task_font_color(FILE *fp, char *name, GtkWidget *task_color)
     GdkColor color;
     gtk_color_button_get_color(GTK_COLOR_BUTTON(task_color), &color);
     char full_name[128];
-    sprintf(full_name, "task%s_font_color", name);
+    snprintf(full_name, sizeof(full_name), "task%s_font_color", name);
     config_write_color(fp, full_name, color, gtk_color_button_get_alpha(GTK_COLOR_BUTTON(task_color)) * 100 / 0xffff);
 }
 
@@ -489,7 +489,7 @@ void config_write_task_icon_osb(FILE *fp,
                                 GtkWidget *widget_brightness)
 {
     char full_name[128];
-    sprintf(full_name, "task%s_icon_asb", name);
+    snprintf(full_name, sizeof(full_name), "task%s_icon_asb", name);
     fprintf(fp,
             "%s = %d %d %d\n",
             full_name,
@@ -501,7 +501,7 @@ void config_write_task_icon_osb(FILE *fp,
 void config_write_task_background(FILE *fp, char *name, GtkWidget *task_background)
 {
     char full_name[128];
-    sprintf(full_name, "task%s_background_id", name);
+    snprintf(full_name, sizeof(full_name), "task%s_background_id", name);
     fprintf(fp, "%s = %d\n", full_name, gtk_combo_box_get_active(GTK_COMBO_BOX(task_background)));
 }
 

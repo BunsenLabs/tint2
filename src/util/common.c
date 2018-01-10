@@ -191,7 +191,7 @@ const char *signal_name(int sig)
         return "SIGSYS: Bad system call.";
     }
     static char s[64];
-    sprintf(s, "SIG=%d: Unknown", sig);
+    snprintf(s, sizeof(s), "SIG=%d: Unknown", sig);
     return s;
 }
 
@@ -266,7 +266,7 @@ extern char *config_path;
 int setenvd(const char *name, const int value)
 {
     char buf[256];
-    sprintf(buf, "%d", value);
+    snprintf(buf, sizeof(buf), "%d", value);
     return setenv(name, buf, 1);
 }
 
@@ -461,9 +461,10 @@ char *expand_tilde(const char *s)
 {
     const gchar *home = g_get_home_dir();
     if (home && (strcmp(s, "~") == 0 || strstr(s, "~/") == s)) {
-        char *result = calloc(strlen(home) + strlen(s), 1);
-        strcat(result, home);
-        strcat(result, s + 1);
+        size_t buf_size = strlen(home) + strlen(s);
+        char *result = calloc(buf_size, 1);
+        strlcat(result, home, buf_size);
+        strlcat(result, s + 1, buf_size);
         return result;
     } else {
         return strdup(s);
@@ -476,14 +477,16 @@ char *contract_tilde(const char *s)
     if (!home)
         return strdup(s);
 
-    char *home_slash = calloc(strlen(home) + 2, 1);
-    strcat(home_slash, home);
-    strcat(home_slash, "/");
+    size_t buf_size = strlen(home) + 2;
+    char *home_slash = calloc(buf_size, 1);
+    strlcat(home_slash, home, buf_size);
+    strlcat(home_slash, "/", buf_size);
 
     if ((strcmp(s, home) == 0 || strstr(s, home_slash) == s)) {
-        char *result = calloc(strlen(s) - strlen(home) + 2, 1);
-        strcat(result, "~");
-        strcat(result, s + strlen(home));
+        size_t buf_size2 = strlen(s) - strlen(home) + 2;
+        char *result = calloc(buf_size2, 1);
+        strlcat(result, "~", buf_size2);
+        strlcat(result, s + strlen(home), buf_size2);
         free(home_slash);
         return result;
     } else {
@@ -793,7 +796,7 @@ Imlib_Image load_image(const char *path, int cached)
     }
     if (!image && g_str_has_suffix(path, ".svg")) {
         char tmp_filename[128];
-        sprintf(tmp_filename, "/tmp/tint2-%d.png", (int)getpid());
+        snprintf(tmp_filename, sizeof(tmp_filename), "/tmp/tint2-%d.png", (int)getpid());
         int fd = open(tmp_filename, O_CREAT | O_EXCL, 0600);
         if (fd >= 0) {
             // We fork here because librsvg allocates memory like crazy
@@ -1110,4 +1113,64 @@ void adjust_color(Color *color, int alpha, int saturation, int brightness)
     color->rgb[0] = r / 255.;
     color->rgb[1] = g / 255.;
     color->rgb[2] = b / 255.;
+}
+
+void dump_image_data(const char *file_name, const char *name)
+{
+    Imlib_Image image = load_image(file_name, false);
+    if (!image) {
+        fprintf(stderr, "tint2: Could not load image from file\n");
+        return;
+    }
+
+    gchar *header_name = g_strdup_printf("%s.h", name);
+    gchar *guard = g_strdup_printf("%s_h", name);
+    FILE *header = fopen(header_name, "wt");
+    fprintf(header,
+            "#ifndef %s\n"
+            "#define %s\n"
+            "\n"
+            "#include <Imlib2.h>\n"
+            "\n"
+            "extern int %s_width;\n"
+            "extern int %s_height;\n"
+            "extern DATA32 %s_data[];\n"
+            "\n"
+            "#endif\n",
+            guard,
+            guard,
+            name,
+            name,
+            name);
+    fclose(header);
+    g_free(guard);
+    g_free(header_name);
+
+    imlib_context_set_image(image);
+
+    gchar *source_name = g_strdup_printf("%s.c", name);
+    FILE *source = fopen(source_name, "wt");
+    fprintf(source,
+            "#include <%s.h>\n"
+            "\n"
+            "int %s_width = %d;\n"
+            "int %s_height = %d;\n"
+            "DATA32 %s_data[] = {",
+            name,
+            name,
+            imlib_image_get_width(),
+            name,
+            imlib_image_get_height(),
+            name);
+
+    size_t size = (size_t)imlib_image_get_width() * (size_t)imlib_image_get_height();
+    DATA32 *data = imlib_image_get_data_for_reading_only();
+    for (size_t i = 0; i < size; i++) {
+        fprintf(source, "%s%u", i == 0 ? "" : ", ", data[i]);
+    }
+    fprintf(source, "};\n");
+    fclose(source);
+    g_free(source_name);
+
+    imlib_free_image();
 }
