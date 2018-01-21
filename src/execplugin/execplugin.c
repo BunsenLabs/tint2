@@ -304,7 +304,6 @@ void execp_compute_icon_text_geometry(Execp *execp,
                                       int *icon_w,
                                       int *icon_h,
                                       gboolean *text_next_line,
-                                      int *txt_height_ink,
                                       int *txt_height,
                                       int *txt_width,
                                       int *new_size,
@@ -312,9 +311,9 @@ void execp_compute_icon_text_geometry(Execp *execp,
 {
     Panel *panel = (Panel *)execp->area.panel;
     Area *area = &execp->area;
-    *horiz_padding = (panel_horizontal ? area->paddingxlr : area->paddingy);
-    *vert_padding = (panel_horizontal ? area->paddingy : area->paddingxlr);
-    *interior_padding = area->paddingx;
+    *horiz_padding = (panel_horizontal ? area->paddingxlr : area->paddingy) * panel->scale;
+    *vert_padding = (panel_horizontal ? area->paddingy : area->paddingxlr) * panel->scale;
+    *interior_padding = area->paddingx * panel->scale;
 
     if (reload_icon(execp)) {
         if (execp->backend->icon) {
@@ -333,7 +332,7 @@ void execp_compute_icon_text_geometry(Execp *execp,
     int available_w, available_h;
     if (panel_horizontal) {
         available_w = panel->area.width;
-        available_h = area->height - 2 * area->paddingy - left_right_border_width(area);
+        available_h = area->height - 2 * *horiz_padding - left_right_border_width(area);
     } else {
         available_w = !text_next_line
                           ? area->width - *icon_w - (*icon_w ? *interior_padding : 0) - 2 * *horiz_padding -
@@ -342,7 +341,6 @@ void execp_compute_icon_text_geometry(Execp *execp,
         available_h = panel->area.height;
     }
     get_text_size2(execp->backend->font_desc,
-                   txt_height_ink,
                    txt_height,
                    txt_width,
                    available_h,
@@ -351,7 +349,9 @@ void execp_compute_icon_text_geometry(Execp *execp,
                    strlen(execp->backend->text),
                    PANGO_WRAP_WORD_CHAR,
                    PANGO_ELLIPSIZE_NONE,
-                   execp->backend->has_markup);
+                   execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT,
+                   execp->backend->has_markup,
+                   panel->scale);
 
     *resized = FALSE;
     if (panel_horizontal) {
@@ -385,7 +385,7 @@ int execp_compute_desired_size(void *obj)
     int horiz_padding, vert_padding, interior_padding;
     int icon_w, icon_h;
     gboolean text_next_line;
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     int new_size;
     gboolean resized;
     execp_compute_icon_text_geometry(execp,
@@ -395,7 +395,6 @@ int execp_compute_desired_size(void *obj)
                                      &icon_w,
                                      &icon_h,
                                      &text_next_line,
-                                     &txt_height_ink,
                                      &txt_height,
                                      &txt_width,
                                      &new_size,
@@ -410,7 +409,7 @@ gboolean resize_execp(void *obj)
     int horiz_padding, vert_padding, interior_padding;
     int icon_w, icon_h;
     gboolean text_next_line;
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     int new_size;
     gboolean resized;
     execp_compute_icon_text_geometry(execp,
@@ -420,7 +419,6 @@ gboolean resize_execp(void *obj)
                                      &icon_w,
                                      &icon_h,
                                      &text_next_line,
-                                     &txt_height_ink,
                                      &txt_height,
                                      &txt_width,
                                      &new_size,
@@ -476,7 +474,11 @@ gboolean resize_execp(void *obj)
 void draw_execp(void *obj, cairo_t *c)
 {
     Execp *execp = (Execp *)obj;
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    Panel *panel = (Panel *)execp->area.panel;
+
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * panel->scale);
+    PangoLayout *layout = pango_layout_new(context);
 
     if (execp->backend->has_icon && execp->backend->icon) {
         imlib_context_set_image(execp->backend->icon);
@@ -486,7 +488,8 @@ void draw_execp(void *obj, cairo_t *c)
 
     // draw layout
     pango_layout_set_font_description(layout, execp->backend->font_desc);
-    pango_layout_set_width(layout, (execp->frontend->textw + 1) * PANGO_SCALE);
+    pango_layout_set_width(layout, (execp->frontend->textw + TINT2_PANGO_SLACK) * PANGO_SCALE);
+    pango_layout_set_height(layout, (execp->frontend->texth + TINT2_PANGO_SLACK) * PANGO_SCALE);
     pango_layout_set_alignment(layout, execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -504,6 +507,7 @@ void draw_execp(void *obj, cairo_t *c)
               panel_config.font_shadow);
 
     g_object_unref(layout);
+    g_object_unref(context);
 }
 
 void execp_dump_geometry(void *obj, int indent)

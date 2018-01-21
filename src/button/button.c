@@ -269,9 +269,9 @@ int button_compute_desired_size(void *obj)
 {
     Button *button = (Button *)obj;
     Panel *panel = (Panel *)button->area.panel;
-    int horiz_padding = (panel_horizontal ? button->area.paddingxlr : button->area.paddingy);
-    int vert_padding = (panel_horizontal ? button->area.paddingy : button->area.paddingxlr);
-    int interior_padding = button->area.paddingx;
+    int horiz_padding = (panel_horizontal ? button->area.paddingxlr : button->area.paddingy) * panel->scale;
+    int vert_padding = (panel_horizontal ? button->area.paddingy : button->area.paddingxlr) * panel->scale;
+    int interior_padding = button->area.paddingx * panel->scale;
 
     int icon_w, icon_h;
     if (button->backend->icon_name) {
@@ -280,18 +280,17 @@ int button_compute_desired_size(void *obj)
         else
             icon_h = icon_w = button->area.width - left_right_border_width(&button->area) - 2 * horiz_padding;
         if (button->backend->max_icon_size) {
-            icon_w = MIN(icon_w, button->backend->max_icon_size);
-            icon_h = MIN(icon_h, button->backend->max_icon_size);
+            icon_w = MIN(icon_w, button->backend->max_icon_size * panel->scale);
+            icon_h = MIN(icon_h, button->backend->max_icon_size * panel->scale);
         }
     } else {
         icon_h = icon_w = 0;
     }
 
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     if (button->backend->text) {
         if (panel_horizontal) {
             get_text_size2(button->backend->font_desc,
-                           &txt_height_ink,
                            &txt_height,
                            &txt_width,
                            panel->area.height,
@@ -300,10 +299,11 @@ int button_compute_desired_size(void *obj)
                            strlen(button->backend->text),
                            PANGO_WRAP_WORD_CHAR,
                            PANGO_ELLIPSIZE_NONE,
-                           FALSE);
+                           button->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT,
+                           FALSE,
+                           panel->scale);
         } else {
             get_text_size2(button->backend->font_desc,
-                           &txt_height_ink,
                            &txt_height,
                            &txt_width,
                            panel->area.height,
@@ -313,10 +313,12 @@ int button_compute_desired_size(void *obj)
                            strlen(button->backend->text),
                            PANGO_WRAP_WORD_CHAR,
                            PANGO_ELLIPSIZE_NONE,
-                           FALSE);
+                           button->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT,
+                           FALSE,
+                           panel->scale);
         }
     } else {
-        txt_height_ink = txt_height = txt_width = 0;
+        txt_height = txt_width = 0;
     }
 
     if (panel_horizontal) {
@@ -336,9 +338,9 @@ gboolean resize_button(void *obj)
     Button *button = (Button *)obj;
     Panel *panel = (Panel *)button->area.panel;
     Area *area = &button->area;
-    int horiz_padding = (panel_horizontal ? button->area.paddingxlr : button->area.paddingy);
-    int vert_padding = (panel_horizontal ? button->area.paddingy : button->area.paddingxlr);
-    int interior_padding = button->area.paddingx;
+    int horiz_padding = (panel_horizontal ? button->area.paddingxlr : button->area.paddingy) * panel->scale;
+    int vert_padding = (panel_horizontal ? button->area.paddingy : button->area.paddingxlr) * panel->scale;
+    int interior_padding = button->area.paddingx * panel->scale;
 
     int icon_w, icon_h;
     if (button->backend->icon_name) {
@@ -347,8 +349,8 @@ gboolean resize_button(void *obj)
         else
             icon_h = icon_w = button->area.width - left_right_border_width(&button->area) - 2 * horiz_padding;
         if (button->backend->max_icon_size) {
-            icon_w = MIN(icon_w, button->backend->max_icon_size);
-            icon_h = MIN(icon_h, button->backend->max_icon_size);
+            icon_w = MIN(icon_w, button->backend->max_icon_size * panel->scale);
+            icon_h = MIN(icon_h, button->backend->max_icon_size * panel->scale);
         }
     } else {
         icon_h = icon_w = 0;
@@ -369,10 +371,9 @@ gboolean resize_button(void *obj)
         available_h = panel->area.height;
     }
 
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     if (button->backend->text) {
         get_text_size2(button->backend->font_desc,
-                       &txt_height_ink,
                        &txt_height,
                        &txt_width,
                        available_h,
@@ -381,9 +382,11 @@ gboolean resize_button(void *obj)
                        strlen(button->backend->text),
                        PANGO_WRAP_WORD_CHAR,
                        PANGO_ELLIPSIZE_NONE,
-                       FALSE);
+                       button->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT,
+                       FALSE,
+                       panel->scale);
     } else {
-        txt_height_ink = txt_height = txt_width = 0;
+        txt_height = txt_width = 0;
     }
 
     gboolean result = FALSE;
@@ -436,6 +439,7 @@ gboolean resize_button(void *obj)
 void draw_button(void *obj, cairo_t *c)
 {
     Button *button = obj;
+    Panel *panel = (Panel *)button->area.panel;
 
     if (button->frontend->icon) {
         // Render icon
@@ -457,10 +461,12 @@ void draw_button(void *obj, cairo_t *c)
 
     // Render text
     if (button->backend->text) {
-        PangoLayout *layout = pango_cairo_create_layout(c);
+        PangoContext *context = pango_cairo_create_context(c);
+        pango_cairo_context_set_resolution(context, 96 * panel->scale);
+        PangoLayout *layout = pango_layout_new(context);
 
         pango_layout_set_font_description(layout, button->backend->font_desc);
-        pango_layout_set_width(layout, (button->frontend->textw + 1) * PANGO_SCALE);
+        pango_layout_set_width(layout, (button->frontend->textw + TINT2_PANGO_SLACK) * PANGO_SCALE);
         pango_layout_set_alignment(layout, button->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
         pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
         pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -475,6 +481,7 @@ void draw_button(void *obj, cairo_t *c)
                   panel_config.font_shadow);
 
         g_object_unref(layout);
+        g_object_unref(context);
     }
 }
 

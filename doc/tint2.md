@@ -1,4 +1,4 @@
-# TINT2 1 "2017-12-30" 16.1
+# TINT2 1 "2018-01-21" 16.2
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -278,6 +278,10 @@ gradient_id_pressed = 2
   * `panel_size = width height`
     * `width` and `height` can be specified without units (e.g. `123`) as pixels, or followed by `%` as percentages of the monitor size (e.g. `50%`). Use `100%` for full monitor width/height.
       Example:
+
+  * `scale_relative_to_dpi = integer` : If set to a non-zero value, HiDPI scaling is enabled. Each panel is visible on a different monitor. Thus each panel has a specific scaling factor. The scaling factor is computed as the ratio between the monitor DPI (obtained from the dimensions in pixels and millimeters from RandR) and a configured reference DPI - this is the DPI for which exising user configs looked normal, for backward compatibility.
+
+  * `scale_relative_to_screen_height = integer` : Similar to `scale_relative_to_dpi`, except the scaling factor is computed as the ratio between the monitor height and `scale_relative_to_screen_height`. The effect is cumulative with `scale_relative_to_dpi`, i.e. if both options are present, the factors are multiplied.
 
 ```
 # The panel's width is 94% the size of the monitor, the height is 30 pixels:

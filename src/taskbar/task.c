@@ -429,7 +429,7 @@ void draw_task_icon(Task *task, int text_width)
         else
             task->_icon_x = (task->area.width - panel->g_task.icon_size1) / 2;
     } else {
-        task->_icon_x = left_border_width(&task->area) + task->area.paddingxlr;
+        task->_icon_x = left_border_width(&task->area) + task->area.paddingxlr * panel->scale;
     }
 
     // Render
@@ -459,11 +459,13 @@ void draw_task(void *obj, cairo_t *c)
 
     task->_text_width = 0;
     if (panel->g_task.has_text) {
-        PangoLayout *layout = pango_cairo_create_layout(c);
+        PangoContext *context = pango_cairo_create_context(c);
+        pango_cairo_context_set_resolution(context, 96 * panel->scale);
+        PangoLayout *layout = pango_layout_new(context);
         pango_layout_set_font_description(layout, panel->g_task.font_desc);
         pango_layout_set_text(layout, task->title, -1);
 
-        pango_layout_set_width(layout, (((Taskbar *)task->area.parent)->text_width + 1) * PANGO_SCALE);
+        pango_layout_set_width(layout, (((Taskbar *)task->area.parent)->text_width + TINT2_PANGO_SLACK) * PANGO_SCALE);
         pango_layout_set_height(layout, panel->g_task.text_height * PANGO_SCALE);
         pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
         pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
@@ -480,6 +482,7 @@ void draw_task(void *obj, cairo_t *c)
         draw_text(layout, c, panel->g_task.text_posx, task->_text_posy, config_text, panel->font_shadow);
 
         g_object_unref(layout);
+        g_object_unref(context);
     }
 
     if (panel->g_task.has_icon)
@@ -532,7 +535,7 @@ int task_compute_desired_size(void *obj)
 {
     Task *task = (Task *)obj;
     Panel *panel = (Panel *)task->area.panel;
-    int size = panel_horizontal ? panel->g_task.maximum_width : panel->g_task.maximum_height;
+    int size = (panel_horizontal ? panel->g_task.maximum_width : panel->g_task.maximum_height) * panel->scale;
     return size;
 }
 
@@ -652,12 +655,13 @@ void task_refresh_thumbnail(Task *task)
         return;
     if (task->current_state == TASK_ICONIFIED)
         return;
+    Panel *panel = (Panel*)task->area.panel;
     double now = get_time();
     if (now - task->thumbnail_last_update < 0.1)
         return;
     if (debug_thumbnails)
         fprintf(stderr, "tint2: thumbnail for window: %s" RESET "\n", task->title ? task->title : "");
-    cairo_surface_t *thumbnail = get_window_thumbnail(task->win, panel_config.g_task.thumbnail_width);
+    cairo_surface_t *thumbnail = get_window_thumbnail(task->win, panel_config.g_task.thumbnail_width * panel->scale);
     if (!thumbnail)
         return;
     if (task->thumbnail)

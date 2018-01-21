@@ -79,11 +79,16 @@ int num_panels;
 GArray *backgrounds;
 GArray *gradients;
 
+double ui_scale_dpi_ref;
+double ui_scale_monitor_size_ref;
+
 Imlib_Image default_icon;
 char *default_font = NULL;
 
 void default_panel()
 {
+    ui_scale_dpi_ref = 0;
+    ui_scale_monitor_size_ref = 0;
     panels = NULL;
     num_panels = 0;
     default_icon = NULL;
@@ -218,6 +223,13 @@ void init_panel()
 
         if (panel_config.monitor < 0)
             p->monitor = i;
+        if (ui_scale_dpi_ref > 0 && server.monitors[p->monitor].dpi > 0)
+            p->scale = server.monitors[p->monitor].dpi / ui_scale_dpi_ref;
+        else
+            p->scale = 1;
+        if (ui_scale_monitor_size_ref > 0)
+            p->scale *= server.monitors[p->monitor].height / ui_scale_monitor_size_ref;
+        fprintf(stderr, BLUE "tint2: panel %d uses scale %g " RESET "\n", i + 1, p->scale);
         if (!p->area.bg)
             p->area.bg = &g_array_index(backgrounds, Background, 0);
         p->area.parent = p;
@@ -355,6 +367,19 @@ void panel_compute_size(Panel *panel)
         }
     }
 
+    if (!panel->fractional_width) {
+        if (panel_horizontal)
+            panel->area.width *= panel->scale;
+        else
+            panel->area.height *= panel->scale;
+    }
+    if (!panel->fractional_height) {
+        if (panel_horizontal)
+            panel->area.height *= panel->scale;
+        else
+            panel->area.width *= panel->scale;
+    }
+
     if (panel->area.width + panel->marginx > server.monitors[panel->monitor].width)
         panel->area.width = server.monitors[panel->monitor].width - panel->marginx;
     if (panel->area.height + panel->marginy > server.monitors[panel->monitor].height)
@@ -449,9 +474,9 @@ gboolean resize_panel(void *obj)
             if (!taskbar->area.on_screen)
                 continue;
             if (panel_horizontal)
-                taskbar->area.width = 2 * taskbar->area.paddingxlr;
+                taskbar->area.width = 2 * taskbar->area.paddingxlr * panel->scale;
             else
-                taskbar->area.height = 2 * taskbar->area.paddingxlr;
+                taskbar->area.height = 2 * taskbar->area.paddingxlr * panel->scale;
             if (taskbarname_enabled && taskbar->area.children) {
                 Area *name = (Area *)taskbar->area.children->data;
                 if (name->on_screen) {
@@ -468,9 +493,9 @@ gboolean resize_panel(void *obj)
                     continue;
                 if (!first_child) {
                     if (panel_horizontal)
-                        taskbar->area.width += taskbar->area.paddingx;
+                        taskbar->area.width += taskbar->area.paddingx * panel->scale;
                     else
-                        taskbar->area.height += taskbar->area.paddingy;
+                        taskbar->area.height += taskbar->area.paddingy * panel->scale;
                 }
                 first_child = FALSE;
             }
@@ -528,6 +553,8 @@ gboolean resize_panel(void *obj)
                 }
             } else if (taskbar_alignment == ALIGN_CENTER) {
                 slack /= 2;
+                Taskbar *left_taskbar = NULL;
+                Taskbar *right_taskbar = NULL;
                 for (int i = 0; i < panel->num_desktops; i++) {
                     Taskbar *taskbar = &panel->taskbar[i];
                     if (!taskbar->area.on_screen)
@@ -537,6 +564,7 @@ gboolean resize_panel(void *obj)
                     else
                         taskbar->area.height += slack;
                     taskbar->area.alignment = ALIGN_RIGHT;
+                    left_taskbar = taskbar;
                     break;
                 }
                 for (int i = panel->num_desktops - 1; i >= 0; i--) {
@@ -548,8 +576,11 @@ gboolean resize_panel(void *obj)
                     else
                         taskbar->area.height += slack;
                     taskbar->area.alignment = ALIGN_LEFT;
+                    right_taskbar = taskbar;
                     break;
                 }
+                if (left_taskbar == right_taskbar)
+                    left_taskbar->area.alignment = ALIGN_CENTER;
             }
         } else {
             // No tasks => expand the first visible taskbar
