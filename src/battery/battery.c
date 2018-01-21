@@ -225,7 +225,8 @@ void init_battery()
 
     battery_found = battery_os_init();
 
-    change_timer(&battery_timer, true, 10, 30000, update_battery_tick, 0);
+    if (!battery_timer.enabled_)
+        change_timer(&battery_timer, true, 30000, 30000, update_battery_tick, 0);
 
     update_battery();
 }
@@ -272,6 +273,7 @@ void init_battery_panel(void *p)
         bat1_format = strdup("%p");
         bat2_format = strdup("%t");
     }
+    update_battery_tick(NULL);
 }
 
 void battery_init_fonts()
@@ -420,6 +422,7 @@ gboolean resize_battery(void *obj)
 void draw_battery(void *obj, cairo_t *c)
 {
     Battery *battery = (Battery *)obj;
+    Panel *panel = (Panel *)battery->area.panel;
     draw_text_area(&battery->area,
                    c,
                    buf_bat_line1,
@@ -428,7 +431,8 @@ void draw_battery(void *obj, cairo_t *c)
                    bat2_font_desc,
                    battery->bat1_posy,
                    battery->bat2_posy,
-                   &battery->font_color);
+                   &battery->font_color,
+                   panel->scale);
 }
 
 void battery_dump_geometry(void *obj, int indent)

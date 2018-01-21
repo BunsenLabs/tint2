@@ -7,6 +7,7 @@
 #define COMMON_H
 
 #define WM_CLASS_TINT "panel"
+#define TINT2_PANGO_SLACK 0
 
 #include <glib.h>
 #include <Imlib2.h>
@@ -113,7 +114,6 @@ void create_heuristic_mask(DATA32 *data, int w, int h);
 void render_image(Drawable d, int x, int y);
 
 void get_text_size2(const PangoFontDescription *font,
-                    int *height_ink,
                     int *height,
                     int *width,
                     int available_height,
@@ -122,7 +122,9 @@ void get_text_size2(const PangoFontDescription *font,
                     int text_len,
                     PangoWrapMode wrap,
                     PangoEllipsizeMode ellipsis,
-                    gboolean markup);
+                    PangoAlignment alignment,
+                    gboolean markup,
+                    double scale);
 
 void draw_text(PangoLayout *layout, cairo_t *c, int posx, int posy, Color *color, int font_shadow);
 

@@ -929,10 +929,8 @@ void area_compute_text_geometry(Area *area,
                                 const char *line2,
                                 PangoFontDescription *line1_font_desc,
                                 PangoFontDescription *line2_font_desc,
-                                int *line1_height_ink,
                                 int *line1_height,
                                 int *line1_width,
-                                int *line2_height_ink,
                                 int *line2_height,
                                 int *line2_width)
 {
@@ -941,7 +939,6 @@ void area_compute_text_geometry(Area *area,
 
     if (line1 && line1[0])
         get_text_size2(line1_font_desc,
-                       line1_height_ink,
                        line1_height,
                        line1_width,
                        available_h,
@@ -950,13 +947,14 @@ void area_compute_text_geometry(Area *area,
                        strlen(line1),
                        PANGO_WRAP_WORD_CHAR,
                        PANGO_ELLIPSIZE_NONE,
-                       FALSE);
+                       PANGO_ALIGN_CENTER,
+                       FALSE,
+                       ((Panel*)area->panel)->scale);
     else
-        *line1_width = *line1_height_ink = *line1_height = 0;
+        *line1_width = *line1_height = 0;
 
     if (line2 && line2[0])
         get_text_size2(line2_font_desc,
-                       line2_height_ink,
                        line2_height,
                        line2_width,
                        available_h,
@@ -965,9 +963,11 @@ void area_compute_text_geometry(Area *area,
                        strlen(line2),
                        PANGO_WRAP_WORD_CHAR,
                        PANGO_ELLIPSIZE_NONE,
-                       FALSE);
+                       PANGO_ALIGN_CENTER,
+                       FALSE,
+                       ((Panel*)area->panel)->scale);
     else
-        *line2_width = *line2_height_ink = *line2_height = 0;
+        *line2_width = *line2_height = 0;
 }
 
 int text_area_compute_desired_size(Area *area,
@@ -976,16 +976,14 @@ int text_area_compute_desired_size(Area *area,
                                    PangoFontDescription *line1_font_desc,
                                    PangoFontDescription *line2_font_desc)
 {
-    int line1_height_ink, line1_height, line1_width, line2_height_ink, line2_height, line2_width;
+    int line1_height, line1_width, line2_height, line2_width;
     area_compute_text_geometry(area,
                                line1,
                                line2,
                                line1_font_desc,
                                line2_font_desc,
-                               &line1_height_ink,
                                &line1_height,
                                &line1_width,
-                               &line2_height_ink,
                                &line2_height,
                                &line2_width);
 
@@ -1010,17 +1008,15 @@ gboolean resize_text_area(Area *area,
 
     schedule_redraw(area);
 
-    int line1_height_ink, line1_height, line1_width;
-    int line2_height_ink, line2_height, line2_width;
+    int line1_height, line1_width;
+    int line2_height, line2_width;
     area_compute_text_geometry(area,
                                line1,
                                line2,
                                line1_font_desc,
                                line2_font_desc,
-                               &line1_height_ink,
                                &line1_height,
                                &line1_width,
-                               &line2_height_ink,
                                &line2_height,
                                &line2_width);
 
@@ -1067,12 +1063,16 @@ void draw_text_area(Area *area,
                     PangoFontDescription *line2_font_desc,
                     int line1_posy,
                     int line2_posy,
-                    Color *color)
+                    Color *color,
+                    double scale)
 {
     int inner_w, inner_h;
     area_compute_inner_size(area, &inner_w, &inner_h);
 
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * scale);
+    PangoLayout *layout = pango_layout_new(context);
+
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -1096,6 +1096,7 @@ void draw_text_area(Area *area,
     }
 
     g_object_unref(layout);
+    g_object_unref(context);
 }
 
 Area *compute_element_area(Area *area, Element element)

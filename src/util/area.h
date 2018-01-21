@@ -273,10 +273,8 @@ void area_compute_text_geometry(Area *area,
                                 const char *line2,
                                 PangoFontDescription *line1_font_desc,
                                 PangoFontDescription *line2_font_desc,
-                                int *line1_height_ink,
                                 int *line1_height,
                                 int *line1_width,
-                                int *line2_height_ink,
                                 int *line2_height,
                                 int *line2_width);
 int text_area_compute_desired_size(Area *area,
@@ -299,7 +297,8 @@ void draw_text_area(Area *area,
                     PangoFontDescription *line2_font_desc,
                     int line1_posy,
                     int line2_posy,
-                    Color *color);
+                    Color *color,
+                    double scale);
 
 int left_border_width(Area *a);
 int right_border_width(Area *a);
