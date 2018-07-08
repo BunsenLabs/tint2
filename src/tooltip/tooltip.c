@@ -31,9 +31,9 @@ static int x, y, width, height;
 static gboolean just_shown;
 
 // the next functions are helper functions for tooltip handling
-void start_show_timeout();
-void start_hide_timeout();
-void stop_tooltip_timeout();
+void start_show_timer();
+void start_hide_timer();
+void stop_tooltip_timer();
 
 void tooltip_init_fonts();
 
@@ -44,6 +44,9 @@ void default_tooltip()
     // give the tooltip some reasonable default values
     memset(&g_tooltip, 0, sizeof(Tooltip));
 
+    INIT_TIMER(g_tooltip.visibility_timer);
+    INIT_TIMER(g_tooltip.update_timer);
+
     g_tooltip.font_color.rgb[0] = 1;
     g_tooltip.font_color.rgb[1] = 1;
     g_tooltip.font_color.rgb[2] = 1;
@@ -53,9 +56,11 @@ void default_tooltip()
 
 void cleanup_tooltip()
 {
-    stop_tooltip_timeout();
+    stop_tooltip_timer();
+    destroy_timer(&g_tooltip.visibility_timer);
+    destroy_timer(&g_tooltip.update_timer);
     tooltip_hide(NULL);
-    tooltip_copy_text(NULL);
+    tooltip_update_contents_for(NULL);
     if (g_tooltip.window)
         XDestroyWindow(server.display, g_tooltip.window);
     g_tooltip.window = 0;
@@ -118,11 +123,11 @@ void tooltip_trigger_show(Area *area, Panel *p, XEvent *e)
     just_shown = TRUE;
     g_tooltip.panel = p;
     if (g_tooltip.mapped && g_tooltip.area != area) {
-        tooltip_copy_text(area);
+        tooltip_update_contents_for(area);
         tooltip_update();
-        stop_tooltip_timeout();
+        stop_tooltip_timer();
     } else if (!g_tooltip.mapped) {
-        start_show_timeout();
+        start_show_timer();
     }
 }
 
@@ -133,7 +138,7 @@ void tooltip_show(void *arg)
     XTranslateCoordinates(server.display, server.root_win, g_tooltip.panel->main_win, x, y, &mx, &my, &w);
     Area *area = find_area_under_mouse(g_tooltip.panel, mx, my);
     if (!g_tooltip.mapped && area->_get_tooltip_text) {
-        tooltip_copy_text(area);
+        tooltip_update_contents_for(area);
         g_tooltip.mapped = True;
         XMapWindow(server.display, g_tooltip.window);
         tooltip_update();
@@ -144,24 +149,35 @@ void tooltip_show(void *arg)
 void tooltip_update_geometry()
 {
     Panel *panel = g_tooltip.panel;
-    int screen_width = server.monitors[panel->monitor].x + server.monitors[panel->monitor].width;
+    int screen_width = server.monitors[panel->monitor].width;
 
     cairo_surface_t *cs = cairo_xlib_surface_create(server.display, g_tooltip.window, server.visual, width, height);
     cairo_t *c = cairo_create(cs);
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * panel->scale);
+    PangoLayout *layout = pango_layout_new(context);
 
     pango_layout_set_font_description(layout, g_tooltip.font_desc);
     PangoRectangle r1, r2;
-    pango_layout_set_text(layout, "1234567890", -1);
+    pango_layout_set_text(layout, "1234567890abcdef", -1);
     pango_layout_get_pixel_extents(layout, &r1, &r2);
-    int max_width = MIN(r2.width * 7, screen_width * 2 / 3);
+    int max_width = MIN(r2.width * 5, screen_width * 2 / 3);
+    if (g_tooltip.image && cairo_image_surface_get_width(g_tooltip.image) > 0) {
+        max_width = left_right_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingx * panel->scale +
+                                cairo_image_surface_get_width(g_tooltip.image);
+    }
     pango_layout_set_width(layout, max_width * PANGO_SCALE);
 
-    pango_layout_set_text(layout, g_tooltip.tooltip_text, -1);
+    pango_layout_set_text(layout, g_tooltip.tooltip_text ? g_tooltip.tooltip_text : "1234567890abcdef", -1);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD);
     pango_layout_get_pixel_extents(layout, &r1, &r2);
-    width = left_right_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingx + r2.width;
-    height = top_bottom_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingy + r2.height;
+    width = left_right_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingx * panel->scale + r2.width;
+    height = top_bottom_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingy * panel->scale + r2.height;
+    if (g_tooltip.image && cairo_image_surface_get_width(g_tooltip.image) > 0) {
+        width = left_right_bg_border_width(g_tooltip.bg) + 2 * g_tooltip.paddingx * panel->scale +
+                                        cairo_image_surface_get_width(g_tooltip.image);
+        height += g_tooltip.paddingy * panel->scale + cairo_image_surface_get_height(g_tooltip.image);
+    }
 
     if (panel_horizontal && panel_position & BOTTOM)
         y = panel->posy - height;
@@ -173,6 +189,7 @@ void tooltip_update_geometry()
         x = panel->posx - width;
 
     g_object_unref(layout);
+    g_object_unref(context);
     cairo_destroy(c);
     cairo_surface_destroy(cs);
 }
@@ -229,6 +246,7 @@ void tooltip_update()
         tooltip_hide(0);
         return;
     }
+    Panel *panel = g_tooltip.panel;
 
     tooltip_update_geometry();
     if (just_shown) {
@@ -263,7 +281,9 @@ void tooltip_update()
 
     Color fc = g_tooltip.font_color;
     cairo_set_source_rgba(c, fc.rgb[0], fc.rgb[1], fc.rgb[2], fc.alpha);
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * panel->scale);
+    PangoLayout *layout = pango_layout_new(context);
     pango_layout_set_font_description(layout, g_tooltip.font_desc);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD);
     pango_layout_set_text(layout, g_tooltip.tooltip_text, -1);
@@ -275,11 +295,20 @@ void tooltip_update()
     // I do not know why this is the right way, but with the below cairo_move_to it seems to be centered (horiz. and
     // vert.)
     cairo_move_to(c,
-                  -r1.x / 2 + left_bg_border_width(g_tooltip.bg) + g_tooltip.paddingx,
-                  -r1.y / 2 + 1 + top_bg_border_width(g_tooltip.bg) + g_tooltip.paddingy);
+                  -r1.x / 2 + left_bg_border_width(g_tooltip.bg) + g_tooltip.paddingx * panel->scale,
+                  -r1.y / 2 + 1 + top_bg_border_width(g_tooltip.bg) + g_tooltip.paddingy * panel->scale);
     pango_cairo_show_layout(c, layout);
-
     g_object_unref(layout);
+    g_object_unref(context);
+
+    if (g_tooltip.image) {
+        cairo_translate(c,
+                        left_bg_border_width(g_tooltip.bg) + g_tooltip.paddingx * panel->scale,
+                        height - bottom_bg_border_width(g_tooltip.bg) - g_tooltip.paddingy * panel->scale - cairo_image_surface_get_height(g_tooltip.image));
+        cairo_set_source_surface(c, g_tooltip.image, 0, 0);
+        cairo_paint(c);
+    }
+
     cairo_destroy(c);
     cairo_surface_destroy(cs);
 }
@@ -287,11 +316,11 @@ void tooltip_update()
 void tooltip_trigger_hide()
 {
     if (g_tooltip.mapped) {
-        tooltip_copy_text(0);
-        start_hide_timeout();
+        tooltip_update_contents_for(NULL);
+        start_hide_timer();
     } else {
-        // tooltip not visible yet, but maybe a timeout is still pending
-        stop_tooltip_timeout();
+        // tooltip not visible yet, but maybe a timer is still pending
+        stop_tooltip_timer();
     }
 }
 
@@ -302,29 +331,43 @@ void tooltip_hide(void *arg)
         XUnmapWindow(server.display, g_tooltip.window);
         XFlush(server.display);
     }
+    g_tooltip.area = NULL;
 }
 
-void start_show_timeout()
+void start_show_timer()
 {
-    change_timeout(&g_tooltip.timeout, g_tooltip.show_timeout_msec, 0, tooltip_show, 0);
+    change_timer(&g_tooltip.visibility_timer, true, g_tooltip.show_timeout_msec, 0, tooltip_show, 0);
 }
 
-void start_hide_timeout()
+void start_hide_timer()
 {
-    change_timeout(&g_tooltip.timeout, g_tooltip.hide_timeout_msec, 0, tooltip_hide, 0);
+    change_timer(&g_tooltip.visibility_timer, true, g_tooltip.hide_timeout_msec, 0, tooltip_hide, 0);
 }
 
-void stop_tooltip_timeout()
+void stop_tooltip_timer()
 {
-    stop_timeout(g_tooltip.timeout);
+    stop_timer(&g_tooltip.visibility_timer);
 }
 
-void tooltip_copy_text(Area *area)
+void tooltip_update_contents_timeout(void *arg)
 {
-    free(g_tooltip.tooltip_text);
+    tooltip_update_contents_for(g_tooltip.area);
+}
+
+void tooltip_update_contents_for(Area *area)
+{
+    free_and_null(g_tooltip.tooltip_text);
+    if (g_tooltip.image)
+        cairo_surface_destroy(g_tooltip.image);
+    g_tooltip.image = NULL;
     if (area && area->_get_tooltip_text)
         g_tooltip.tooltip_text = area->_get_tooltip_text(area);
-    else
-        g_tooltip.tooltip_text = NULL;
+    if (area && area->_get_tooltip_image) {
+        g_tooltip.image = area->_get_tooltip_image(area);
+        if (g_tooltip.image)
+            cairo_surface_reference(g_tooltip.image);
+        else
+            change_timer(&g_tooltip.update_timer, true, 300, 0, tooltip_update_contents_timeout, NULL);
+    }
     g_tooltip.area = area;
 }

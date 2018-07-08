@@ -10,6 +10,7 @@ sys.setdefaultencoding('utf8')
 import argparse
 import datetime
 import os
+import re
 import signal
 import subprocess
 import time
@@ -37,6 +38,10 @@ def print(*args, **kwargs):
 
 def print_err(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
+
+
+def clear_ansi_codes(s):
+  return re.sub(r"\x1B\[[0-9;]*[a-zA-Z]", "", s)
 
 
 def run(cmd, output=False):
@@ -160,7 +165,7 @@ def test(tint2path, config, use_asan):
   start_wm()
   sleep(1)
   os.environ["DEBUG_FPS"] = "1"
-  os.environ["ASAN_OPTIONS"] = "detect_leaks=1"
+  os.environ["ASAN_OPTIONS"] = "detect_leaks=1:exitcode=0"
   tint2 = run([tint2path, "-c", config], True)
   if tint2.poll() != None:
     raise RuntimeError("tint2 failed to start")
@@ -188,6 +193,7 @@ def test(tint2path, config, use_asan):
   mem, mem_detail = get_mem_usage(tint2.pid)
   stop(tint2)
   out, _ = tint2.communicate()
+  out = clear_ansi_codes(out)
   exitcode = tint2.returncode
   if exitcode != 0 and exitcode != 23:
     print("tint2 crashed with exit code {0}!".format(exitcode))
@@ -214,10 +220,45 @@ def test(tint2path, config, use_asan):
   if use_asan:
     fps_status = ok
   else:
-    fps_status = ok if min_fps > 60 else warning if min_fps > 40 else error
+    fps_status = ok if min_fps > 30 else warning if min_fps > 20 else error
   print("FPS:", "min:", min_fps, "median:", med_fps, fps_status)
   if mem_status != ok or leak_status != ok or fps_status != ok:
     print("Output:")
+    print("```\n" + out.strip() + "\n```")
+  stop_xvfb()
+
+
+def run_unit_tests(tint2path, use_asan):
+  print("# Unit tests", "(ASAN on)" if use_asan else "")
+  start_xvfb()
+  sleep(1)
+  start_xsettings()
+  start_wm()
+  sleep(1)
+  compton = start_compositor()
+  sleep(1)
+  os.environ["DEBUG_FPS"] = "1"
+  os.environ["ASAN_OPTIONS"] = "detect_leaks=1:exitcode=0"
+  tint2 = run([tint2path, "--test-verbose"], True)
+  time_limit = time.time() + 60
+  while tint2.poll() == None:
+    if time.time() < time_limit:
+      time.sleep(1)
+      continue
+    tint2.stop()
+  out, _ = tint2.communicate()
+  out = clear_ansi_codes(out)
+  exitcode = tint2.returncode
+  if exitcode != 0 and exitcode != 23:
+    print("tint2 crashed with exit code {0}!".format(exitcode))
+    print("Output:")
+    print("```\n" + out.strip() + "\n```")
+    return
+  if "tests succeeded" in out:
+    num_tests = [line for line in out.split("\n") if "tint2: Running" in line][0]
+    print("All {0} tests succeeded.".format(num_tests))
+    return
+  if "tests failed" in out:
     print("```\n" + out.strip() + "\n```")
   stop_xvfb()
 
@@ -280,6 +321,29 @@ def compile_and_report(src_dir, use_asan):
     for line in out.split("\n"):
       if "warning:" in line:
         print(line, end="")
+    print("```", end="")
+  else:
+    print("Status: Succeeded in %.1f seconds" % (duration,), ok)
+
+
+def compile_remotely_and_report(host):
+  print_err("Compiling on {0}...".format(host))
+  print("# Compilation on {0}".format(host))
+  start = time.time()
+  c = run("ssh worker@{0} 'cd tint2 && git pull && mkdir -p build && rm -rf build && mkdir -p build && cd build && cmake .. && make && ./tint2 --version'".format(host), True)
+  out, _ = c.communicate()
+  duration = time.time() - start
+  if c.returncode != 0:
+    print("Status: Failed!", error)
+    print("Output:")
+    print("```\n" + out.strip() + "\n```")
+  warnings = [ line for line in out.split("\n") if "warning:" in line and ".so." not in line.split(":", 1)[0] ]
+  if warnings:
+    print("Status: Succeeded with warnings!", warning)
+    print("Warnings:")
+    print("```", end="")
+    for line in warnings:
+      print(line, end="")
     print("```", end="")
   else:
     print("Status: Succeeded in %.1f seconds" % (duration,), ok)
@@ -350,8 +414,11 @@ def main():
   show_timestamp()
   show_git_info(args.src_dir)
   show_system_info()
+  compile_remotely_and_report("FreeBSD")
+  compile_remotely_and_report("OpenBSD")
   for use_asan in [True, False]:
     compile_and_report(args.src_dir, use_asan)
+    run_unit_tests("./build/tint2", use_asan)
     run_tests(use_asan)
 
 

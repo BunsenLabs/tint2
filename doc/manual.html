@@ -270,6 +270,8 @@ Try to respect as much as possible the order of the options as given below.</p><
 <li><code>color</code> is specified in hex RGB, e.g. #ff0000 is red</li>
 <li><code>opacity</code> varies from (0 to 100), where 0 is fully transparent, 100 is fully opaque</li>
 </ul></li>
+<li><p><code>border_content_tint_weight = integer</code> : Mixes the border color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). <em>(since 16.0)</em></p></li>
+<li><p><code>background_content_tint_weight = integer</code> : Mixes the background color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). <em>(since 16.0)</em></p></li>
 </ul>
 <p>You can define as many backgrounds as you want. For example, the following config defines two backgrounds:</p><pre class="highlight plaintext"><code>rounded = 1
 border_width = 0
@@ -384,6 +386,8 @@ gradient_id_pressed = 2
 <li><code>width</code> and <code>height</code> can be specified without units (e.g. <code>123</code>) as pixels, or followed by <code>%</code> as percentages of the monitor size (e.g. <code>50%</code>). Use <code>100%</code> for full monitor width/height.
 Example:</li>
 </ul></li>
+<li><p><code>scale_relative_to_dpi = integer</code> : If set to a non-zero value, HiDPI scaling is enabled. Each panel is visible on a different monitor. Thus each panel has a specific scaling factor. The scaling factor is computed as the ratio between the monitor DPI (obtained from the dimensions in pixels and millimeters from RandR) and a configured reference DPI - this is the DPI for which exising user configs looked normal, for backward compatibility.</p></li>
+<li><p><code>scale_relative_to_screen_height = integer</code> : Similar to <code>scale_relative_to_dpi</code>, except the scaling factor is computed as the ratio between the monitor height and <code>scale_relative_to_screen_height</code>. The effect is cumulative with <code>scale_relative_to_dpi</code>, i.e. if both options are present, the factors are multiplied.</p></li>
 </ul>
 <pre class="highlight plaintext"><code># The panel's width is 94% the size of the monitor, the height is 30 pixels:
 panel_size = 94% 30
@@ -481,6 +485,8 @@ panel_size = 94% 30
 <li><p><code>task_text = boolean (0 or 1)</code> : Whether to display the task text.</p></li>
 <li><p><code>task_centered = boolean (0 or 1)</code> : Whether the task text is centered.</p></li>
 <li><p><code>task_tooltip = boolean (0 or 1)</code> : Whether to show tooltips for tasks.</p></li>
+<li><p><code>task_thumbnail = boolean (0 or 1)</code> : Whether to show thumbnail tooltips for tasks. <em>(since 16.0)</em></p></li>
+<li><p><code>task_thumbnail_size = width</code> : Thumbnail size. <em>(since 16.0)</em></p></li>
 <li><p><code>task_maximum_size = width height</code></p>
 <ul>
 <li><code>width</code> is used with horizontal panels to limit the size of the tasks. Use <code>width = 0</code> to get full taskbar width.</li>
@@ -601,7 +607,7 @@ panel_size = 94% 30
 <li><p><code>execp_cache_icon = boolean (0 or 1)</code> : If <code>execp_cache_icon = 0</code>, the image is reloaded each time the command is executed (useful if the image file is changed on disk by the program executed by <code>execp_command</code>). <em>(since 0.12.4)</em></p></li>
 <li><p><code>execp_icon_w = integer</code> : You can use <code>execp_icon_w</code> and <code>execp_icon_h</code> to resize the image. If one of them is zero/missing, the image is rescaled proportionally. If both of them are zero/missing, the image is not rescaled. <em>(since 0.12.4)</em></p></li>
 <li><p><code>execp_icon_h = integer</code> : See <code>execp_icon_w</code>. <em>(since 0.12.4)</em></p></li>
-<li><p><code>execp_tooltip = text</code> : The tooltip. Leave it empty to not display a tooltip. Not specifying this option leads to showing an automatically generated tooltip with information about when the command was last executed. <em>(since 0.12.4)</em></p></li>
+<li><p><code>execp_tooltip = text</code> : The tooltip. If left empty, no tooltip is displayed. If missing, the standard error of the command is shown as a tooltip (an ANSI clear screen sequence can reset the contents, bash: <code>printf &#39;\e[2J&#39;</code>, C: <code>printf(&quot;\x1b[2J&quot;);</code>). If the standard error is empty, the tooltip will show information about the time when the command was last executed. <em>(since 0.12.4)</em></p></li>
 <li><p><code>execp_font = [FAMILY-LIST] [STYLE-OPTIONS] [SIZE]</code> : The font used to draw the text.  <em>(since 0.12.4)</em></p></li>
 <li><p><code>execp_font_color = color opacity</code> : The font color. <em>(since 0.12.4)</em></p></li>
 <li><p><code>execp_markup = boolean (0 or 1)</code> : If non-zero, the output of the command is treated as Pango markup, which allows rich text formatting. The format is <a href="https://developer.gnome.org/pygtk/stable/pango-markup-language.html">documented here</a>. Note that using this with commands that print data downloaded from the Internet is a possible security risk. <em>(since 0.12.4)</em></p></li>

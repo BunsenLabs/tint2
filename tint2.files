@@ -20,6 +20,9 @@ src/battery/battery.c
 src/battery/battery.h
 src/clock/clock.c
 src/clock/clock.h
+src/default_icon.c
+src/default_icon.c
+src/default_icon.h
 src/execplugin/execplugin.c
 src/execplugin/execplugin.h
 src/launcher/launcher.c
@@ -58,6 +61,10 @@ src/util/blur.c
 src/util/blur.h
 src/util/common.c
 src/util/common.h
+src/util/server.c
+src/util/server.h
+src/util/strlcat.c
+src/util/strlcat.h
 src/util/timer.c
 src/util/timer.h
 src/util/window.c
@@ -237,3 +244,15 @@ src/signals.c
 src/signals.h
 src/tracing.c
 src/tracing.h
+src/util/test.c
+src/util/test.h
+src/util/bool.h
+src/util/colors.h
+src/util/print.c
+src/util/print.h
+src/util/test.c
+src/util/test.h
+src/util/tracing.h
+src/util/tracing.c
+src/util/signals.h
+src/util/signals.c

@@ -6,12 +6,19 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/extensions/XShm.h>
+
 #include "config.h"
+#include "default_icon.h"
 #include "drag_and_drop.h"
 #include "fps_distribution.h"
 #include "panel.h"
 #include "server.h"
 #include "signals.h"
+#include "test.h"
 #include "tooltip.h"
 #include "tracing.h"
 #include "uevent.h"
@@ -42,6 +49,15 @@ void handle_cli_arguments(int argc, char **argv)
             exit(0);
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             fprintf(stdout, "tint2 version %s\n", VERSION_STRING);
+            exit(0);
+        } else if (strcmp(argv[i], "--test") == 0) {
+            run_all_tests(false);
+            exit(0);
+        } else if (strcmp(argv[i], "--test-verbose") == 0) {
+            run_all_tests(true);
+            exit(0);
+        } else if (strcmp(argv[i], "--dump-image-data") == 0) {
+            dump_image_data(argv[i+1], argv[i+2]);
             exit(0);
         } else if (strcmp(argv[i], "-c") == 0) {
             if (i + 1 < argc) {
@@ -75,7 +91,7 @@ void handle_cli_arguments(int argc, char **argv)
         }
         if (error) {
             print_usage();
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -88,6 +104,9 @@ void handle_env_vars()
     debug_fps = getenv("DEBUG_FPS") != NULL;
     debug_frames = getenv("DEBUG_FRAMES") != NULL;
     debug_dnd = getenv("DEBUG_DND") != NULL;
+    debug_thumbnails = getenv("DEBUG_THUMBNAILS") != NULL;
+    debug_timers = getenv("DEBUG_TIMERS") != NULL;
+    debug_executors = getenv("DEBUG_EXECUTORS") != NULL;
     if (debug_fps) {
         init_fps_distribution();
         char *s = getenv("TRACING_FPS_THRESHOLD");
@@ -97,25 +116,25 @@ void handle_env_vars()
     }
 }
 
-static timeout *detect_compositor_timer = NULL;
+static Timer detect_compositor_timer = DEFAULT_TIMER;
 static int detect_compositor_timer_counter = 0;
 
 void detect_compositor(void *arg)
 {
     if (server.composite_manager) {
-        stop_timeout(detect_compositor_timer);
+        stop_timer(&detect_compositor_timer);
         return;
     }
 
     detect_compositor_timer_counter--;
     if (detect_compositor_timer_counter < 0) {
-        stop_timeout(detect_compositor_timer);
+        stop_timer(&detect_compositor_timer);
         return;
     }
 
     // No compositor, check for one
     if (XGetSelectionOwner(server.display, server.atom._NET_WM_CM_S0) != None) {
-        stop_timeout(detect_compositor_timer);
+        stop_timer(&detect_compositor_timer);
         // Restart tint2
         fprintf(stderr, "tint2: Detected compositor, restarting tint2...\n");
         kill(getpid(), SIGUSR1);
@@ -128,15 +147,15 @@ void start_detect_compositor()
     if (server.composite_manager)
         return;
 
-    stop_timeout(detect_compositor_timer);
     // Check every 0.5 seconds for up to 30 seconds
     detect_compositor_timer_counter = 60;
-    detect_compositor_timer = add_timeout(500, 500, detect_compositor, 0, &detect_compositor_timer);
+    INIT_TIMER(detect_compositor_timer);
+    change_timer(&detect_compositor_timer, true, 500, 500, detect_compositor, 0);
 }
 
 void create_default_elements()
 {
-    default_timeout();
+    default_timers();
     default_systray();
     memset(&server, 0, sizeof(server));
 #ifdef ENABLE_BATTERY
@@ -151,6 +170,22 @@ void create_default_elements()
     default_panel();
 }
 
+void load_default_task_icon()
+{
+    const gchar *const *data_dirs = g_get_system_data_dirs();
+    for (int i = 0; data_dirs[i] != NULL; i++) {
+        gchar *path = g_build_filename(data_dirs[i], "tint2", "default_icon.png", NULL);
+        if (g_file_test(path, G_FILE_TEST_EXISTS))
+            default_icon = load_image(path, TRUE);
+        g_free(path);
+    }
+    if (!default_icon) {
+        default_icon = imlib_create_image_using_data(default_icon_width,
+                                                     default_icon_height,
+                                                     default_icon_data);
+    }
+}
+
 void init_post_config()
 {
     server_init_visual();
@@ -161,20 +196,7 @@ void init_post_config()
     imlib_context_set_colormap(server.colormap);
 
     init_signals_postconfig();
-
-    // load default icon
-    const gchar *const *data_dirs = g_get_system_data_dirs();
-    for (int i = 0; data_dirs[i] != NULL; i++) {
-        gchar *path = g_build_filename(data_dirs[i], "tint2", "default_icon.png", NULL);
-        if (g_file_test(path, G_FILE_TEST_EXISTS))
-            default_icon = load_image(path, TRUE);
-        g_free(path);
-    }
-    if (!default_icon) {
-        fprintf(stderr,
-                RED "Could not load default_icon.png. Please check that tint2 has been installed correctly!" RESET
-                    "\n");
-    }
+    load_default_task_icon();
 
     XSync(server.display, False);
 }
@@ -184,7 +206,7 @@ void init_X11_pre_config()
     server.display = XOpenDisplay(NULL);
     if (!server.display) {
         fprintf(stderr, "tint2: could not open display!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     server.x11_fd = ConnectionNumber(server.display);
     XSetErrorHandler((XErrorHandler)server_catch_error);
@@ -193,6 +215,7 @@ void init_X11_pre_config()
     server.screen = DefaultScreen(server.display);
     server.root_win = RootWindow(server.display, server.screen);
     server.desktop = get_current_desktop();
+    server.has_shm = XShmQueryExtension(server.display);
 
     // Needed since the config file uses '.' as decimal separator
     setlocale(LC_ALL, "");
@@ -215,10 +238,10 @@ void init(int argc, char **argv)
     setlinebuf(stdout);
     setlinebuf(stderr);
     default_config();
+    handle_env_vars();
     handle_cli_arguments(argc, argv);
     create_default_elements();
     init_signals();
-    handle_env_vars();
 
     init_X11_pre_config();
     if (!config_read()) {
@@ -251,6 +274,8 @@ void cleanup()
 #ifdef ENABLE_BATTERY
     cleanup_battery();
 #endif
+    cleanup_separator();
+    cleanup_taskbar();
     cleanup_panel();
     cleanup_config();
 
@@ -265,7 +290,7 @@ void cleanup()
     xsettings_client = NULL;
 
     cleanup_server();
-    cleanup_timeout();
+    cleanup_timers();
 
     if (server.display)
         XCloseDisplay(server.display);

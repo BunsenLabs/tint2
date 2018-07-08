@@ -490,28 +490,59 @@ void draw(Area *a)
     cairo_surface_destroy(cs);
 }
 
+double tint_color_channel(double a, double b, double tint_weight)
+{
+    double gamma = 2.2;
+    if (tint_weight == 0.0)
+        return a;
+    double result = sqrt((1.-tint_weight)*pow(a, gamma) + tint_weight * pow(b, gamma));
+    return result;
+}
+
+void set_cairo_source_tinted(cairo_t *c, Color *color1, Color *color2, double tint_weight)
+{
+    cairo_set_source_rgba(c,
+                          tint_color_channel(color1->rgb[0], color2->rgb[0], tint_weight),
+                          tint_color_channel(color1->rgb[1], color2->rgb[1], tint_weight),
+                          tint_color_channel(color1->rgb[2], color2->rgb[2], tint_weight),
+                          color1->alpha);
+}
+
+void set_cairo_source_bg_color(Area *a, cairo_t *c)
+{
+    Color content_color;
+    if (a->_get_content_color)
+        a->_get_content_color(a, &content_color);
+    else
+        bzero(&content_color, sizeof(content_color));
+    if (a->mouse_state == MOUSE_OVER)
+        set_cairo_source_tinted(c, &a->bg->fill_color_hover, &content_color, a->bg->fill_content_tint_weight);
+    else if (a->mouse_state == MOUSE_DOWN)
+        set_cairo_source_tinted(c, &a->bg->fill_color_pressed, &content_color, a->bg->fill_content_tint_weight);
+    else
+        set_cairo_source_tinted(c, &a->bg->fill_color, &content_color, a->bg->fill_content_tint_weight);
+}
+
+void set_cairo_source_border_color(Area *a, cairo_t *c)
+{
+    Color content_color;
+    if (a->_get_content_color)
+        a->_get_content_color(a, &content_color);
+    else
+        bzero(&content_color, sizeof(content_color));
+    if (a->mouse_state == MOUSE_OVER)
+        set_cairo_source_tinted(c, &a->bg->border_color_hover, &content_color, a->bg->border_content_tint_weight);
+    else if (a->mouse_state == MOUSE_DOWN)
+        set_cairo_source_tinted(c, &a->bg->border_color_pressed, &content_color, a->bg->border_content_tint_weight);
+    else
+        set_cairo_source_tinted(c, &a->bg->border.color, &content_color, a->bg->border_content_tint_weight);
+}
+
 void draw_background(Area *a, cairo_t *c)
 {
     if ((a->bg->fill_color.alpha > 0.0) ||
         (panel_config.mouse_effects && (a->has_mouse_over_effect || a->has_mouse_press_effect))) {
-        if (a->mouse_state == MOUSE_OVER)
-            cairo_set_source_rgba(c,
-                                  a->bg->fill_color_hover.rgb[0],
-                                  a->bg->fill_color_hover.rgb[1],
-                                  a->bg->fill_color_hover.rgb[2],
-                                  a->bg->fill_color_hover.alpha);
-        else if (a->mouse_state == MOUSE_DOWN)
-            cairo_set_source_rgba(c,
-                                  a->bg->fill_color_pressed.rgb[0],
-                                  a->bg->fill_color_pressed.rgb[1],
-                                  a->bg->fill_color_pressed.rgb[2],
-                                  a->bg->fill_color_pressed.alpha);
-        else
-            cairo_set_source_rgba(c,
-                                  a->bg->fill_color.rgb[0],
-                                  a->bg->fill_color.rgb[1],
-                                  a->bg->fill_color.rgb[2],
-                                  a->bg->fill_color.alpha);
+
         // Not sure about this
         draw_rect(c,
                   left_border_width(a),
@@ -519,7 +550,7 @@ void draw_background(Area *a, cairo_t *c)
                   a->width - left_right_border_width(a),
                   a->height - top_bottom_border_width(a),
                   a->bg->border.radius - a->bg->border.width / 1.571);
-
+        set_cairo_source_bg_color(a, c);
         cairo_fill(c);
     }
     for (GList *l = a->gradient_instances_by_state[a->mouse_state]; l; l = l->next) {
@@ -540,24 +571,7 @@ void draw_background(Area *a, cairo_t *c)
         cairo_set_line_width(c, a->bg->border.width);
 
         // draw border inside (x, y, width, height)
-        if (a->mouse_state == MOUSE_OVER)
-            cairo_set_source_rgba(c,
-                                  a->bg->border_color_hover.rgb[0],
-                                  a->bg->border_color_hover.rgb[1],
-                                  a->bg->border_color_hover.rgb[2],
-                                  a->bg->border_color_hover.alpha);
-        else if (a->mouse_state == MOUSE_DOWN)
-            cairo_set_source_rgba(c,
-                                  a->bg->border_color_pressed.rgb[0],
-                                  a->bg->border_color_pressed.rgb[1],
-                                  a->bg->border_color_pressed.rgb[2],
-                                  a->bg->border_color_pressed.alpha);
-        else
-            cairo_set_source_rgba(c,
-                                  a->bg->border.color.rgb[0],
-                                  a->bg->border.color.rgb[1],
-                                  a->bg->border.color.rgb[2],
-                                  a->bg->border.color.alpha);
+        set_cairo_source_border_color(a, c);
         draw_rect_on_sides(c,
                            left_border_width(a) / 2.,
                            top_border_width(a) / 2.,
@@ -915,10 +929,8 @@ void area_compute_text_geometry(Area *area,
                                 const char *line2,
                                 PangoFontDescription *line1_font_desc,
                                 PangoFontDescription *line2_font_desc,
-                                int *line1_height_ink,
                                 int *line1_height,
                                 int *line1_width,
-                                int *line2_height_ink,
                                 int *line2_height,
                                 int *line2_width)
 {
@@ -927,7 +939,6 @@ void area_compute_text_geometry(Area *area,
 
     if (line1 && line1[0])
         get_text_size2(line1_font_desc,
-                       line1_height_ink,
                        line1_height,
                        line1_width,
                        available_h,
@@ -936,13 +947,14 @@ void area_compute_text_geometry(Area *area,
                        strlen(line1),
                        PANGO_WRAP_WORD_CHAR,
                        PANGO_ELLIPSIZE_NONE,
-                       FALSE);
+                       PANGO_ALIGN_CENTER,
+                       FALSE,
+                       ((Panel*)area->panel)->scale);
     else
-        *line1_width = *line1_height_ink = *line1_height = 0;
+        *line1_width = *line1_height = 0;
 
     if (line2 && line2[0])
         get_text_size2(line2_font_desc,
-                       line2_height_ink,
                        line2_height,
                        line2_width,
                        available_h,
@@ -951,9 +963,11 @@ void area_compute_text_geometry(Area *area,
                        strlen(line2),
                        PANGO_WRAP_WORD_CHAR,
                        PANGO_ELLIPSIZE_NONE,
-                       FALSE);
+                       PANGO_ALIGN_CENTER,
+                       FALSE,
+                       ((Panel*)area->panel)->scale);
     else
-        *line2_width = *line2_height_ink = *line2_height = 0;
+        *line2_width = *line2_height = 0;
 }
 
 int text_area_compute_desired_size(Area *area,
@@ -962,16 +976,14 @@ int text_area_compute_desired_size(Area *area,
                                    PangoFontDescription *line1_font_desc,
                                    PangoFontDescription *line2_font_desc)
 {
-    int line1_height_ink, line1_height, line1_width, line2_height_ink, line2_height, line2_width;
+    int line1_height, line1_width, line2_height, line2_width;
     area_compute_text_geometry(area,
                                line1,
                                line2,
                                line1_font_desc,
                                line2_font_desc,
-                               &line1_height_ink,
                                &line1_height,
                                &line1_width,
-                               &line2_height_ink,
                                &line2_height,
                                &line2_width);
 
@@ -996,17 +1008,15 @@ gboolean resize_text_area(Area *area,
 
     schedule_redraw(area);
 
-    int line1_height_ink, line1_height, line1_width;
-    int line2_height_ink, line2_height, line2_width;
+    int line1_height, line1_width;
+    int line2_height, line2_width;
     area_compute_text_geometry(area,
                                line1,
                                line2,
                                line1_font_desc,
                                line2_font_desc,
-                               &line1_height_ink,
                                &line1_height,
                                &line1_width,
-                               &line2_height_ink,
                                &line2_height,
                                &line2_width);
 
@@ -1053,12 +1063,16 @@ void draw_text_area(Area *area,
                     PangoFontDescription *line2_font_desc,
                     int line1_posy,
                     int line2_posy,
-                    Color *color)
+                    Color *color,
+                    double scale)
 {
     int inner_w, inner_h;
     area_compute_inner_size(area, &inner_w, &inner_h);
 
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * scale);
+    PangoLayout *layout = pango_layout_new(context);
+
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -1082,6 +1096,7 @@ void draw_text_area(Area *area,
     }
 
     g_object_unref(layout);
+    g_object_unref(context);
 }
 
 Area *compute_element_area(Area *area, Element element)

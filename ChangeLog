@@ -1,3 +1,44 @@
+2018-05-03 16.4
+- Update AUTHORS
+- Fixes:
+  - Fix leak in image loading (issue #704)
+  - Executors no longer log unless env var DEBUG_EXECUTORS is set
+
+2018-04-17 16.3
+- Fixes:
+  - Layout in executor (issue #695)
+  - Other small issues
+
+2018-01-21 16.2
+- Fixes:
+  - Proper fix for issue #688
+  - Fix bad word wrapping (issue #693)
+- Enhancements:
+  - Preliminary high DPI support
+
+2017-12-30 16.1
+- Fixes:
+  - Fixed several use-after-free errors in the timer code
+  - Merged patches and fixed other warnings on OpenBSD
+  - Task, Button, Executor: add a bit of slack in the pango text layout,
+    to avoid wrapping due to rounding errors
+
+2017-12-20 16.0
+- Fixes:
+  - Taskbar: `taskbar_distribute_size = 1` now playes well with `task_align = center` and
+    `task_align = right` (issue #688)
+- Enhancements:
+  - Added Spanish translation (contributed by Vicmz)
+  - Executor: updated tooltip documentation (issue #676)
+  - Systray: warn on duplicate config option systray_name_filter (issue #652)
+  - Taskbar: thumbnail support in tooltips
+  - Use C11 if possible to support generic printing for unit tests (should fall back to C99)
+
+2017-11-05 15.3
+- Fixes:
+  - Launcher: Reset signal mask before executing commands (issue #674)
+  - cmake: Do not hardcode path to /etc
+
 2017-10-01 15.2
 - Fixes:
   - Battery info is now again displayed even when current sensor is missing (https://github.com/jmc-88/tint3/issues/34)
@@ -956,6 +997,12 @@ released tint-0.2
 2008-04-22
 - fork ttm projet from p://code.google.com/p/ttm/ (by Pål Staurland staura@gmail.com)
   while the projet is no longer in developpement, have not changed the name of 'tint'.
+.
+.
+.
+.
+.
+.
 .
 .
 .

@@ -25,7 +25,7 @@ endif()
 include( FindPkgConfig )
 include( CheckLibraryExists )
 include( CheckCSourceCompiles )
-pkg_check_modules( X11 REQUIRED x11 xcomposite xdamage xinerama xrender xrandr>=1.3 )
+pkg_check_modules( X11 REQUIRED x11 xcomposite xdamage xinerama xext xrender xrandr>=1.3 )
 pkg_check_modules( PANGOCAIRO REQUIRED pangocairo )
 pkg_check_modules( PANGO REQUIRED pango )
 pkg_check_modules( CAIRO REQUIRED cairo )
@@ -61,6 +61,17 @@ else()
 	set(EXECINFO_LIBRARIES "")
 	set(BACKTRACE_L_FLAGS "")
 endif()
+
+check_c_source_compiles(
+    "#define print(x) _Generic((x), default : print_unknown)(x) \n void print_unknown(){} \n int main () { print(0); }"
+    HAS_GENERIC)
+
+if(HAS_GENERIC)
+    add_definitions(-DHAS_GENERIC)
+    set(CSTD "c11")
+else()
+    set(CSTD "c99")
+endif(HAS_GENERIC)
 
 if( ENABLE_RSVG )
 pkg_check_modules( RSVG librsvg-2.0>=2.14.0 )
@@ -116,13 +127,14 @@ include_directories( ${PROJECT_BINARY_DIR}
 
 set( SOURCES src/config.c
              src/panel.c
-             src/server.c
+             src/util/server.c
              src/main.c
              src/init.c
-             src/signals.c
-             src/tracing.c
+             src/util/signals.c
+             src/util/tracing.c
              src/mouse_actions.c
              src/drag_and_drop.c
+             src/default_icon.c
              src/clock/clock.c
              src/systray/systraybar.c
              src/launcher/launcher.c
@@ -146,7 +158,10 @@ set( SOURCES src/config.c
              src/util/timer.c
              src/util/cache.c
              src/util/color.c
+             src/util/strlcat.c
+             src/util/print.c
              src/util/gradient.c
+             src/util/test.c
              src/util/uevent.c
              src/util/window.c )
 
@@ -233,7 +248,7 @@ else()
   SET(TRACING_L_FLAGS "")
 endif()
 
-add_custom_target( version ALL "${PROJECT_SOURCE_DIR}/get_version.sh" -- "\"${PROJECT_SOURCE_DIR}/\"" )
+add_custom_target( version ALL "${PROJECT_SOURCE_DIR}/get_version.sh" )
 
 link_directories( ${X11_LIBRARY_DIRS}
                   ${PANGOCAIRO_LIBRARY_DIRS}
@@ -267,13 +282,13 @@ endif( RT_LIBRARY )
 target_link_libraries( tint2 m )
 
 add_dependencies( tint2 version )
-set_target_properties( tint2 PROPERTIES COMPILE_FLAGS "-Wall -Wpointer-arith -fno-strict-aliasing -pthread -std=c99 ${ASAN_C_FLAGS} ${TRACING_C_FLAGS}" )
+set_target_properties( tint2 PROPERTIES COMPILE_FLAGS "-Wall -Wpointer-arith -fno-strict-aliasing -pthread -std=${CSTD} ${ASAN_C_FLAGS} ${TRACING_C_FLAGS}" )
 set_target_properties( tint2 PROPERTIES LINK_FLAGS "-pthread -fno-strict-aliasing ${ASAN_L_FLAGS} ${BACKTRACE_L_FLAGS}  ${TRACING_L_FLAGS}" )
 
 install( TARGETS tint2 DESTINATION bin )
 install( FILES tint2.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps )
 install( FILES tint2.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications )
-install( FILES themes/tint2rc DESTINATION /etc/xdg/tint2 )
+install( FILES themes/tint2rc DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/tint2 )
 install( FILES default_icon.png DESTINATION ${CMAKE_INSTALL_DATADIR}/tint2 )
 install( FILES AUTHORS ChangeLog README.md doc/tint2.md DESTINATION ${docdir} )
 install( FILES doc/manual.html doc/readme.html DESTINATION ${htmldir} )

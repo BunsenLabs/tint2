@@ -1,4 +1,4 @@
-.TH TINT2 1 "2017\-10\-01" 15.2
+.TH TINT2 1 "2018\-05\-03" 16.4
 .SH NAME
 .PP
 tint2 \- lightweight panel/taskbar
@@ -150,6 +150,10 @@ The tint2 config file starts with the options defining background elements with 
 .IP \(bu 2
 \fB\fCopacity\fR varies from (0 to 100), where 0 is fully transparent, 100 is fully opaque
 .RE
+.IP \(bu 2
+\fB\fCborder_content_tint_weight = integer\fR : Mixes the border color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). \fI(since 16.0)\fP
+.IP \(bu 2
+\fB\fCbackground_content_tint_weight = integer\fR : Mixes the background color with the content color (for tasks, this is the average color of the window icon). Values must be between 0 (no mixing) and 100 (fully replaces the color). \fI(since 16.0)\fP
 .RE
 .PP
 You can define as many backgrounds as you want. For example, the following config defines two backgrounds:
@@ -339,6 +343,10 @@ Use \fB\fCpanel_monitor = all\fR to get a separate panel per monitor
 \fB\fCwidth\fR and \fB\fCheight\fR can be specified without units (e.g. \fB\fC123\fR) as pixels, or followed by \fB\fC%\fR as percentages of the monitor size (e.g. \fB\fC50%\fR). Use \fB\fC100%\fR for full monitor width/height.
 Example:
 .RE
+.IP \(bu 2
+\fB\fCscale_relative_to_dpi = integer\fR : If set to a non\-zero value, HiDPI scaling is enabled. Each panel is visible on a different monitor. Thus each panel has a specific scaling factor. The scaling factor is computed as the ratio between the monitor DPI (obtained from the dimensions in pixels and millimeters from RandR) and a configured reference DPI \- this is the DPI for which exising user configs looked normal, for backward compatibility.
+.IP \(bu 2
+\fB\fCscale_relative_to_screen_height = integer\fR : Similar to \fB\fCscale_relative_to_dpi\fR, except the scaling factor is computed as the ratio between the monitor height and \fB\fCscale_relative_to_screen_height\fR\&. The effect is cumulative with \fB\fCscale_relative_to_dpi\fR, i.e. if both options are present, the factors are multiplied.
 .RE
 .PP
 .RS
@@ -507,6 +515,10 @@ The following options configure the task buttons in the taskbar:
 \fB\fCtask_centered = boolean (0 or 1)\fR : Whether the task text is centered.
 .IP \(bu 2
 \fB\fCtask_tooltip = boolean (0 or 1)\fR : Whether to show tooltips for tasks.
+.IP \(bu 2
+\fB\fCtask_thumbnail = boolean (0 or 1)\fR : Whether to show thumbnail tooltips for tasks. \fI(since 16.0)\fP
+.IP \(bu 2
+\fB\fCtask_thumbnail_size = width\fR : Thumbnail size. \fI(since 16.0)\fP
 .IP \(bu 2
 \fB\fCtask_maximum_size = width height\fR
 .RS
@@ -716,7 +728,7 @@ To hide the clock, comment \fB\fCtime1_format\fR and \fB\fCtime2_format\fR\&.
 .IP \(bu 2
 \fB\fCexecp_icon_h = integer\fR : See \fB\fCexecp_icon_w\fR\&. \fI(since 0.12.4)\fP
 .IP \(bu 2
-\fB\fCexecp_tooltip = text\fR : The tooltip. Leave it empty to not display a tooltip. Not specifying this option leads to showing an automatically generated tooltip with information about when the command was last executed. \fI(since 0.12.4)\fP
+\fB\fCexecp_tooltip = text\fR : The tooltip. If left empty, no tooltip is displayed. If missing, the standard error of the command is shown as a tooltip (an ANSI clear screen sequence can reset the contents, bash: \fB\fCprintf '\\e[2J'\fR, C: \fB\fCprintf("\\x1b[2J");\fR). If the standard error is empty, the tooltip will show information about the time when the command was last executed. \fI(since 0.12.4)\fP
 .IP \(bu 2
 \fB\fCexecp_font = [FAMILY\-LIST] [STYLE\-OPTIONS] [SIZE]\fR : The font used to draw the text.  \fI(since 0.12.4)\fP
 .IP \(bu 2

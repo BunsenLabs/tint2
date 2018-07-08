@@ -24,10 +24,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 #include <Imlib2.h>
 #include <cairo.h>
 #include <cairo-xlib.h>
+
+#include <X11/extensions/XShm.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include "common.h"
 #include "window.h"
@@ -157,7 +163,8 @@ int get_window_desktop(Window win)
 
     if (best_match < 0)
         best_match = 0;
-    // fprintf(stderr, "tint2: window %lx %s : viewport %d, (%d, %d)\n", win, get_task(win) ? get_task(win)->title : "??",
+    // fprintf(stderr, "tint2: window %lx %s : viewport %d, (%d, %d)\n", win, get_task(win) ? get_task(win)->title :
+    // "??",
     // best_match+1, x, y);
     return best_match;
 }
@@ -190,15 +197,18 @@ int get_window_monitor(Window win)
     return best_match;
 }
 
-void get_window_coordinates(Window win, int *x, int *y, int *w, int *h)
+gboolean get_window_coordinates(Window win, int *x, int *y, int *w, int *h)
 {
     int dummy_int;
     unsigned ww, wh, bw, bh;
     Window src;
-    XTranslateCoordinates(server.display, win, server.root_win, 0, 0, x, y, &src);
-    XGetGeometry(server.display, win, &src, &dummy_int, &dummy_int, &ww, &wh, &bw, &bh);
+    if (!XTranslateCoordinates(server.display, win, server.root_win, 0, 0, x, y, &src))
+        return FALSE;
+    if (!XGetGeometry(server.display, win, &src, &dummy_int, &dummy_int, &ww, &wh, &bw, &bh))
+        return FALSE;
     *w = ww + bw;
-    *h = wh + bh;
+    *h = wh + bw;
+    return TRUE;
 }
 
 gboolean window_is_iconified(Window win)
@@ -351,4 +361,252 @@ char *get_window_name(Window win)
     XFreeStringList(name_list);
     XFree(text_property.value);
     return result;
+}
+
+void smooth_thumbnail(cairo_surface_t *image_surface)
+{
+    u_int32_t *data = (u_int32_t *)cairo_image_surface_get_data(image_surface);
+    const size_t tw = cairo_image_surface_get_width(image_surface);
+    const size_t th = cairo_image_surface_get_height(image_surface);
+    const size_t rmask = 0xff0000;
+    const size_t gmask = 0xff00;
+    const size_t bmask = 0xff;
+    for (size_t i = 0; i < tw * (th - 1) - 1; i++) {
+        u_int32_t c1 = data[i];
+        u_int32_t c2 = data[i + 1];
+        u_int32_t c3 = data[i + tw];
+        u_int32_t c4 = data[i + tw + 1];
+        u_int32_t b = (5 * (c1 & bmask) + 1 * (c2 & bmask) + 1 * (c3 & bmask) + 1 * (c4 & bmask)) / 8;
+        u_int32_t g = (5 * (c1 & gmask) + 1 * (c2 & gmask) + 1 * (c3 & gmask) + 1 * (c4 & gmask)) / 8;
+        u_int32_t r = (5 * (c1 & rmask) + 1 * (c2 & rmask) + 1 * (c3 & rmask) + 1 * (c4 & rmask)) / 8;
+        data[i] = (r & rmask) | (g & gmask) | (b & bmask);
+    }
+}
+
+// This is measured to be slightly faster.
+#define GetPixel(ximg, x, y) ((u_int32_t *)&(ximg->data[y * ximg->bytes_per_line]))[x]
+//#define GetPixel XGetPixel
+
+cairo_surface_t *get_window_thumbnail_ximage(Window win, size_t size, gboolean use_shm)
+{
+    cairo_surface_t *result = NULL;
+    XWindowAttributes wa;
+    if (!XGetWindowAttributes(server.display, win, &wa) || wa.width <= 0 || wa.height <= 0 ||
+        wa.map_state != IsViewable)
+        goto err0;
+
+    if (window_is_iconified(win))
+        goto err0;
+
+    size_t w, h;
+    w = (size_t)wa.width;
+    h = (size_t)wa.height;
+    size_t tw, th, fw;
+    size_t ox, oy;
+    tw = size;
+    th = h * tw / w;
+    if (th > tw * 0.618) {
+        th = (size_t)(tw * 0.618);
+        fw = w * th / h;
+        ox = (tw - fw) / 2;
+        oy = 0;
+    } else {
+        fw = tw;
+        ox = oy = 0;
+    }
+
+    XShmSegmentInfo shminfo;
+    XImage *ximg;
+    if (use_shm)
+        ximg = XShmCreateImage(server.display,
+                               wa.visual,
+                               (unsigned)wa.depth,
+                               ZPixmap,
+                               NULL,
+                               &shminfo,
+                               (unsigned)w,
+                               (unsigned)h);
+    else
+        ximg = XGetImage(server.display, win, 0, 0, (unsigned)w, (unsigned)h, AllPlanes, ZPixmap);
+    if (!ximg) {
+        fprintf(stderr, RED "tint2: !ximg" RESET "\n");
+        goto err0;
+    }
+    if (ximg->bits_per_pixel != 24 && ximg->bits_per_pixel != 32) {
+        fprintf(stderr, RED "tint2: unusual bits_per_pixel" RESET "\n");
+        goto err1;
+    }
+    if (use_shm) {
+        shminfo.shmid = shmget(IPC_PRIVATE, (size_t)(ximg->bytes_per_line * ximg->height), IPC_CREAT | 0777);
+        if (shminfo.shmid < 0) {
+            fprintf(stderr, RED "tint2: !shmget" RESET "\n");
+            goto err1;
+        }
+        shminfo.shmaddr = ximg->data = (char *)shmat(shminfo.shmid, 0, 0);
+        if (!shminfo.shmaddr) {
+            fprintf(stderr, RED "tint2: !shmat" RESET "\n");
+            goto err2;
+        }
+        shminfo.readOnly = False;
+        if (!XShmAttach(server.display, &shminfo)) {
+            fprintf(stderr, RED "tint2: !xshmattach" RESET "\n");
+            goto err3;
+        }
+        if (!XShmGetImage(server.display, win, ximg, 0, 0, AllPlanes)) {
+            fprintf(stderr, RED "tint2: !xshmgetimage" RESET "\n");
+            goto err4;
+        }
+    }
+
+    XGetWindowAttributes(server.display, win, &wa);
+    if (wa.map_state != IsViewable)
+        goto err4;
+
+    result = cairo_image_surface_create(CAIRO_FORMAT_RGB24, (int)tw, (int)th);
+    u_int32_t *data = (u_int32_t *)cairo_image_surface_get_data(result);
+    memset(data, 0, tw * th);
+
+    // Fixed-point precision
+    const size_t prec = 1 << 16;
+    const size_t xstep = w * prec / fw;
+    const size_t ystep = h * prec / th;
+
+    const size_t offset_y1 = 0 * ystep / 8;
+    const size_t offset_x1 = 3 * xstep / 8;
+
+    const size_t offset_y2 = 1 * ystep / 8;
+    const size_t offset_x2 = 6 * xstep / 8;
+
+    const size_t offset_y3 = 4 * ystep / 8;
+    const size_t offset_x3 = 2 * xstep / 8;
+
+    const size_t offset_y4 = 4 * ystep / 8;
+    const size_t offset_x4 = 4 * xstep / 8;
+
+    const size_t offset_y5 = 4 * ystep / 8;
+    const size_t offset_x5 = 7 * xstep / 8;
+
+    const size_t offset_y6 = 6 * ystep / 8;
+    const size_t offset_x6 = 1 * xstep / 8;
+
+    const size_t offset_y7 = 7 * ystep / 8;
+    const size_t offset_x7 = 6 * xstep / 8;
+
+    const u_int32_t rmask = (u_int32_t)ximg->red_mask;
+    const u_int32_t gmask = (u_int32_t)ximg->green_mask;
+    const u_int32_t bmask = (u_int32_t)ximg->blue_mask;
+    for (size_t yt = 0, y = 0; yt < th; yt++, y += ystep) {
+        for (size_t xt = 0, x = 0; xt < fw; xt++, x += xstep) {
+            size_t j = yt * tw + ox + xt;
+            u_int32_t c1 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x1) / prec), (int)((y + offset_y1) / prec));
+            u_int32_t c2 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x2) / prec), (int)((y + offset_y2) / prec));
+            u_int32_t c3 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x3) / prec), (int)((y + offset_y3) / prec));
+            u_int32_t c4 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x4) / prec), (int)((y + offset_y4) / prec));
+            u_int32_t c5 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x5) / prec), (int)((y + offset_y5) / prec));
+            u_int32_t c6 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x6) / prec), (int)((y + offset_y6) / prec));
+            u_int32_t c7 = (u_int32_t)GetPixel(ximg, (int)((x + offset_x7) / prec), (int)((y + offset_y7) / prec));
+            u_int32_t b = ((c1 & bmask) + (c2 & bmask) + (c3 & bmask) + (c4 & bmask) + (c5 & bmask) * 2 + (c6 & bmask) +
+                           (c7 & bmask)) /
+                          8;
+            u_int32_t g = ((c1 & gmask) + (c2 & gmask) + (c3 & gmask) + (c4 & gmask) + (c5 & gmask) * 2 + (c6 & gmask) +
+                           (c7 & gmask)) /
+                          8;
+            u_int32_t r = ((c1 & rmask) + (c2 & rmask) + (c3 & rmask) + (c4 & rmask) + (c5 & rmask) * 2 + (c6 & rmask) +
+                           (c7 & rmask)) /
+                          8;
+            data[j] = (r & rmask) | (g & gmask) | (b & bmask);
+        }
+    }
+    // Convert to argb32
+    if (rmask & 0xff0000) {
+        // argb32 or rgb24 => Nothing to do
+    } else if (rmask & 0xff) {
+        // bgr24
+        for (size_t i = 0; i < tw * th; i++) {
+            u_int32_t r = (data[i] & rmask) << 16;
+            u_int32_t g = (data[i] & gmask);
+            u_int32_t b = (data[i] & bmask) >> 16;
+            data[i] = (r & 0xff0000) | (g & 0x00ff00) | (b & 0x0000ff);
+        }
+    } else if (rmask & 0xff00) {
+        // bgra32
+        for (size_t i = 0; i < tw * th; i++) {
+            u_int32_t r = (data[i] & rmask) << 8;
+            u_int32_t g = (data[i] & gmask) >> 8;
+            u_int32_t b = (data[i] & bmask) >> 24;
+            data[i] = (r & 0xff0000) | (g & 0x00ff00) | (b & 0x0000ff);
+        }
+    }
+
+    // 2nd pass
+    smooth_thumbnail(result);
+
+    if (ximg) {
+        XDestroyImage(ximg);
+        ximg = NULL;
+    }
+err4:
+    if (use_shm)
+        XShmDetach(server.display, &shminfo);
+err3:
+    if (use_shm)
+        shmdt(shminfo.shmaddr);
+err2:
+    if (use_shm)
+        shmctl(shminfo.shmid, IPC_RMID, NULL);
+err1:
+    if (ximg)
+        XDestroyImage(ximg);
+err0:
+    return result;
+}
+
+gboolean cairo_surface_is_blank(cairo_surface_t *image_surface)
+{
+    uint32_t *pixels = (uint32_t *)cairo_image_surface_get_data(image_surface);
+    gboolean empty = TRUE;
+    int size = cairo_image_surface_get_width(image_surface) * cairo_image_surface_get_height(image_surface);
+    for (int i = 0; empty && i < size; i++) {
+        if (pixels[i] & 0xffFFff)
+            empty = FALSE;
+    }
+    return empty;
+}
+
+cairo_surface_t *get_window_thumbnail(Window win, int size)
+{
+    cairo_surface_t *image_surface = NULL;
+    const gboolean shm_allowed = FALSE;
+    if (shm_allowed && server.has_shm && server.composite_manager) {
+        image_surface = get_window_thumbnail_ximage(win, (size_t)size, TRUE);
+        if (image_surface && cairo_surface_is_blank(image_surface)) {
+            cairo_surface_destroy(image_surface);
+            image_surface = NULL;
+        }
+        if (debug_thumbnails) {
+            if (!image_surface)
+                fprintf(stderr, YELLOW "tint2: XShmGetImage failed, trying slower method" RESET "\n");
+            else
+                fprintf(stderr, "tint2: captured window using XShmGetImage\n");
+        }
+    }
+
+    if (!image_surface) {
+        image_surface = get_window_thumbnail_ximage(win, (size_t)size, FALSE);
+        if (image_surface && cairo_surface_is_blank(image_surface)) {
+            cairo_surface_destroy(image_surface);
+            image_surface = NULL;
+        }
+        if (debug_thumbnails) {
+            if (!image_surface)
+                fprintf(stderr, YELLOW "tint2: XGetImage failed, trying slower method" RESET "\n");
+            else
+                fprintf(stderr, "tint2: captured window using XGetImage\n");
+        }
+    }
+
+    if (!image_surface)
+        return NULL;
+
+    return image_surface;
 }

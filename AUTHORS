@@ -6,6 +6,7 @@ tint2 is developped by :
 - Ovidiu M <mrovi9000 at gmail.com> : launcher, bug fixes
 - Mishael A Sibiryakov (death@junki.org) : freespace
 - Sebastian Reichel <sre@ring0.de> : battery, various fixes, debian package maintainer
+- Chris Lee <chrlee at protonmail> : bug fixes, maintainer starting with v16.3
 
 tint2 is based on the ttm source code (http://code.google.com/p/ttm/)
 - 2007-2008 Pål Staurland <staura@gmail.com>
@@ -31,6 +32,7 @@ Contributors:
   Matthew Otnel : config option systray_name_filter
   Ryan Gray, Jeff Blake (https://gitlab.com/berkley4) : battery format
   aaaz (https://gitlab.com/aaaz) : clock fixes
+  heisenbug (https://gitlab.com/heisenbugh) : taskbar button tinting with icon color
 
 Translations:
   Bosnian:
@@ -45,3 +47,5 @@ Translations:
     Daniel Napora <napcok@gmail.com>
   Serbian:
     Dino Duratović <dinomol@mail.com>
+  Spanish:
+    Vic <vicmz@yandex.com>

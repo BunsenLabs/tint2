@@ -1,5 +1,5 @@
-# Latest stable release: 15.2
-Changes: https://gitlab.com/o9000/tint2/blob/15.2/ChangeLog
+# Latest stable release: 16.4
+Changes: https://gitlab.com/o9000/tint2/blob/16.4/ChangeLog
 
 Documentation: [doc/tint2.md](doc/tint2.md)
 
@@ -8,7 +8,7 @@ Compile it with (after you install the [dependencies](https://gitlab.com/o9000/t
 ```
 git clone https://gitlab.com/o9000/tint2.git
 cd tint2
-git checkout 15.2
+git checkout 16.4
 mkdir build
 cd build
 cmake ..
@@ -61,9 +61,9 @@ tint2 is a simple panel/taskbar made for modern X window managers. It was specif
 
 # Known issues
 
-  * Graphic glitches on Intel graphics cards can be avoided by changing the acceleration method to UXA ([issue 595](https://gitlab.com/o9000/tint2/issues/595))
-  * Window managers that do not follow exactly the EWMH specification might not interact well with tint2 (known issues for [awesome](https://gitlab.com/o9000/tint2/issues/385), [bspwm](https://gitlab.com/o9000/tint2/issues/524). [openbox-multihead](https://gitlab.com/o9000/tint2/issues/456))
-  * Full transparency requires a compositor such as Compton (if not provided already by the window manager, as in Compiz/Unity, KDE or XFCE)
+  * Graphical glitches on Intel graphics cards can be avoided by changing the acceleration method to UXA ([issue 595](https://gitlab.com/o9000/tint2/issues/595))
+  * Window managers that do not follow exactly the EWMH specification might not interact well with tint2 ([issue 627](https://gitlab.com/o9000/tint2/issues/627)).
+  * Full transparency requires a compositor such as Compton (if not provided already by the window manager, as in Compiz/Unity, KDE or XFCE).
 
 # How can I help out?
 
@@ -97,4 +97,3 @@ tint2 is a simple panel/taskbar made for modern X window managers. It was specif
 ## More
 
 * [Tint2 wiki](https://gitlab.com/o9000/tint2/wikis/Home)
-Home)

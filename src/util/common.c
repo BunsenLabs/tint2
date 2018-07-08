@@ -31,7 +31,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "common.h"
-#include "../server.h"
+#include "server.h"
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -59,6 +59,7 @@
 
 #include "../panel.h"
 #include "timer.h"
+#include "signals.h"
 
 void write_string(int fd, const char *s)
 {
@@ -190,7 +191,7 @@ const char *signal_name(int sig)
         return "SIGSYS: Bad system call.";
     }
     static char s[64];
-    sprintf(s, "SIG=%d: Unknown", sig);
+    snprintf(s, sizeof(s), "SIG=%d: Unknown", sig);
     return s;
 }
 
@@ -265,7 +266,7 @@ extern char *config_path;
 int setenvd(const char *name, const int value)
 {
     char buf[256];
-    sprintf(buf, "%d", value);
+    snprintf(buf, sizeof(buf), "%d", value);
     return setenv(name, buf, 1);
 }
 
@@ -398,18 +399,21 @@ pid_t tint_exec(const char *command,
         if (dir)
             chdir(dir);
         close_all_fds();
+        reset_signals();
         if (terminal) {
 #if !defined(__OpenBSD__)
             fprintf(stderr, "tint2: executing in x-terminal-emulator: %s\n", command);
             wordexp_t words;
             words.we_offs = 2;
             if (wordexp(command, &words, WRDE_DOOFFS | WRDE_SHOWERR) == 0) {
-                words.we_wordv[0] = (char*)"x-terminal-emulator";
-                words.we_wordv[1] = (char*)"-e";
+                words.we_wordv[0] = (char *)"x-terminal-emulator";
+                words.we_wordv[1] = (char *)"-e";
                 execvp("x-terminal-emulator", words.we_wordv);
             }
 #endif
-            fprintf(stderr, "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n", command);
+            fprintf(stderr,
+                    "tint2: could not execute command in x-terminal-emulator: %s, executting in shell\n",
+                    command);
         }
         execlp("sh", "sh", "-c", command, NULL);
         fprintf(stderr, "tint2: Failed to execute %s\n", command);
@@ -457,9 +461,10 @@ char *expand_tilde(const char *s)
 {
     const gchar *home = g_get_home_dir();
     if (home && (strcmp(s, "~") == 0 || strstr(s, "~/") == s)) {
-        char *result = calloc(strlen(home) + strlen(s), 1);
-        strcat(result, home);
-        strcat(result, s + 1);
+        size_t buf_size = strlen(home) + strlen(s);
+        char *result = calloc(buf_size, 1);
+        strlcat(result, home, buf_size);
+        strlcat(result, s + 1, buf_size);
         return result;
     } else {
         return strdup(s);
@@ -472,14 +477,16 @@ char *contract_tilde(const char *s)
     if (!home)
         return strdup(s);
 
-    char *home_slash = calloc(strlen(home) + 2, 1);
-    strcat(home_slash, home);
-    strcat(home_slash, "/");
+    size_t buf_size = strlen(home) + 2;
+    char *home_slash = calloc(buf_size, 1);
+    strlcat(home_slash, home, buf_size);
+    strlcat(home_slash, "/", buf_size);
 
     if ((strcmp(s, home) == 0 || strstr(s, home_slash) == s)) {
-        char *result = calloc(strlen(s) - strlen(home) + 2, 1);
-        strcat(result, "~");
-        strcat(result, s + strlen(home));
+        size_t buf_size2 = strlen(s) - strlen(home) + 2;
+        char *result = calloc(buf_size2, 1);
+        strlcat(result, "~", buf_size2);
+        strlcat(result, s + strlen(home), buf_size2);
         free(home_slash);
         return result;
     } else {
@@ -782,14 +789,10 @@ Imlib_Image load_image(const char *path, int cached)
 {
     Imlib_Image image;
 #ifdef HAVE_RSVG
-    if (cached) {
-        image = imlib_load_image_immediately(path);
-    } else {
-        image = imlib_load_image_immediately_without_cache(path);
-    }
+    image = imlib_load_image(path);
     if (!image && g_str_has_suffix(path, ".svg")) {
         char tmp_filename[128];
-        sprintf(tmp_filename, "/tmp/tint2-%d.png", (int)getpid());
+        snprintf(tmp_filename, sizeof(tmp_filename), "/tmp/tint2-%d.png", (int)getpid());
         int fd = open(tmp_filename, O_CREAT | O_EXCL, 0600);
         if (fd >= 0) {
             // We fork here because librsvg allocates memory like crazy
@@ -806,24 +809,22 @@ Imlib_Image load_image(const char *path, int cached)
                     GdkPixbuf *pixbuf = rsvg_handle_get_pixbuf(svg);
                     gdk_pixbuf_save(pixbuf, tmp_filename, "png", NULL, NULL);
                 }
-                exit(0);
+                _exit(0);
             } else {
                 // Parent
                 close(fd);
                 waitpid(pid, 0, 0);
-                image = imlib_load_image_immediately_without_cache(tmp_filename);
+                image = imlib_load_image_immediately(tmp_filename);
                 unlink(tmp_filename);
             }
         }
     } else
 #endif
     {
-        if (cached) {
-            image = imlib_load_image_immediately(path);
-        } else {
-            image = imlib_load_image_immediately_without_cache(path);
-        }
+        image = imlib_load_image(path);
     }
+    imlib_context_set_image(image);
+    imlib_image_set_changes_on_disk();
     return image;
 }
 
@@ -917,31 +918,35 @@ void clear_pixmap(Pixmap p, int x, int y, int w, int h)
     XRenderFreePicture(server.display, pict);
 }
 
-void get_text_size2(const PangoFontDescription *font,
-                    int *height_ink,
-                    int *height,
-                    int *width,
-                    int available_height,
-                    int available_width,
-                    const char *text,
-                    int text_len,
-                    PangoWrapMode wrap,
-                    PangoEllipsizeMode ellipsis,
-                    gboolean markup)
+void get_text_size(const PangoFontDescription *font,
+                   int *height,
+                   int *width,
+                   int available_height,
+                   int available_width,
+                   const char *text,
+                   int text_len,
+                   PangoWrapMode wrap,
+                   PangoEllipsizeMode ellipsis,
+                   PangoAlignment alignment,
+                   gboolean markup,
+                   double scale)
 {
     PangoRectangle rect_ink, rect;
 
     available_width = MAX(0, available_width);
     available_height = MAX(0, available_height);
-    Pixmap pmap = XCreatePixmap(server.display, server.root_win, available_height, available_width, server.depth);
 
+    Pixmap pmap = XCreatePixmap(server.display, server.root_win, available_height, available_width, server.depth);
     cairo_surface_t *cs =
         cairo_xlib_surface_create(server.display, pmap, server.visual, available_height, available_width);
     cairo_t *c = cairo_create(cs);
 
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * scale);
+    PangoLayout *layout = pango_layout_new(context);
     pango_layout_set_width(layout, available_width * PANGO_SCALE);
     pango_layout_set_height(layout, available_height * PANGO_SCALE);
+    pango_layout_set_alignment(layout, alignment);
     pango_layout_set_wrap(layout, wrap);
     pango_layout_set_ellipsize(layout, ellipsis);
     pango_layout_set_font_description(layout, font);
@@ -952,15 +957,63 @@ void get_text_size2(const PangoFontDescription *font,
         pango_layout_set_markup(layout, text, text_len);
 
     pango_layout_get_pixel_extents(layout, &rect_ink, &rect);
-    *height_ink = rect_ink.height;
     *height = rect.height;
     *width = rect.width;
+
     // fprintf(stderr, "tint2: dimension : %d - %d\n", rect_ink.height, rect.height);
 
     g_object_unref(layout);
+    g_object_unref(context);
     cairo_destroy(c);
     cairo_surface_destroy(cs);
     XFreePixmap(server.display, pmap);
+}
+
+void get_text_size2(const PangoFontDescription *font,
+                    int *height,
+                    int *width,
+                    int available_height,
+                    int available_width,
+                    const char *text,
+                    int text_len,
+                    PangoWrapMode wrap,
+                    PangoEllipsizeMode ellipsis,
+                    PangoAlignment alignment,
+                    gboolean markup,
+                    double scale)
+{
+    get_text_size(font, height, width, available_height, available_width, text, text_len, wrap, ellipsis, alignment, markup, scale);
+
+    // We do multiple passes, because pango sucks
+    int actual_height, actual_width, overflow = 0;
+    while (true) {
+        get_text_size(font, &actual_height, &actual_width, *height, *width, text, text_len, wrap, ellipsis, alignment, markup, scale);
+        if (actual_height <= *height)
+            break;
+        if (*width >= available_width)
+            break;
+        overflow = 1;
+        fprintf(stderr, "tint2: text overflows, recomputing: available %dx%d, computed %dx%d, actual %dx%d: %s\n",
+                available_width,
+                available_height,
+                *width,
+                *height,
+                actual_width,
+                actual_height,
+                text);
+        (*width)++;
+    }
+    if (overflow) {
+        *height = actual_height;
+        fprintf(stderr, "tint2: text final size computed as: available %dx%d, computed %dx%d, actual %dx%d: %s\n",
+                available_width,
+                available_height,
+                *width,
+                *height,
+                actual_width,
+                actual_height,
+                text);
+    }
 }
 
 #if !GLIB_CHECK_VERSION(2, 34, 0)
@@ -1054,4 +1107,118 @@ GString *tint2_g_string_replace(GString *s, const char *from, const char *to)
     g_string_assign(s, result->str);
     g_string_free(result, TRUE);
     return s;
+}
+
+void get_image_mean_color(const Imlib_Image image, Color *mean_color)
+{
+    bzero(mean_color, sizeof(*mean_color));
+
+    if (!image)
+        return;
+    imlib_context_set_image(image);
+    imlib_image_set_has_alpha(1);
+    size_t size = (size_t)imlib_image_get_width() * (size_t)imlib_image_get_height();
+    DATA32 *data = imlib_image_get_data_for_reading_only();
+    DATA32 sum_r, sum_g, sum_b, count;
+    sum_r = sum_g = sum_b = count = 0;
+    for (size_t i = 0; i < size; i++) {
+        DATA32 argb, a, r, g, b;
+        argb = data[i];
+        a = (argb >> 24) & 0xff;
+        r = (argb >> 16) & 0xff;
+        g = (argb >> 8) & 0xff;
+        b = (argb) & 0xff;
+        if (a) {
+            sum_r += r;
+            sum_g += g;
+            sum_b += b;
+            count++;
+        }
+    }
+
+    if (!count)
+        count = 1;
+    mean_color->alpha = 1.0;
+    mean_color->rgb[0] = sum_r / 255.0 / count;
+    mean_color->rgb[1] = sum_g / 255.0 / count;
+    mean_color->rgb[2] = sum_b / 255.0 / count;
+}
+
+void adjust_color(Color *color, int alpha, int saturation, int brightness)
+{
+    if (alpha == 100 && saturation == 0 && brightness == 0)
+        return;
+    DATA32 argb = (((DATA32)(color->alpha * 255) & 0xff) << 24) |
+            (((DATA32)(color->rgb[0] * 255) & 0xff) << 16) |
+            (((DATA32)(color->rgb[1] * 255) & 0xff) << 8) |
+            (((DATA32)(color->rgb[2] * 255) & 0xff) << 0);
+    adjust_asb(&argb, 1, 1, alpha / 100.0, saturation / 100.0, brightness / 100.0);
+    DATA32 a = (argb >> 24) & 0xff;
+    DATA32 r = (argb >> 16) & 0xff;
+    DATA32 g = (argb >> 8) & 0xff;
+    DATA32 b = (argb) & 0xff;
+    color->alpha = a / 255.;
+    color->rgb[0] = r / 255.;
+    color->rgb[1] = g / 255.;
+    color->rgb[2] = b / 255.;
+}
+
+void dump_image_data(const char *file_name, const char *name)
+{
+    Imlib_Image image = load_image(file_name, false);
+    if (!image) {
+        fprintf(stderr, "tint2: Could not load image from file\n");
+        return;
+    }
+
+    gchar *header_name = g_strdup_printf("%s.h", name);
+    gchar *guard = g_strdup_printf("%s_h", name);
+    FILE *header = fopen(header_name, "wt");
+    fprintf(header,
+            "#ifndef %s\n"
+            "#define %s\n"
+            "\n"
+            "#include <Imlib2.h>\n"
+            "\n"
+            "extern int %s_width;\n"
+            "extern int %s_height;\n"
+            "extern DATA32 %s_data[];\n"
+            "\n"
+            "#endif\n",
+            guard,
+            guard,
+            name,
+            name,
+            name);
+    fclose(header);
+    g_free(guard);
+    g_free(header_name);
+
+    imlib_context_set_image(image);
+
+    gchar *source_name = g_strdup_printf("%s.c", name);
+    FILE *source = fopen(source_name, "wt");
+    fprintf(source,
+            "#include <%s.h>\n"
+            "\n"
+            "int %s_width = %d;\n"
+            "int %s_height = %d;\n"
+            "DATA32 %s_data[] = {",
+            name,
+            name,
+            imlib_image_get_width(),
+            name,
+            imlib_image_get_height(),
+            name);
+
+    size_t size = (size_t)imlib_image_get_width() * (size_t)imlib_image_get_height();
+    DATA32 *data = imlib_image_get_data_for_reading_only();
+    for (size_t i = 0; i < size; i++) {
+        fprintf(source, "%s%u", i == 0 ? "" : ", ", data[i]);
+    }
+    fprintf(source, "};\n");
+    fclose(source);
+    g_free(source_name);
+
+    imlib_free_image();
 }

@@ -42,10 +42,13 @@ typedef struct GlobalTask {
     // starting position for text ~ task_padding + task_border + icon_size
     double text_posx, text_height;
     gboolean has_font;
+    gboolean has_content_tint;
     PangoFontDescription *font_desc;
     Color font[TASK_STATE_COUNT];
     int config_font_mask;
     gboolean tooltip_enabled;
+    gboolean thumbnail_enabled;
+    int thumbnail_width;
 } GlobalTask;
 
 // Stores information about a task.
@@ -61,6 +64,9 @@ typedef struct Task {
     Imlib_Image icon_press[TASK_STATE_COUNT];
     unsigned int icon_width;
     unsigned int icon_height;
+    Color icon_color;
+    Color icon_color_hover;
+    Color icon_color_press;
     char *title;
     int urgent_tick;
     // These may not be up-to-date
@@ -74,9 +80,11 @@ typedef struct Task {
     double _text_posy;
     int _icon_x;
     int _icon_y;
+    cairo_surface_t *thumbnail;
+    double thumbnail_last_update;
 } Task;
 
-extern timeout *urgent_timeout;
+extern Timer urgent_timer;
 extern GSList *urgent_list;
 
 Task *add_task(Window win);
@@ -91,6 +99,7 @@ gboolean task_update_title(Task *task);
 void reset_active_task();
 void set_task_state(Task *task, TaskState state);
 void task_handle_mouse_event(Task *task, MouseAction action);
+void task_refresh_thumbnail(Task *task);
 
 // Given a pointer to the task that is currently under the mouse (current_task),
 // returns a pointer to the Task for the active window on the same taskbar.

@@ -58,6 +58,7 @@ char *panel_window_name = NULL;
 gboolean debug_geometry;
 gboolean debug_gradients;
 gboolean startup_notifications;
+gboolean debug_thumbnails;
 
 gboolean panel_autohide;
 int panel_autohide_show_timeout;
@@ -78,11 +79,16 @@ int num_panels;
 GArray *backgrounds;
 GArray *gradients;
 
+double ui_scale_dpi_ref;
+double ui_scale_monitor_size_ref;
+
 Imlib_Image default_icon;
 char *default_font = NULL;
 
 void default_panel()
 {
+    ui_scale_dpi_ref = 0;
+    ui_scale_monitor_size_ref = 0;
     panels = NULL;
     num_panels = 0;
     default_icon = NULL;
@@ -129,8 +135,6 @@ void cleanup_panel()
     if (!panels)
         return;
 
-    cleanup_taskbar();
-
     for (int i = 0; i < num_panels; i++) {
         Panel *p = &panels[i];
 
@@ -144,7 +148,7 @@ void cleanup_panel()
         if (p->main_win)
             XDestroyWindow(server.display, p->main_win);
         p->main_win = 0;
-        stop_timeout(p->autohide_timeout);
+        destroy_timer(&p->autohide_timer);
         cleanup_freespace(p);
     }
 
@@ -206,6 +210,7 @@ void init_panel()
     panels = calloc(num_panels, sizeof(Panel));
     for (int i = 0; i < num_panels; i++) {
         memcpy(&panels[i], &panel_config, sizeof(Panel));
+        INIT_TIMER(panels[i].autohide_timer);
     }
 
     fprintf(stderr,
@@ -218,6 +223,17 @@ void init_panel()
 
         if (panel_config.monitor < 0)
             p->monitor = i;
+        if (ui_scale_dpi_ref > 0 && server.monitors[p->monitor].dpi > 0)
+            p->scale = server.monitors[p->monitor].dpi / ui_scale_dpi_ref;
+        else
+            p->scale = 1;
+        if (ui_scale_monitor_size_ref > 0)
+            p->scale *= server.monitors[p->monitor].height / ui_scale_monitor_size_ref;
+        if (p->scale > 8 || p->scale < 1./8) {
+            fprintf(stderr, RED "tint2: panel %d having scale %g outside bounds, resetting to 1.0" RESET "\n", i + 1, p->scale);
+            p->scale = 1;
+        }
+        fprintf(stderr, BLUE "tint2: panel %d uses scale %g " RESET "\n", i + 1, p->scale);
         if (!p->area.bg)
             p->area.bg = &g_array_index(backgrounds, Background, 0);
         p->area.parent = p;
@@ -355,6 +371,19 @@ void panel_compute_size(Panel *panel)
         }
     }
 
+    if (!panel->fractional_width) {
+        if (panel_horizontal)
+            panel->area.width *= panel->scale;
+        else
+            panel->area.height *= panel->scale;
+    }
+    if (!panel->fractional_height) {
+        if (panel_horizontal)
+            panel->area.height *= panel->scale;
+        else
+            panel->area.width *= panel->scale;
+    }
+
     if (panel->area.width + panel->marginx > server.monitors[panel->monitor].width)
         panel->area.width = server.monitors[panel->monitor].width - panel->marginx;
     if (panel->area.height + panel->marginy > server.monitors[panel->monitor].height)
@@ -449,9 +478,9 @@ gboolean resize_panel(void *obj)
             if (!taskbar->area.on_screen)
                 continue;
             if (panel_horizontal)
-                taskbar->area.width = 2 * taskbar->area.paddingxlr;
+                taskbar->area.width = 2 * taskbar->area.paddingxlr * panel->scale;
             else
-                taskbar->area.height = 2 * taskbar->area.paddingxlr;
+                taskbar->area.height = 2 * taskbar->area.paddingxlr * panel->scale;
             if (taskbarname_enabled && taskbar->area.children) {
                 Area *name = (Area *)taskbar->area.children->data;
                 if (name->on_screen) {
@@ -468,9 +497,9 @@ gboolean resize_panel(void *obj)
                     continue;
                 if (!first_child) {
                     if (panel_horizontal)
-                        taskbar->area.width += taskbar->area.paddingx;
+                        taskbar->area.width += taskbar->area.paddingx * panel->scale;
                     else
-                        taskbar->area.height += taskbar->area.paddingy;
+                        taskbar->area.height += taskbar->area.paddingy * panel->scale;
                 }
                 first_child = FALSE;
             }
@@ -493,9 +522,11 @@ gboolean resize_panel(void *obj)
             }
         }
 
-        // Distribute the remaining size between tasks
+        // Distribute the remaining size between taskbars
         if (num_tasks > 0) {
             int task_size = total_size / num_tasks;
+            if (taskbar_alignment != ALIGN_LEFT)
+                task_size = MIN(task_size, panel_horizontal ? panel_config.g_task.maximum_width : panel_config.g_task.maximum_height);
             for (int i = 0; i < panel->num_desktops; i++) {
                 Taskbar *taskbar = &panel->taskbar[i];
                 if (!taskbar->area.on_screen)
@@ -511,6 +542,49 @@ gboolean resize_panel(void *obj)
                     else
                         taskbar->area.height += task_size;
                 }
+            }
+            int slack = total_size - task_size * num_tasks;
+            if (taskbar_alignment == ALIGN_RIGHT) {
+                for (int i = 0; i < panel->num_desktops; i++) {
+                    Taskbar *taskbar = &panel->taskbar[i];
+                    if (!taskbar->area.on_screen)
+                        continue;
+                    if (panel_horizontal)
+                        taskbar->area.width += slack;
+                    else
+                        taskbar->area.height += slack;
+                    break;
+                }
+            } else if (taskbar_alignment == ALIGN_CENTER) {
+                slack /= 2;
+                Taskbar *left_taskbar = NULL;
+                Taskbar *right_taskbar = NULL;
+                for (int i = 0; i < panel->num_desktops; i++) {
+                    Taskbar *taskbar = &panel->taskbar[i];
+                    if (!taskbar->area.on_screen)
+                        continue;
+                    if (panel_horizontal)
+                        taskbar->area.width += slack;
+                    else
+                        taskbar->area.height += slack;
+                    taskbar->area.alignment = ALIGN_RIGHT;
+                    left_taskbar = taskbar;
+                    break;
+                }
+                for (int i = panel->num_desktops - 1; i >= 0; i--) {
+                    Taskbar *taskbar = &panel->taskbar[i];
+                    if (!taskbar->area.on_screen)
+                        continue;
+                    if (panel_horizontal)
+                        taskbar->area.width += slack;
+                    else
+                        taskbar->area.height += slack;
+                    taskbar->area.alignment = ALIGN_LEFT;
+                    right_taskbar = taskbar;
+                    break;
+                }
+                if (left_taskbar == right_taskbar)
+                    left_taskbar->area.alignment = ALIGN_CENTER;
             }
         } else {
             // No tasks => expand the first visible taskbar
@@ -1020,15 +1094,15 @@ Button *click_button(Panel *panel, int x, int y)
     return NULL;
 }
 
-void stop_autohide_timeout(Panel *p)
+void stop_autohide_timer(Panel *p)
 {
-    stop_timeout(p->autohide_timeout);
+    stop_timer(&p->autohide_timer);
 }
 
 void autohide_show(void *p)
 {
     Panel *panel = (Panel *)p;
-    stop_autohide_timeout(panel);
+    stop_autohide_timer(panel);
     panel->is_hidden = 0;
     XMapSubwindows(server.display, panel->main_win); // systray windows
     set_panel_window_geometry(panel);
@@ -1040,7 +1114,7 @@ void autohide_show(void *p)
 void autohide_hide(void *p)
 {
     Panel *panel = (Panel *)p;
-    stop_autohide_timeout(panel);
+    stop_autohide_timer(panel);
     set_panel_layer(panel, panel_layer);
     panel->is_hidden = TRUE;
     XUnmapSubwindows(server.display, panel->main_win); // systray windows
@@ -1052,7 +1126,7 @@ void autohide_trigger_show(Panel *p)
 {
     if (!p)
         return;
-    change_timeout(&p->autohide_timeout, panel_autohide_show_timeout, 0, autohide_show, p);
+    change_timer(&p->autohide_timer, true, panel_autohide_show_timeout, 0, autohide_show, p);
 }
 
 void autohide_trigger_hide(Panel *p)
@@ -1067,7 +1141,7 @@ void autohide_trigger_hide(Panel *p)
         if (child)
             return; // mouse over one of the system tray icons
 
-    change_timeout(&p->autohide_timeout, panel_autohide_hide_timeout, 0, autohide_hide, p);
+    change_timer(&p->autohide_timer, true, panel_autohide_hide_timeout, 0, autohide_hide, p);
 }
 
 void shrink_panel(Panel *panel)

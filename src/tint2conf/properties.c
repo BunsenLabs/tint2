@@ -20,7 +20,9 @@
 #include "gui.h"
 #include "background_gui.h"
 #include "gradient_gui.h"
+#include "strlcat.h"
 
+GtkWidget *scale_relative_to_dpi, *scale_relative_to_screen_height;
 GtkWidget *panel_width, *panel_height, *panel_margin_x, *panel_margin_y, *panel_padding_x, *panel_padding_y,
     *panel_spacing;
 GtkWidget *panel_wm_menu, *panel_dock, *panel_autohide, *panel_autohide_show_time, *panel_autohide_hide_time,
@@ -97,7 +99,7 @@ GtkWidget *systray_background, *systray_monitor, *systray_name_filter;
 
 // tooltip
 GtkWidget *tooltip_padding_x, *tooltip_padding_y, *tooltip_font, *tooltip_font_set, *tooltip_font_color;
-GtkWidget *tooltip_task_show, *tooltip_show_after, *tooltip_hide_after;
+GtkWidget *tooltip_task_show, *tooltip_show_after, *tooltip_hide_after, *tooltip_task_thumbnail, *tooltip_task_thumbnail_size;
 GtkWidget *clock_format_tooltip, *clock_tmz_tooltip;
 GtkWidget *tooltip_background;
 
@@ -180,7 +182,7 @@ void applyClicked(GtkWidget *widget, gpointer data)
     gchar *filepath = get_current_theme_path();
     if (filepath) {
         if (config_is_manual(filepath)) {
-            gchar *backup_path = g_strdup_printf("%s.backup.%ld", filepath, time(NULL));
+            gchar *backup_path = g_strdup_printf("%s.backup.%lld", filepath, (long long)time(NULL));
             copy_file(filepath, backup_path);
             g_free(backup_path);
         }
@@ -598,6 +600,32 @@ void create_panel(GtkWidget *parent)
                            "for bottom-aligned panels, it is created on the top; "
                            "for centered panels, it is evenly distributed on both sides of the panel."),
                          NULL);
+
+    row++;
+    col = 2;
+    label = gtk_label_new(_("Scale relative to DPI"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    scale_relative_to_dpi = gtk_spin_button_new_with_range(0, 9000, 1);
+    gtk_widget_show(scale_relative_to_dpi);
+    gtk_table_attach(GTK_TABLE(table), scale_relative_to_dpi, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    row++;
+    col = 2;
+    label = gtk_label_new(_("Scale relative to screen height"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    scale_relative_to_screen_height = gtk_spin_button_new_with_range(0, 9000, 1);
+    gtk_widget_show(scale_relative_to_screen_height);
+    gtk_table_attach(GTK_TABLE(table), scale_relative_to_screen_height, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
 
     change_paragraph(parent);
 
@@ -1256,7 +1284,8 @@ gboolean panel_contains(const char *value)
 
 char *get_panel_items()
 {
-    char *result = calloc(1, 256 * sizeof(char));
+    size_t buf_size = 256;
+    char *result = calloc(buf_size, 1);
     GtkTreeModel *model = GTK_TREE_MODEL(panel_items);
 
     GtkTreeIter i;
@@ -1267,7 +1296,7 @@ char *get_panel_items()
     while (1) {
         gchar *v;
         gtk_tree_model_get(model, &i, itemsColValue, &v, -1);
-        strcat(result, v);
+        strlcat(result, v, buf_size);
 
         if (!gtk_tree_model_iter_next(model, &i)) {
             break;
@@ -1312,19 +1341,19 @@ void set_panel_items(const char *items)
         } else if (v == ':') {
             separator_index++;
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Separator"), separator_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Separator"), separator_index + 1);
             name = buffer;
             value = ":";
         } else if (v == 'E') {
             execp_index++;
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Executor"), execp_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Executor"), execp_index + 1);
             name = buffer;
             value = "E";
         } else if (v == 'P') {
             button_index++;
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Button"), button_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Button"), button_index + 1);
             name = buffer;
             value = "P";
         } else {
@@ -3289,6 +3318,36 @@ void create_task(GtkWidget *parent)
                          NULL);
 
     row++, col = 2;
+    label = gtk_label_new(_("Thumbnails"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    tooltip_task_thumbnail = gtk_check_button_new();
+    gtk_widget_show(tooltip_task_thumbnail);
+    gtk_table_attach(GTK_TABLE(table), tooltip_task_thumbnail, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+    gtk_tooltips_set_tip(tooltips,
+                         tooltip_task_thumbnail,
+                         _("If enabled, a tooltip showing the window thumbnail is displayed when the mouse cursor moves "
+                           "over task buttons."),
+                         NULL);
+
+    row++, col = 2;
+    label = gtk_label_new(_("Thumbnail size"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    tooltip_task_thumbnail_size = gtk_spin_button_new_with_range(8, 9000, 1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(tooltip_task_thumbnail_size), 210);
+    gtk_widget_show(tooltip_task_thumbnail_size);
+    gtk_table_attach(GTK_TABLE(table), tooltip_task_thumbnail_size, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    row++, col = 2;
     label = gtk_label_new(_("Maximum width"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
     gtk_widget_show(label);
@@ -4067,7 +4126,7 @@ void create_separator(GtkWidget *notebook, int i)
     Separator *separator = &g_array_index(separators, Separator, i);
 
     separator->name[0] = 0;
-    sprintf(separator->name, "%s %d", _("Separator"), i + 1);
+    snprintf(separator->name, sizeof(separator->name), "%s %d", _("Separator"), i + 1);
     separator->page_label = gtk_label_new(separator->name);
     gtk_widget_show(separator->page_label);
     separator->page_separator = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
@@ -4193,7 +4252,7 @@ void create_execp(GtkWidget *notebook, int i)
     Executor *executor = &g_array_index(executors, Executor, i);
 
     executor->name[0] = 0;
-    sprintf(executor->name, "%s %d", _("Executor"), i + 1);
+    snprintf(executor->name, sizeof(executor->name), "%s %d", _("Executor"), i + 1);
     executor->page_label = gtk_label_new(executor->name);
     gtk_widget_show(executor->page_label);
     executor->page_execp = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
@@ -4614,7 +4673,7 @@ void create_button(GtkWidget *notebook, int i)
     Button *button = &g_array_index(buttons, Button, i);
 
     button->name[0] = 0;
-    sprintf(button->name, "%s %d", _("Button"), i + 1);
+    snprintf(button->name, sizeof(button->name), "%s %d", _("Button"), i + 1);
     button->page_label = gtk_label_new(button->name);
     gtk_widget_show(button->page_label);
     button->page_button = gtk_vbox_new(FALSE, DEFAULT_HOR_SPACING);
@@ -5003,7 +5062,7 @@ void separator_update_indices()
 {
     for (int i = 0; i < separators->len; i++) {
         Separator *separator = &g_array_index(separators, Separator, i);
-        sprintf(separator->name, "%s %d", _("Separator"), i + 1);
+        snprintf(separator->name, sizeof(separator->name), "%s %d", _("Separator"), i + 1);
         gtk_label_set_text(GTK_LABEL(separator->page_label), separator->name);
     }
 
@@ -5021,7 +5080,7 @@ void separator_update_indices()
             separator_index++;
             char buffer[256];
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Separator"), separator_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Separator"), separator_index + 1);
 
             gtk_list_store_set(panel_items, &iter, itemsColName, buffer, -1);
         }
@@ -5035,7 +5094,7 @@ void execp_update_indices()
 {
     for (int i = 0; i < executors->len; i++) {
         Executor *executor = &g_array_index(executors, Executor, i);
-        sprintf(executor->name, "%s %d", _("Executor"), i + 1);
+        snprintf(executor->name, sizeof(executor->name), "%s %d", _("Executor"), i + 1);
         gtk_label_set_text(GTK_LABEL(executor->page_label), executor->name);
     }
 
@@ -5053,7 +5112,7 @@ void execp_update_indices()
             execp_index++;
             char buffer[256];
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Executor"), execp_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Executor"), execp_index + 1);
 
             gtk_list_store_set(panel_items, &iter, itemsColName, buffer, -1);
         }
@@ -5067,7 +5126,7 @@ void button_update_indices()
 {
     for (int i = 0; i < buttons->len; i++) {
         Button *button = &g_array_index(buttons, Button, i);
-        sprintf(button->name, "%s %d", _("Button"), i + 1);
+        snprintf(button->name, sizeof(button->name), "%s %d", _("Button"), i + 1);
         gtk_label_set_text(GTK_LABEL(button->page_label), button->name);
     }
 
@@ -5085,7 +5144,7 @@ void button_update_indices()
             button_index++;
             char buffer[256];
             buffer[0] = 0;
-            sprintf(buffer, "%s %d", _("Button"), button_index + 1);
+            snprintf(buffer, sizeof(buffer), "%s %d", _("Button"), button_index + 1);
 
             gtk_list_store_set(panel_items, &iter, itemsColName, buffer, -1);
         }
@@ -5136,8 +5195,8 @@ void create_systemtray(GtkWidget *parent)
                          _("Specifies the order used to arrange the system tray icons. \n"
                            "'Ascending' means that icons are sorted in ascending order of their window names. \n"
                            "'Descending' means that icons are sorted in descending order of their window names. \n"
-                           "'Left to right' means that icons are always added to the left. \n"
-                           "'Right to left' means that icons are always added to the right."),
+                           "'Left to right' means that icons are always added to the right. \n"
+                           "'Right to left' means that icons are always added to the left."),
                          NULL);
 
     row++;

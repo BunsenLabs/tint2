@@ -1,8 +1,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <glib.h>
+#ifndef TINT2CONF
 #ifdef HAVE_SN
 #include <libsn/sn.h>
+#endif
 #endif
 #include <signal.h>
 #include <stdio.h>
@@ -24,10 +26,23 @@ void signal_handler(int sig)
     signal_pending = sig;
 }
 
+void reset_signals()
+{
+    for (int sig = 1; sig < 32; sig++) {
+        signal(sig, SIG_DFL);
+    }
+    sigset_t signal_set;
+    sigemptyset(&signal_set);
+    sigprocmask(SIG_SETMASK, &signal_set, NULL);
+}
+
+#ifndef TINT2CONF
 void init_signals()
 {
     // Set signal handlers
     signal_pending = 0;
+
+    reset_signals();
 
     struct sigaction sa_chld = {.sa_handler = SIG_IGN};
     sigaction(SIGCHLD, &sa_chld, 0);
@@ -152,3 +167,4 @@ int get_signal_pending()
 {
     return signal_pending;
 }
+#endif

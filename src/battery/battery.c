@@ -41,7 +41,7 @@ struct BatteryState battery_state;
 gboolean battery_enabled;
 gboolean battery_tooltip_enabled;
 int percentage_hide;
-static timeout *battery_timeout;
+static Timer battery_timer;
 
 #define BATTERY_BUF_SIZE 256
 static char buf_bat_line1[BATTERY_BUF_SIZE];
@@ -76,7 +76,7 @@ void default_battery()
     percentage_hide = 101;
     battery_low_cmd_sent = FALSE;
     battery_full_cmd_sent = FALSE;
-    battery_timeout = NULL;
+    INIT_TIMER(battery_timer);
     bat1_has_font = FALSE;
     bat1_font_desc = NULL;
     bat1_format = NULL;
@@ -127,8 +127,7 @@ void cleanup_battery()
     ac_connected_cmd = NULL;
     free(ac_disconnected_cmd);
     ac_disconnected_cmd = NULL;
-    stop_timeout(battery_timeout);
-    battery_timeout = NULL;
+    destroy_timer(&battery_timer);
     battery_found = FALSE;
 
     battery_os_free();
@@ -226,7 +225,8 @@ void init_battery()
 
     battery_found = battery_os_init();
 
-    battery_timeout = add_timeout(10, 30000, update_battery_tick, 0, &battery_timeout);
+    if (!battery_timer.enabled_)
+        change_timer(&battery_timer, true, 30000, 30000, update_battery_tick, 0);
 
     update_battery();
 }
@@ -273,6 +273,7 @@ void init_battery_panel(void *p)
         bat1_format = strdup("%p");
         bat2_format = strdup("%t");
     }
+    update_battery_tick(NULL);
 }
 
 void battery_init_fonts()
@@ -421,6 +422,7 @@ gboolean resize_battery(void *obj)
 void draw_battery(void *obj, cairo_t *c)
 {
     Battery *battery = (Battery *)obj;
+    Panel *panel = (Panel *)battery->area.panel;
     draw_text_area(&battery->area,
                    c,
                    buf_bat_line1,
@@ -429,7 +431,8 @@ void draw_battery(void *obj, cairo_t *c)
                    bat2_font_desc,
                    battery->bat1_posy,
                    battery->bat2_posy,
-                   &battery->font_color);
+                   &battery->font_color,
+                   panel->scale);
 }
 
 void battery_dump_geometry(void *obj, int indent)

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+
 set -e
 set -x
 
@@ -13,7 +15,7 @@ git reset --hard
 git pull
 
 
-~/tint2/packaging/version_status.py > packaging.tmp.md
+timeout -k 10 600 ~/tint2/packaging/version_status.py > packaging.tmp.md
 cat packaging.tmp.md > packaging.md
 rm packaging.tmp.md
 

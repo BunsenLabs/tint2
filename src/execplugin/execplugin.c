@@ -20,6 +20,8 @@
 
 #define MAX_TOOLTIP_LEN 4096
 
+bool debug_executors = false;
+
 void execp_timer_callback(void *arg);
 char *execp_get_tooltip(void *obj);
 void execp_init_fonts();
@@ -41,6 +43,7 @@ Execp *create_execp()
     execp->backend->cache_icon = TRUE;
     execp->backend->centered = TRUE;
     execp->backend->font_color.alpha = 0.5;
+    INIT_TIMER(execp->backend->timer);
     return execp;
 }
 
@@ -67,14 +70,9 @@ void destroy_execp(void *obj)
         free_and_null(execp);
     } else {
         // This is a backend element
-        stop_timeout(execp->backend->timer);
-        execp->backend->timer = NULL;
+        destroy_timer(&execp->backend->timer);
 
-        if (execp->backend->icon) {
-            imlib_context_set_image(execp->backend->icon);
-            imlib_free_image();
-            execp->backend->icon = NULL;
-        }
+        free_icon(execp->backend->icon);
         free_and_null(execp->backend->buf_stdout);
         free_and_null(execp->backend->buf_stderr);
         free_and_null(execp->backend->text);
@@ -109,7 +107,7 @@ void destroy_execp(void *obj)
 
         if (execp->backend->instances) {
             fprintf(stderr, "tint2: Error: Attempt to destroy backend while there are still frontend instances!\n");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         free(execp->backend);
         free(execp);
@@ -196,7 +194,7 @@ void init_execp_panel(void *p)
         execp->area.on_screen = TRUE;
         instantiate_area_gradients(&execp->area);
 
-        execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+        change_timer(&execp->backend->timer, true, 10, 0, execp_timer_callback, execp);
 
         execp_update_post_read(execp);
     }
@@ -308,7 +306,6 @@ void execp_compute_icon_text_geometry(Execp *execp,
                                       int *icon_w,
                                       int *icon_h,
                                       gboolean *text_next_line,
-                                      int *txt_height_ink,
                                       int *txt_height,
                                       int *txt_width,
                                       int *new_size,
@@ -316,9 +313,9 @@ void execp_compute_icon_text_geometry(Execp *execp,
 {
     Panel *panel = (Panel *)execp->area.panel;
     Area *area = &execp->area;
-    *horiz_padding = (panel_horizontal ? area->paddingxlr : area->paddingy);
-    *vert_padding = (panel_horizontal ? area->paddingy : area->paddingxlr);
-    *interior_padding = area->paddingx;
+    *horiz_padding = (panel_horizontal ? area->paddingxlr : area->paddingy) * panel->scale;
+    *vert_padding = (panel_horizontal ? area->paddingy : area->paddingxlr) * panel->scale;
+    *interior_padding = area->paddingx * panel->scale;
 
     if (reload_icon(execp)) {
         if (execp->backend->icon) {
@@ -337,7 +334,7 @@ void execp_compute_icon_text_geometry(Execp *execp,
     int available_w, available_h;
     if (panel_horizontal) {
         available_w = panel->area.width;
-        available_h = area->height - 2 * area->paddingy - left_right_border_width(area);
+        available_h = area->height - 2 * *vert_padding - left_right_border_width(area);
     } else {
         available_w = !text_next_line
                           ? area->width - *icon_w - (*icon_w ? *interior_padding : 0) - 2 * *horiz_padding -
@@ -346,7 +343,6 @@ void execp_compute_icon_text_geometry(Execp *execp,
         available_h = panel->area.height;
     }
     get_text_size2(execp->backend->font_desc,
-                   txt_height_ink,
                    txt_height,
                    txt_width,
                    available_h,
@@ -355,7 +351,9 @@ void execp_compute_icon_text_geometry(Execp *execp,
                    strlen(execp->backend->text),
                    PANGO_WRAP_WORD_CHAR,
                    PANGO_ELLIPSIZE_NONE,
-                   execp->backend->has_markup);
+                   execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT,
+                   execp->backend->has_markup,
+                   panel->scale);
 
     *resized = FALSE;
     if (panel_horizontal) {
@@ -389,7 +387,7 @@ int execp_compute_desired_size(void *obj)
     int horiz_padding, vert_padding, interior_padding;
     int icon_w, icon_h;
     gboolean text_next_line;
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     int new_size;
     gboolean resized;
     execp_compute_icon_text_geometry(execp,
@@ -399,7 +397,6 @@ int execp_compute_desired_size(void *obj)
                                      &icon_w,
                                      &icon_h,
                                      &text_next_line,
-                                     &txt_height_ink,
                                      &txt_height,
                                      &txt_width,
                                      &new_size,
@@ -414,7 +411,7 @@ gboolean resize_execp(void *obj)
     int horiz_padding, vert_padding, interior_padding;
     int icon_w, icon_h;
     gboolean text_next_line;
-    int txt_height_ink, txt_height, txt_width;
+    int txt_height, txt_width;
     int new_size;
     gboolean resized;
     execp_compute_icon_text_geometry(execp,
@@ -424,7 +421,6 @@ gboolean resize_execp(void *obj)
                                      &icon_w,
                                      &icon_h,
                                      &text_next_line,
-                                     &txt_height_ink,
                                      &txt_height,
                                      &txt_width,
                                      &new_size,
@@ -480,7 +476,11 @@ gboolean resize_execp(void *obj)
 void draw_execp(void *obj, cairo_t *c)
 {
     Execp *execp = (Execp *)obj;
-    PangoLayout *layout = pango_cairo_create_layout(c);
+    Panel *panel = (Panel *)execp->area.panel;
+
+    PangoContext *context = pango_cairo_create_context(c);
+    pango_cairo_context_set_resolution(context, 96 * panel->scale);
+    PangoLayout *layout = pango_layout_new(context);
 
     if (execp->backend->has_icon && execp->backend->icon) {
         imlib_context_set_image(execp->backend->icon);
@@ -490,7 +490,8 @@ void draw_execp(void *obj, cairo_t *c)
 
     // draw layout
     pango_layout_set_font_description(layout, execp->backend->font_desc);
-    pango_layout_set_width(layout, execp->frontend->textw * PANGO_SCALE);
+    pango_layout_set_width(layout, (execp->frontend->textw + TINT2_PANGO_SLACK) * PANGO_SCALE);
+    pango_layout_set_height(layout, (execp->frontend->texth + TINT2_PANGO_SLACK) * PANGO_SCALE);
     pango_layout_set_alignment(layout, execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
@@ -508,6 +509,7 @@ void draw_execp(void *obj, cairo_t *c)
               panel_config.font_shadow);
 
     g_object_unref(layout);
+    g_object_unref(context);
 }
 
 void execp_dump_geometry(void *obj, int indent)
@@ -544,10 +546,8 @@ void execp_force_update(Execp *execp)
     if (execp->backend->child_pipe_stdout > 0) {
         // Command currently running, nothing to do
     } else {
-        if (execp->backend->timer)
-            stop_timeout(execp->backend->timer);
         // Run command right away
-        execp->backend->timer = add_timeout(10, 0, execp_timer_callback, execp, &execp->backend->timer);
+        change_timer(&execp->backend->timer, true, 10, 0, execp_timer_callback, execp);
     }
 }
 
@@ -637,7 +637,8 @@ void execp_timer_callback(void *arg)
         close(pipe_fd_stderr[0]);
         return;
     } else if (child == 0) {
-        fprintf(stderr, "tint2: Executing: %s\n", execp->backend->command);
+        if (debug_executors)
+            fprintf(stderr, "tint2: Executing: %s\n", execp->backend->command);
         // We are in the child
         close(pipe_fd_stdout[0]);
         dup2(pipe_fd_stdout[1], 1); // 1 is stdout
@@ -761,8 +762,7 @@ gboolean read_execp(void *obj)
         close(execp->backend->child_pipe_stderr);
         execp->backend->child_pipe_stderr = -1;
         if (execp->backend->interval)
-            execp->backend->timer =
-                add_timeout(execp->backend->interval * 1000, 0, execp_timer_callback, execp, &execp->backend->timer);
+            change_timer(&execp->backend->timer, true, execp->backend->interval * 1000, 0, execp_timer_callback, execp);
     }
 
     char *ansi_clear_screen = (char*)"\x1b[2J";
@@ -886,22 +886,22 @@ gboolean read_execp(void *obj)
     return FALSE;
 }
 
-const char *time_to_string(int seconds, char *buffer)
+const char *time_to_string(int seconds, char *buffer, size_t buffer_size)
 {
     if (seconds < 60) {
-        sprintf(buffer, "%ds", seconds);
+        snprintf(buffer, buffer_size, "%ds", seconds);
     } else if (seconds < 60 * 60) {
         int m = seconds / 60;
         seconds = seconds % 60;
         int s = seconds;
-        sprintf(buffer, "%d:%ds", m, s);
+        snprintf(buffer, buffer_size, "%d:%ds", m, s);
     } else {
         int h = seconds / (60 * 60);
         seconds = seconds % (60 * 60);
         int m = seconds / 60;
         seconds = seconds % 60;
         int s = seconds;
-        sprintf(buffer, "%d:%d:%ds", h, m, s);
+        snprintf(buffer, buffer_size, "%d:%d:%ds", h, m, s);
     }
     return buffer;
 }
@@ -927,35 +927,39 @@ char *execp_get_tooltip(void *obj)
         if (execp->backend->last_update_finish_time) {
             // We updated at least once
             if (execp->backend->interval > 0) {
-                sprintf(execp->backend->tooltip_text,
-                        "Last update finished %s ago (took %s). Next update starting in %s.",
-                        time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                        time_to_string((int)execp->backend->last_update_duration, tmp_buf2),
-                        time_to_string((int)(execp->backend->interval - (now - execp->backend->last_update_finish_time)),
-                                       tmp_buf3));
+                snprintf(execp->backend->tooltip_text,
+                         sizeof(execp->backend->tooltip_text),
+                         "Last update finished %s ago (took %s). Next update starting in %s.",
+                         time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                         time_to_string((int)execp->backend->last_update_duration, tmp_buf2, sizeof(tmp_buf2)),
+                         time_to_string((int)(execp->backend->interval - (now - execp->backend->last_update_finish_time)),
+                                        tmp_buf3, sizeof(tmp_buf3)));
             } else {
-                sprintf(execp->backend->tooltip_text,
-                        "Last update finished %s ago (took %s).",
-                        time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                        time_to_string((int)execp->backend->last_update_duration, tmp_buf2));
+                snprintf(execp->backend->tooltip_text,
+                         sizeof(execp->backend->tooltip_text),
+                         "Last update finished %s ago (took %s).",
+                         time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                         time_to_string((int)execp->backend->last_update_duration, tmp_buf2, sizeof(tmp_buf2)));
             }
         } else {
             // we never requested an update
-            sprintf(execp->backend->tooltip_text, "Never updated. No update scheduled.");
+            snprintf(execp->backend->tooltip_text, sizeof(execp->backend->tooltip_text), "Never updated. No update scheduled.");
         }
     } else {
         // Currently executing command
         if (execp->backend->last_update_finish_time) {
             // we finished updating at least once
-            sprintf(execp->backend->tooltip_text,
-                    "Last update finished %s ago. Update in progress (started %s ago).",
-                    time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1),
-                    time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf3));
+            snprintf(execp->backend->tooltip_text,
+                     sizeof(execp->backend->tooltip_text),
+                     "Last update finished %s ago. Update in progress (started %s ago).",
+                     time_to_string((int)(now - execp->backend->last_update_finish_time), tmp_buf1, sizeof(tmp_buf1)),
+                     time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf3, sizeof(tmp_buf3)));
         } else {
             // we never finished an update
-            sprintf(execp->backend->tooltip_text,
-                    "First update in progress (started %s seconds ago).",
-                    time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf1));
+            snprintf(execp->backend->tooltip_text,
+                     sizeof(execp->backend->tooltip_text),
+                     "First update in progress (started %s seconds ago).",
+                     time_to_string((int)(now - execp->backend->last_update_start_time), tmp_buf1, sizeof(tmp_buf1)));
         }
     }
     return strdup(execp->backend->tooltip_text);

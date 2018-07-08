@@ -35,16 +35,29 @@
 #include "tooltip.h"
 #include "window.h"
 
-timeout *urgent_timeout;
+Timer urgent_timer;
 GSList *urgent_list;
 
 void task_dump_geometry(void *obj, int indent);
 int task_compute_desired_size(void *obj);
+void task_refresh_thumbnail(Task *task);
+void task_get_content_color(void *obj, Color *color);
 
 char *task_get_tooltip(void *obj)
 {
     Task *t = (Task *)obj;
     return strdup(t->title);
+}
+
+cairo_surface_t *task_get_thumbnail(void *obj)
+{
+    if (!panel_config.g_task.thumbnail_enabled)
+        return NULL;
+    Task *t = (Task *)obj;
+    if (!t->thumbnail)
+        task_refresh_thumbnail(t);
+    taskbar_start_thumbnail_timer(THUMB_MODE_TOOLTIP_WINDOW);
+    return t->thumbnail;
 }
 
 Task *add_task(Window win)
@@ -73,6 +86,7 @@ Task *add_task(Window win)
     task_template.area.has_mouse_press_effect = panel_config.mouse_effects;
     task_template.area._dump_geometry = task_dump_geometry;
     task_template.area._is_under_mouse = full_width_area_is_under_mouse;
+    task_template.area._get_content_color = task_get_content_color;
     task_template.win = win;
     task_template.desktop = get_window_desktop(win);
     task_template.area.panel = &panels[monitor];
@@ -93,10 +107,6 @@ Task *add_task(Window win)
              (int)win,
              task_template.title ? task_template.title : "null");
 
-    // fprintf(stderr, "tint2: %s %d: win = %ld, task = %s\n", __func__, __LINE__, win, task_template.title ?
-    // task_template.title : "??");
-    // fprintf(stderr, "tint2: new task %s win %u: desktop %d, monitor %d\n", new_task.title, win, new_task.desktop, monitor);
-
     GPtrArray *task_buttons = g_ptr_array_new();
     for (int j = 0; j < panels[monitor].num_desktops; j++) {
         if (task_template.desktop != ALL_DESKTOPS && task_template.desktop != j)
@@ -110,6 +120,7 @@ Task *add_task(Window win)
         task_instance->area._dump_geometry = task_dump_geometry;
         task_instance->area._is_under_mouse = full_width_area_is_under_mouse;
         task_instance->area._compute_desired_size = task_compute_desired_size;
+        task_instance->area._get_content_color = task_get_content_color;
         task_instance->win = task_template.win;
         task_instance->desktop = task_template.desktop;
         task_instance->win_x = task_template.win_x;
@@ -118,12 +129,16 @@ Task *add_task(Window win)
         task_instance->win_h = task_template.win_h;
         task_instance->current_state = TASK_UNDEFINED; // to update the current state later in set_task_state...
         if (task_instance->desktop == ALL_DESKTOPS && server.desktop != j) {
-            // fprintf(stderr, "tint2: %s %d: win = %ld hiding task: another desktop\n", __func__, __LINE__, win);
             task_instance->area.on_screen = always_show_all_desktop_tasks;
         }
         task_instance->title = task_template.title;
-        if (panels[monitor].g_task.tooltip_enabled)
+        if (panels[monitor].g_task.tooltip_enabled) {
             task_instance->area._get_tooltip_text = task_get_tooltip;
+            task_instance->area._get_tooltip_image = task_get_thumbnail;
+        }
+        task_instance->icon_color = task_template.icon_color;
+        task_instance->icon_color_hover = task_template.icon_color_hover;
+        task_instance->icon_color_press = task_template.icon_color_press;
         for (int k = 0; k < TASK_STATE_COUNT; ++k) {
             task_instance->icon[k] = task_template.icon[k];
             task_instance->icon_hover[k] = task_template.icon_hover[k];
@@ -186,9 +201,6 @@ void remove_task(Task *task)
     if (!task)
         return;
 
-    // fprintf(stderr, "tint2: %s %d: win = %ld, task = %s\n", __func__, __LINE__, task->win, task->title ? task->title :
-    // "??");
-
     if (taskbar_mode == MULTI_DESKTOP) {
         Panel *panel = task->area.panel;
         panel->area.resize_needed = 1;
@@ -198,9 +210,10 @@ void remove_task(Task *task)
 
     // free title and icon just for the first task
     // even with task_on_all_desktop and with task_on_all_panel
-    // fprintf(stderr, "tint2: remove_task %s %d\n", task->title, task->desktop);
     if (task->title)
         free(task->title);
+    if (task->thumbnail)
+        cairo_surface_destroy(task->thumbnail);
     task_remove_icon(task);
 
     GPtrArray *task_buttons = g_hash_table_lookup(win_to_task, &win);
@@ -212,6 +225,8 @@ void remove_task(Task *task)
             task_drag = 0;
         if (g_slist_find(urgent_list, task2))
             del_urgent(task2);
+        if (g_tooltip.area == &task2->area)
+            tooltip_hide(NULL);
         remove_area((Area *)task2);
         free(task2);
     }
@@ -266,36 +281,23 @@ gboolean task_update_title(Task *task)
     return TRUE;
 }
 
-void task_update_icon(Task *task)
+Imlib_Image task_get_icon(Window win, int icon_size)
 {
-    Panel *panel = task->area.panel;
-    if (!panel->g_task.has_icon)
-        return;
-
-    task_remove_icon(task);
-
     Imlib_Image img = NULL;
 
     if (!img) {
         int len;
-        gulong *data = server_get_property(task->win, server.atom._NET_WM_ICON, XA_CARDINAL, &len);
+        gulong *data = server_get_property(win, server.atom._NET_WM_ICON, XA_CARDINAL, &len);
         if (data) {
             if (len > 0) {
                 // get ARGB icon
                 int w, h;
-                gulong *tmp_data = get_best_icon(data, get_icon_count(data, len), len, &w, &h, panel->g_task.icon_size1);
+                gulong *tmp_data = get_best_icon(data, get_icon_count(data, len), len, &w, &h, icon_size);
                 if (tmp_data) {
                     DATA32 icon_data[w * h];
                     for (int j = 0; j < w * h; ++j)
                         icon_data[j] = tmp_data[j];
                     img = imlib_create_image_using_copied_data(w, h, icon_data);
-                    if (0 && img)
-                        fprintf(stderr,
-                                "%s: Got %dx%d icon via _NET_WM_ICON for %s\n",
-                                __func__,
-                                w,
-                                h,
-                                task->title ? task->title : "task");
                 }
             }
             XFree(data);
@@ -303,7 +305,7 @@ void task_update_icon(Task *task)
     }
 
     if (!img) {
-        XWMHints *hints = XGetWMHints(server.display, task->win);
+        XWMHints *hints = XGetWMHints(server.display, win);
         if (hints) {
             if (hints->flags & IconPixmapHint && hints->icon_pixmap != 0) {
                 // get width, height and depth for the pixmap
@@ -315,13 +317,6 @@ void task_update_icon(Task *task)
                 XGetGeometry(server.display, hints->icon_pixmap, &root, &icon_x, &icon_y, &w, &h, &border_width, &bpp);
                 imlib_context_set_drawable(hints->icon_pixmap);
                 img = imlib_create_image_from_drawable(hints->icon_mask, 0, 0, w, h, 0);
-                if (0 && img)
-                    fprintf(stderr,
-                            "%s: Got %dx%d pixmap icon via WM_HINTS for %s\n",
-                            __func__,
-                            w,
-                            h,
-                            task->title ? task->title : "task");
             }
             XFree(hints);
         }
@@ -331,6 +326,44 @@ void task_update_icon(Task *task)
         imlib_context_set_image(default_icon);
         img = imlib_clone_image();
     }
+
+    return img;
+}
+
+void task_set_icon_color(Task *task, Imlib_Image icon)
+{
+    get_image_mean_color(icon, &task->icon_color);
+    if (panel_config.mouse_effects) {
+        task->icon_color_hover = task->icon_color;
+        adjust_color(&task->icon_color_hover,
+                     panel_config.mouse_over_alpha,
+                     panel_config.mouse_over_saturation,
+                     panel_config.mouse_over_brightness);
+        task->icon_color_press = task->icon_color;
+        adjust_color(&task->icon_color_press,
+                     panel_config.mouse_pressed_alpha,
+                     panel_config.mouse_pressed_saturation,
+                     panel_config.mouse_pressed_brightness);
+    }
+}
+
+void task_update_icon(Task *task)
+{
+    Panel *panel = task->area.panel;
+    if (!panel->g_task.has_icon) {
+        if (panel_config.g_task.has_content_tint) {
+            Imlib_Image img = task_get_icon(task->win, panel->g_task.icon_size1);
+            task_set_icon_color(task, img);
+            imlib_context_set_image(img);
+            imlib_free_image();
+        }
+        return;
+    }
+
+    task_remove_icon(task);
+
+    Imlib_Image img = task_get_icon(task->win, panel->g_task.icon_size1);
+    task_set_icon_color(task, img);
 
     // transform icons
     imlib_context_set_image(img);
@@ -345,20 +378,10 @@ void task_update_icon(Task *task)
     task->icon_width = imlib_image_get_width();
     task->icon_height = imlib_image_get_height();
     for (int k = 0; k < TASK_STATE_COUNT; ++k) {
-        imlib_context_set_image(orig_image);
-        task->icon[k] = imlib_clone_image();
-        imlib_context_set_image(task->icon[k]);
-        DATA32 *data32;
-        if (panel->g_task.alpha[k] != 100 || panel->g_task.saturation[k] != 0 || panel->g_task.brightness[k] != 0) {
-            data32 = imlib_image_get_data();
-            adjust_asb(data32,
-                       task->icon_width,
-                       task->icon_height,
-                       panel->g_task.alpha[k] / 100.0,
-                       panel->g_task.saturation[k] / 100.0,
-                       panel->g_task.brightness[k] / 100.0);
-            imlib_image_put_back_data(data32);
-        }
+        task->icon[k] = adjust_icon(orig_image,
+                                    panel->g_task.alpha[k],
+                                    panel->g_task.saturation[k],
+                                    panel->g_task.brightness[k] != 0);
         if (panel_config.mouse_effects) {
             task->icon_hover[k] = adjust_icon(task->icon[k],
                                               panel_config.mouse_over_alpha,
@@ -376,9 +399,12 @@ void task_update_icon(Task *task)
     GPtrArray *task_buttons = get_task_buttons(task->win);
     if (task_buttons) {
         for (int i = 0; i < task_buttons->len; ++i) {
-            Task *task2 = g_ptr_array_index(task_buttons, i);
+            Task *task2 = (Task *)g_ptr_array_index(task_buttons, i);
             task2->icon_width = task->icon_width;
             task2->icon_height = task->icon_height;
+            task2->icon_color = task->icon_color;
+            task2->icon_color_hover = task->icon_color_hover;
+            task2->icon_color_press = task->icon_color_press;
             for (int k = 0; k < TASK_STATE_COUNT; ++k) {
                 task2->icon[k] = task->icon[k];
                 task2->icon_hover[k] = task->icon_hover[k];
@@ -403,7 +429,7 @@ void draw_task_icon(Task *task, int text_width)
         else
             task->_icon_x = (task->area.width - panel->g_task.icon_size1) / 2;
     } else {
-        task->_icon_x = left_border_width(&task->area) + task->area.paddingxlr;
+        task->_icon_x = left_border_width(&task->area) + task->area.paddingxlr * panel->scale;
     }
 
     // Render
@@ -433,11 +459,13 @@ void draw_task(void *obj, cairo_t *c)
 
     task->_text_width = 0;
     if (panel->g_task.has_text) {
-        PangoLayout *layout = pango_cairo_create_layout(c);
+        PangoContext *context = pango_cairo_create_context(c);
+        pango_cairo_context_set_resolution(context, 96 * panel->scale);
+        PangoLayout *layout = pango_layout_new(context);
         pango_layout_set_font_description(layout, panel->g_task.font_desc);
         pango_layout_set_text(layout, task->title, -1);
 
-        pango_layout_set_width(layout, ((Taskbar *)task->area.parent)->text_width * PANGO_SCALE);
+        pango_layout_set_width(layout, (((Taskbar *)task->area.parent)->text_width + TINT2_PANGO_SLACK) * PANGO_SCALE);
         pango_layout_set_height(layout, panel->g_task.text_height * PANGO_SCALE);
         pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
         pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
@@ -454,6 +482,7 @@ void draw_task(void *obj, cairo_t *c)
         draw_text(layout, c, panel->g_task.text_posx, task->_text_posy, config_text, panel->font_shadow);
 
         g_object_unref(layout);
+        g_object_unref(context);
     }
 
     if (panel->g_task.has_icon)
@@ -484,11 +513,29 @@ void task_dump_geometry(void *obj, int indent)
             panel->g_task.icon_size1);
 }
 
+void task_get_content_color(void *obj, Color *color)
+{
+    Task *task = (Task *)obj;
+    Color *content_color = NULL;
+    if (panel_config.mouse_effects) {
+        if (task->area.mouse_state == MOUSE_OVER)
+            content_color = &task->icon_color_hover;
+        else if (task->area.mouse_state == MOUSE_DOWN)
+            content_color = &task->icon_color_press;
+        else
+            content_color = &task->icon_color;
+    } else {
+        content_color = &task->icon_color;
+    }
+    if (content_color)
+        *color = *content_color;
+}
+
 int task_compute_desired_size(void *obj)
 {
     Task *task = (Task *)obj;
     Panel *panel = (Panel *)task->area.panel;
-    int size = panel_horizontal ? panel->g_task.maximum_width : panel->g_task.maximum_height;
+    int size = (panel_horizontal ? panel->g_task.maximum_width : panel->g_task.maximum_height) * panel->scale;
     return size;
 }
 
@@ -591,7 +638,6 @@ void reset_active_task()
     }
 
     Window w1 = get_active_window();
-    // fprintf(stderr, "tint2: Change active task %ld\n", w1);
 
     if (w1) {
         if (!get_task_buttons(w1)) {
@@ -603,10 +649,49 @@ void reset_active_task()
     }
 }
 
+void task_refresh_thumbnail(Task *task)
+{
+    if (!panel_config.g_task.thumbnail_enabled)
+        return;
+    if (task->current_state == TASK_ICONIFIED)
+        return;
+    Panel *panel = (Panel*)task->area.panel;
+    double now = get_time();
+    if (now - task->thumbnail_last_update < 0.1)
+        return;
+    if (debug_thumbnails)
+        fprintf(stderr, "tint2: thumbnail for window: %s" RESET "\n", task->title ? task->title : "");
+    cairo_surface_t *thumbnail = get_window_thumbnail(task->win, panel_config.g_task.thumbnail_width * panel->scale);
+    if (!thumbnail)
+        return;
+    if (task->thumbnail)
+        cairo_surface_destroy(task->thumbnail);
+    task->thumbnail = thumbnail;
+    task->thumbnail_last_update = get_time();
+    if (debug_thumbnails)
+        fprintf(stderr,
+                YELLOW "tint2: %s took %f ms (window: %s)" RESET "\n",
+                __func__,
+                1000 * (task->thumbnail_last_update - now),
+                task->title ? task->title : "");
+    if (g_tooltip.mapped && (g_tooltip.area == &task->area)) {
+        tooltip_update_contents_for(&task->area);
+        tooltip_update();
+    }
+}
+
 void set_task_state(Task *task, TaskState state)
 {
     if (!task || state == TASK_UNDEFINED || state >= TASK_STATE_COUNT)
         return;
+
+    if (!task->thumbnail)
+        task_refresh_thumbnail(task);
+    if (state == TASK_ACTIVE) {
+        // For active windows, we get the thumbnail twice with a small delay in between.
+        // This is because they sometimes redraw their windows slowly.
+        taskbar_start_thumbnail_timer(THUMB_MODE_ACTIVE_WINDOW);
+    }
 
     if (state == TASK_ACTIVE && task->current_state != state) {
         clock_gettime(CLOCK_MONOTONIC, &task->last_activation_time);
@@ -673,8 +758,8 @@ void blink_urgent(void *arg)
     GSList *urgent_task = urgent_list;
     while (urgent_task) {
         Task *t = urgent_task->data;
-        if (t->urgent_tick < max_tick_urgent) {
-            if (t->urgent_tick++ % 2)
+        if (t->urgent_tick <= max_tick_urgent) {
+            if (++t->urgent_tick % 2)
                 set_task_state(t, TASK_URGENT);
             else
                 set_task_state(t, window_is_iconified(t->win) ? TASK_ICONIFIED : TASK_NORMAL);
@@ -701,8 +786,8 @@ void add_urgent(Task *task)
     // not yet in the list, so we have to add it
     urgent_list = g_slist_prepend(urgent_list, task);
 
-    if (!urgent_timeout)
-        urgent_timeout = add_timeout(10, 1000, blink_urgent, 0, &urgent_timeout);
+    if (!urgent_timer.enabled_)
+        change_timer(&urgent_timer, true, 10, 1000, blink_urgent, 0);
 
     Panel *panel = task->area.panel;
     if (panel->is_hidden)
@@ -712,10 +797,8 @@ void add_urgent(Task *task)
 void del_urgent(Task *task)
 {
     urgent_list = g_slist_remove(urgent_list, task);
-    if (!urgent_list) {
-        stop_timeout(urgent_timeout);
-        urgent_timeout = NULL;
-    }
+    if (!urgent_list)
+        stop_timer(&urgent_timer);
 }
 
 void task_handle_mouse_event(Task *task, MouseAction action)
@@ -783,7 +866,6 @@ void task_handle_mouse_event(Task *task, MouseAction action)
 
 void task_update_desktop(Task *task)
 {
-    // fprintf(stderr, "tint2: %s %d:\n", __func__, __LINE__);
     Window win = task->win;
     remove_task(task);
     task = add_task(win);

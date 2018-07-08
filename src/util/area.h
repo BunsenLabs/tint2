@@ -154,6 +154,8 @@ typedef struct Background {
     Color border_color_pressed;
     // Pointer to a GradientClass or NULL, no ownership
     GradientClass *gradients[MOUSE_STATE_COUNT];
+    double fill_content_tint_weight;
+    double border_content_tint_weight;
 } Background;
 
 typedef enum Layout {
@@ -233,6 +235,7 @@ typedef struct Area {
     // Returns a copy of the tooltip to be displayed for this widget.
     // The caller takes ownership of the pointer.
     char *(*_get_tooltip_text)(void *obj);
+    cairo_surface_t *(*_get_tooltip_image)(void *obj);
 
     // Returns true if the Area handles a mouse event at the given x, y coordinates relative to the window.
     // Leave this to NULL to use a default implementation.
@@ -240,6 +243,8 @@ typedef struct Area {
 
     // Prints the geometry of the object on stderr, with left indentation of indent spaces.
     void (*_dump_geometry)(void *obj, int indent);
+
+    void (*_get_content_color)(void *obj, Color *color);
 } Area;
 
 // Initializes the Background member to default values.
@@ -268,10 +273,8 @@ void area_compute_text_geometry(Area *area,
                                 const char *line2,
                                 PangoFontDescription *line1_font_desc,
                                 PangoFontDescription *line2_font_desc,
-                                int *line1_height_ink,
                                 int *line1_height,
                                 int *line1_width,
-                                int *line2_height_ink,
                                 int *line2_height,
                                 int *line2_width);
 int text_area_compute_desired_size(Area *area,
@@ -294,7 +297,8 @@ void draw_text_area(Area *area,
                     PangoFontDescription *line2_font_desc,
                     int line1_posy,
                     int line2_posy,
-                    Color *color);
+                    Color *color,
+                    double scale);
 
 int left_border_width(Area *a);
 int right_border_width(Area *a);

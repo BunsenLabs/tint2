@@ -69,23 +69,23 @@ void config_read_file(const char *path)
     if (!config_has_panel_items) {
         char panel_items[256];
         panel_items[0] = 0;
-        strcat(panel_items, "T");
+        strlcat(panel_items, "T", sizeof(panel_items));
         if (config_has_battery) {
             if (config_battery_enabled)
-                strcat(panel_items, "B");
+                strlcat(panel_items, "B", sizeof(panel_items));
         } else {
             if (no_items_battery_enabled)
-                strcat(panel_items, "B");
+                strlcat(panel_items, "B", sizeof(panel_items));
         }
         if (config_has_systray) {
             if (config_systray_enabled)
-                strcat(panel_items, "S");
+                strlcat(panel_items, "S", sizeof(panel_items));
         } else {
             if (no_items_systray_enabled)
-                strcat(panel_items, "S");
+                strlcat(panel_items, "S", sizeof(panel_items));
         }
         if (no_items_clock_enabled)
-            strcat(panel_items, "C");
+            strlcat(panel_items, "C", sizeof(panel_items));
         set_panel_items(panel_items);
     }
 }
@@ -161,6 +161,8 @@ void config_write_backgrounds(FILE *fp)
 
         int r;
         int b;
+        double fill_weight;
+        double border_weight;
         gboolean sideTop;
         gboolean sideBottom;
         gboolean sideLeft;
@@ -228,6 +230,10 @@ void config_write_backgrounds(FILE *fp)
                            &sideLeft,
                            bgColBorderSidesRight,
                            &sideRight,
+                           bgColFillWeight,
+                           &fill_weight,
+                           bgColBorderWeight,
+                           &border_weight,
                            -1);
         fprintf(fp, "# Background %d: %s\n", index, text ? text : "");
         fprintf(fp, "rounded = %d\n", r);
@@ -236,14 +242,17 @@ void config_write_backgrounds(FILE *fp)
         char sides[10];
         sides[0] = '\0';
         if (sideTop)
-            strcat(sides, "T");
+            strlcat(sides, "T", sizeof(sides));
         if (sideBottom)
-            strcat(sides, "B");
+            strlcat(sides, "B", sizeof(sides));
         if (sideLeft)
-            strcat(sides, "L");
+            strlcat(sides, "L", sizeof(sides));
         if (sideRight)
-            strcat(sides, "R");
+            strlcat(sides, "R", sizeof(sides));
         fprintf(fp, "border_sides = %s\n", sides);
+
+        fprintf(fp, "border_content_tint_weight = %d\n", (int)(border_weight));
+        fprintf(fp, "background_content_tint_weight = %d\n", (int)(fill_weight));
 
         config_write_color(fp, "background_color", *fillColor, fillOpacity);
         config_write_color(fp, "border_color", *borderColor, borderOpacity);
@@ -369,6 +378,13 @@ void config_write_panel(FILE *fp)
             (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(mouse_pressed_icon_saturation)),
             (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(mouse_pressed_icon_brightness)));
 
+    fprintf(fp,
+            "scale_relative_to_dpi = %d\n",
+            (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(scale_relative_to_dpi)));
+    fprintf(fp,
+            "scale_relative_to_screen_height = %d\n",
+            (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(scale_relative_to_screen_height)));
+
     fprintf(fp, "\n");
 }
 
@@ -469,7 +485,7 @@ void config_write_task_font_color(FILE *fp, char *name, GtkWidget *task_color)
     GdkColor color;
     gtk_color_button_get_color(GTK_COLOR_BUTTON(task_color), &color);
     char full_name[128];
-    sprintf(full_name, "task%s_font_color", name);
+    snprintf(full_name, sizeof(full_name), "task%s_font_color", name);
     config_write_color(fp, full_name, color, gtk_color_button_get_alpha(GTK_COLOR_BUTTON(task_color)) * 100 / 0xffff);
 }
 
@@ -480,7 +496,7 @@ void config_write_task_icon_osb(FILE *fp,
                                 GtkWidget *widget_brightness)
 {
     char full_name[128];
-    sprintf(full_name, "task%s_icon_asb", name);
+    snprintf(full_name, sizeof(full_name), "task%s_icon_asb", name);
     fprintf(fp,
             "%s = %d %d %d\n",
             full_name,
@@ -492,7 +508,7 @@ void config_write_task_icon_osb(FILE *fp,
 void config_write_task_background(FILE *fp, char *name, GtkWidget *task_background)
 {
     char full_name[128];
-    sprintf(full_name, "task%s_background_id", name);
+    snprintf(full_name, sizeof(full_name), "task%s_background_id", name);
     fprintf(fp, "%s = %d\n", full_name, gtk_combo_box_get_active(GTK_COMBO_BOX(task_background)));
 }
 
@@ -517,6 +533,11 @@ void config_write_task(FILE *fp)
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(task_font_set)))
         fprintf(fp, "task_font = %s\n", gtk_font_button_get_font_name(GTK_FONT_BUTTON(task_font)));
     fprintf(fp, "task_tooltip = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tooltip_task_show)) ? 1 : 0);
+    fprintf(fp, "task_thumbnail = %d\n", gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tooltip_task_thumbnail)) ? 1 : 0);
+    fprintf(fp,
+            "task_thumbnail_size = %d\n",
+            (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(tooltip_task_thumbnail_size)));
+
 
     // same for: "" _normal _active _urgent _iconified
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(task_default_color_set))) {
@@ -1094,7 +1115,13 @@ void add_entry(char *key, char *value)
     char *value1 = 0, *value2 = 0, *value3 = 0;
 
     /* Gradients */
-    if (strcmp(key, "gradient") == 0) {
+    if (strcmp(key, "scale_relative_to_dpi") == 0) {
+        extract_values(value, &value1, &value2, &value3);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(scale_relative_to_dpi), atoi(value1));
+    } else if (strcmp(key, "scale_relative_to_screen_height") == 0) {
+        extract_values(value, &value1, &value2, &value3);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(scale_relative_to_screen_height), atoi(value1));
+    } else if (strcmp(key, "gradient") == 0) {
         finalize_gradient();
         GradientConfigType t;
         if (g_str_equal(value, "horizontal"))
@@ -1224,6 +1251,12 @@ void add_entry(char *key, char *value)
     } else if (strcmp(key, "gradient_id_pressed") == 0 || strcmp(key, "pressed_gradient_id") == 0) {
         int id = gradient_index_safe(atoi(value));
         gtk_combo_box_set_active(GTK_COMBO_BOX(background_gradient_press), id);
+        background_force_update();
+    } else if (strcmp(key, "border_content_tint_weight") == 0) {
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_border_content_tint_weight), atoi(value));
+        background_force_update();
+    } else if (strcmp(key, "background_content_tint_weight") == 0) {
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(background_fill_content_tint_weight), atoi(value));
         background_force_update();
     }
 
@@ -1732,6 +1765,10 @@ void add_entry(char *key, char *value)
     else if (strcmp(key, "task_tooltip") == 0 || strcmp(key, "tooltip") == 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tooltip_task_show), atoi(value));
     }
+    else if (strcmp(key, "task_thumbnail") == 0)
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tooltip_task_thumbnail), atoi(value));
+    else if (strcmp(key, "task_thumbnail_size") == 0)
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(tooltip_task_thumbnail_size), MAX(8, atoi(value)));
 
     /* Systray */
     else if (strcmp(key, "systray") == 0) {

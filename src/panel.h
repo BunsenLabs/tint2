@@ -94,6 +94,9 @@ extern gboolean debug_geometry;
 extern gboolean debug_fps;
 extern double tracing_fps_threshold;
 extern gboolean debug_frames;
+extern gboolean debug_thumbnails;
+extern double ui_scale_dpi_ref;
+extern double ui_scale_monitor_size_ref;
 
 typedef struct Panel {
     Area area;
@@ -116,6 +119,7 @@ typedef struct Panel {
     int mouse_pressed_alpha;
     int mouse_pressed_saturation;
     int mouse_pressed_brightness;
+    double scale;
 
     // Per-panel parameters and states for Taskbar and Task
     GlobalTaskbar g_taskbar;
@@ -143,7 +147,7 @@ typedef struct Panel {
     gboolean is_hidden;
     int hidden_width, hidden_height;
     Pixmap hidden_pixmap;
-    timeout *autohide_timeout;
+    Timer autohide_timer;
 } Panel;
 
 extern Panel panel_config;

@@ -141,11 +141,12 @@ void init_systray_panel(void *p)
 
 void systray_compute_geometry(int *size)
 {
+    Panel *panel = (Panel*)systray.area.panel;
     systray.icon_size = panel_horizontal ? systray.area.height : systray.area.width;
     systray.icon_size -=
-        MAX(left_right_border_width(&systray.area), top_bottom_border_width(&systray.area)) + 2 * systray.area.paddingy;
+        MAX(left_right_border_width(&systray.area), top_bottom_border_width(&systray.area)) + 2 * systray.area.paddingy * panel->scale;
     if (systray_max_icon_size > 0)
-        systray.icon_size = MIN(systray.icon_size, systray_max_icon_size);
+        systray.icon_size = MIN(systray.icon_size, systray_max_icon_size * panel->scale);
 
     int count = 0;
     for (GSList *l = systray.list_icons; l; l = l->next) {
@@ -153,24 +154,24 @@ void systray_compute_geometry(int *size)
     }
 
     if (panel_horizontal) {
-        int height = systray.area.height - top_bottom_border_width(&systray.area) - 2 * systray.area.paddingy;
+        int height = systray.area.height - top_bottom_border_width(&systray.area) - 2 * systray.area.paddingy * panel->scale;
         // here icons_per_column always higher than 0
-        systray.icons_per_column = (height + systray.area.paddingx) / (systray.icon_size + systray.area.paddingx);
+        systray.icons_per_column = (height + systray.area.paddingx * panel->scale) / (systray.icon_size + systray.area.paddingx * panel->scale);
         systray.margin =
-            height - (systray.icons_per_column - 1) * (systray.icon_size + systray.area.paddingx) - systray.icon_size;
+            height - (systray.icons_per_column - 1) * (systray.icon_size + systray.area.paddingx * panel->scale) - systray.icon_size;
         systray.icons_per_row = count / systray.icons_per_column + (count % systray.icons_per_column != 0);
-        *size = left_right_border_width(&systray.area) + 2 * systray.area.paddingxlr +
-                (systray.icon_size * systray.icons_per_row) + ((systray.icons_per_row - 1) * systray.area.paddingx);
+        *size = left_right_border_width(&systray.area) + 2 * systray.area.paddingxlr * panel->scale +
+                (systray.icon_size * systray.icons_per_row) + ((systray.icons_per_row - 1) * systray.area.paddingx * panel->scale);
     } else {
-        int width = systray.area.width - left_right_border_width(&systray.area) - 2 * systray.area.paddingy;
+        int width = systray.area.width - left_right_border_width(&systray.area) - 2 * systray.area.paddingy * panel->scale;
         // here icons_per_row always higher than 0
-        systray.icons_per_row = (width + systray.area.paddingx) / (systray.icon_size + systray.area.paddingx);
+        systray.icons_per_row = (width + systray.area.paddingx * panel->scale) / (systray.icon_size + systray.area.paddingx * panel->scale);
         systray.margin =
-            width - (systray.icons_per_row - 1) * (systray.icon_size + systray.area.paddingx) - systray.icon_size;
+            width - (systray.icons_per_row - 1) * (systray.icon_size + systray.area.paddingx * panel->scale) - systray.icon_size;
         systray.icons_per_column = count / systray.icons_per_row + (count % systray.icons_per_row != 0);
-        *size = top_bottom_border_width(&systray.area) + (2 * systray.area.paddingxlr) +
+        *size = top_bottom_border_width(&systray.area) + (2 * systray.area.paddingxlr * panel->scale) +
                 (systray.icon_size * systray.icons_per_column) +
-                ((systray.icons_per_column - 1) * systray.area.paddingx);
+                ((systray.icons_per_column - 1) * systray.area.paddingx * panel->scale);
     }
 }
 
@@ -281,13 +282,13 @@ void on_change_systray(void *obj)
     int posx, posy;
     int start;
     if (panel_horizontal) {
-        posy = start = top_border_width(&panel->area) + panel->area.paddingy + top_border_width(&systray.area) +
-                       systray.area.paddingy + systray.margin / 2;
-        posx = systray.area.posx + left_border_width(&systray.area) + systray.area.paddingxlr;
+        posy = start = top_border_width(&panel->area) + panel->area.paddingy * panel->scale + top_border_width(&systray.area) +
+                       systray.area.paddingy * panel->scale + systray.margin / 2;
+        posx = systray.area.posx + left_border_width(&systray.area) + systray.area.paddingxlr * panel->scale;
     } else {
-        posx = start = left_border_width(&panel->area) + panel->area.paddingy + left_border_width(&systray.area) +
-                       systray.area.paddingy + systray.margin / 2;
-        posy = systray.area.posy + top_border_width(&systray.area) + systray.area.paddingxlr;
+        posx = start = left_border_width(&panel->area) + panel->area.paddingy * panel->scale + left_border_width(&systray.area) +
+                       systray.area.paddingy * panel->scale + systray.margin / 2;
+        posy = systray.area.posy + top_border_width(&systray.area) + systray.area.paddingxlr * panel->scale;
     }
 
     TrayWindow *traywin;
@@ -312,17 +313,17 @@ void on_change_systray(void *obj)
         traywin->height = systray.icon_size;
         if (panel_horizontal) {
             if (i % systray.icons_per_column) {
-                posy += systray.icon_size + systray.area.paddingx;
+                posy += systray.icon_size + systray.area.paddingx * panel->scale;
             } else {
                 posy = start;
-                posx += (systray.icon_size + systray.area.paddingx);
+                posx += (systray.icon_size + systray.area.paddingx * panel->scale);
             }
         } else {
             if (i % systray.icons_per_row) {
-                posx += systray.icon_size + systray.area.paddingx;
+                posx += systray.icon_size + systray.area.paddingx * panel->scale;
             } else {
                 posx = start;
-                posy += (systray.icon_size + systray.area.paddingx);
+                posy += (systray.icon_size + systray.area.paddingx * panel->scale);
             }
         }
 
@@ -543,11 +544,11 @@ static gint compare_traywindows(gconstpointer a, gconstpointer b)
     const TrayWindow *traywin_b = (const TrayWindow *)b;
 
 #if 0
-	// This breaks pygtk2 StatusIcon with blinking activated
-	if (traywin_a->empty && !traywin_b->empty)
-		return 1 * (systray.sort == SYSTRAY_SORT_RIGHT2LEFT ? -1 : 1);
-	if (!traywin_a->empty && traywin_b->empty)
-		return -1 * (systray.sort == SYSTRAY_SORT_RIGHT2LEFT ? -1 : 1);
+    // This breaks pygtk2 StatusIcon with blinking activated
+    if (traywin_a->empty && !traywin_b->empty)
+        return 1 * (systray.sort == SYSTRAY_SORT_RIGHT2LEFT ? -1 : 1);
+    if (!traywin_a->empty && traywin_b->empty)
+        return -1 * (systray.sort == SYSTRAY_SORT_RIGHT2LEFT ? -1 : 1);
 #endif
 
     if (systray.sort == SYSTRAY_SORT_ASCENDING || systray.sort == SYSTRAY_SORT_DESCENDING) {
@@ -730,6 +731,8 @@ gboolean add_icon(Window win)
     traywin->pid = pid;
     traywin->name = name;
     traywin->chrono = chrono;
+    INIT_TIMER(traywin->render_timer);
+    INIT_TIMER(traywin->resize_timer);
     chrono++;
 
     show(&systray.area);
@@ -940,8 +943,8 @@ void remove_icon(TrayWindow *traywin)
     XDestroyWindow(server.display, traywin->parent);
     XSync(server.display, False);
     XSetErrorHandler(old);
-    stop_timeout(traywin->render_timeout);
-    stop_timeout(traywin->resize_timeout);
+    destroy_timer(&traywin->render_timer);
+    destroy_timer(&traywin->resize_timer);
     free(traywin->name);
     if (traywin->image) {
         imlib_context_set_image(traywin->image);
@@ -1055,9 +1058,8 @@ void systray_reconfigure_event(TrayWindow *traywin, XEvent *e)
             if (traywin->bad_size_counter < min_bad_resize_events) {
                 systray_resize_icon(traywin);
             } else {
-                if (!traywin->resize_timeout)
-                    traywin->resize_timeout =
-                        add_timeout(fast_resize_period, 0, systray_resize_icon, traywin, &traywin->resize_timeout);
+                if (!traywin->resize_timer.enabled_)
+                    change_timer(&traywin->resize_timer, true, fast_resize_period, 0, systray_resize_icon, traywin);
             }
         } else {
             if (traywin->bad_size_counter == max_bad_resize_events) {
@@ -1071,14 +1073,13 @@ void systray_reconfigure_event(TrayWindow *traywin, XEvent *e)
             // FIXME Normally we should force the icon to resize fill_color to the size we resized it to when we
             // embedded it.
             // However this triggers a resize loop in new versions of GTK, which we must avoid.
-            if (!traywin->resize_timeout)
-                traywin->resize_timeout =
-                    add_timeout(slow_resize_period, 0, systray_resize_icon, traywin, &traywin->resize_timeout);
+            if (!traywin->resize_timer.enabled_)
+                change_timer(&traywin->resize_timer, true, slow_resize_period, 0, systray_resize_icon, traywin);
             return;
         }
     } else {
         // Correct size
-        stop_timeout(traywin->resize_timeout);
+        stop_timer(&traywin->resize_timer);
     }
 
     // Resize and redraw the systray
@@ -1135,9 +1136,8 @@ void systray_resize_request_event(TrayWindow *traywin, XEvent *e)
             if (traywin->bad_size_counter < min_bad_resize_events) {
                 systray_resize_icon(traywin);
             } else {
-                if (!traywin->resize_timeout)
-                    traywin->resize_timeout =
-                        add_timeout(fast_resize_period, 0, systray_resize_icon, traywin, &traywin->resize_timeout);
+                if (!traywin->resize_timer.enabled_)
+                    change_timer(&traywin->resize_timer, true, fast_resize_period, 0, systray_resize_icon, traywin);
             }
         } else {
             if (traywin->bad_size_counter == max_bad_resize_events) {
@@ -1150,14 +1150,13 @@ void systray_resize_request_event(TrayWindow *traywin, XEvent *e)
             // Delayed resize
             // FIXME Normally we should force the icon to resize to the size we resized it to when we embedded it.
             // However this triggers a resize loop in some versions of GTK, which we must avoid.
-            if (!traywin->resize_timeout)
-                traywin->resize_timeout =
-                    add_timeout(slow_resize_period, 0, systray_resize_icon, traywin, &traywin->resize_timeout);
+            if (!traywin->resize_timer.enabled_)
+                    change_timer(&traywin->resize_timer, true, slow_resize_period, 0, systray_resize_icon, traywin);
             return;
         }
     } else {
         // Correct size
-        stop_timeout(traywin->resize_timeout);
+        stop_timer(&traywin->resize_timer);
     }
 
     // Resize and redraw the systray
@@ -1224,8 +1223,7 @@ void systray_render_icon_composited(void *t)
     if (compare_timespecs(&earliest_render, &now) > 0) {
         traywin->num_fast_renders++;
         if (traywin->num_fast_renders > max_fast_refreshes) {
-            traywin->render_timeout =
-                add_timeout(min_refresh_period, 0, systray_render_icon_composited, traywin, &traywin->render_timeout);
+            change_timer(&traywin->render_timer, true, min_refresh_period, 0, systray_render_icon_composited, traywin);
             if (systray_profile)
                 fprintf(stderr,
                         YELLOW "[%f] %s:%d win = %lu (%s) delaying rendering" RESET "\n",
@@ -1244,8 +1242,7 @@ void systray_render_icon_composited(void *t)
 
     if (traywin->width == 0 || traywin->height == 0) {
         // reschedule rendering since the geometry information has not yet been processed (can happen on slow cpu)
-        traywin->render_timeout =
-            add_timeout(min_refresh_period, 0, systray_render_icon_composited, traywin, &traywin->render_timeout);
+        change_timer(&traywin->render_timer, true, min_refresh_period, 0, systray_render_icon_composited, traywin);
         if (systray_profile)
             fprintf(stderr,
                     YELLOW "[%f] %s:%d win = %lu (%s) delaying rendering" RESET "\n",
@@ -1257,10 +1254,7 @@ void systray_render_icon_composited(void *t)
         return;
     }
 
-    if (traywin->render_timeout) {
-        stop_timeout(traywin->render_timeout);
-        traywin->render_timeout = NULL;
-    }
+    stop_timer(&traywin->render_timer);
 
     // good systray icons support 32 bit depth, but some icons are still 24 bit.
     // We create a heuristic mask for these icons, i.e. we get the rgb value in the top left corner, and
@@ -1423,9 +1417,7 @@ void systray_render_icon(void *t)
         //			        __LINE__,
         //			        traywin->win,
         //			        traywin->name);
-        stop_timeout(traywin->render_timeout);
-        traywin->render_timeout =
-            add_timeout(min_refresh_period, 0, systray_render_icon, traywin, &traywin->render_timeout);
+        change_timer(&traywin->render_timer, true, min_refresh_period, 0, systray_render_icon, traywin);
         return;
     }
 
@@ -1448,19 +1440,13 @@ void systray_render_icon(void *t)
         unsigned int width, height, depth;
         Window root;
         if (!XGetGeometry(server.display, traywin->win, &root, &xpos, &ypos, &width, &height, &border_width, &depth)) {
-            stop_timeout(traywin->render_timeout);
-            if (!traywin->render_timeout)
-                traywin->render_timeout =
-                    add_timeout(min_refresh_period, 0, systray_render_icon, traywin, &traywin->render_timeout);
+            change_timer(&traywin->render_timer, true, min_refresh_period, 0, systray_render_icon, traywin);
             systray_render_icon_from_image(traywin);
             XSetErrorHandler(old);
             return;
         } else {
             if (xpos != 0 || ypos != 0 || width != traywin->width || height != traywin->height) {
-                stop_timeout(traywin->render_timeout);
-                if (!traywin->render_timeout)
-                    traywin->render_timeout =
-                        add_timeout(min_refresh_period, 0, systray_render_icon, traywin, &traywin->render_timeout);
+                change_timer(&traywin->render_timer, true, min_refresh_period, 0, systray_render_icon, traywin);
                 systray_render_icon_from_image(traywin);
                 if (systray_profile)
                     fprintf(stderr,
