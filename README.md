@@ -1,5 +1,5 @@
-# Latest stable release: 16.2
-Changes: https://gitlab.com/o9000/tint2/blob/16.2/ChangeLog
+# Latest stable release: 16.6
+Changes: https://gitlab.com/o9000/tint2/blob/16.6/ChangeLog
 
 Documentation: [doc/tint2.md](doc/tint2.md)
 
@@ -8,7 +8,7 @@ Compile it with (after you install the [dependencies](https://gitlab.com/o9000/t
 ```
 git clone https://gitlab.com/o9000/tint2.git
 cd tint2
-git checkout 16.2
+git checkout 16.6
 mkdir build
 cd build
 cmake ..
@@ -97,4 +97,3 @@ tint2 is a simple panel/taskbar made for modern X window managers. It was specif
 ## More
 
 * [Tint2 wiki](https://gitlab.com/o9000/tint2/wikis/Home)
-Home)

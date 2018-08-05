@@ -1,14 +1,14 @@
-tint2 (16.2-1+deb8) jessie-backports; urgency=medium
+tint2 (16.6-1) helium; urgency=medium
 
-  * Release 16.2
+  * New upstream release 16.6.
 
- -- Jens John <dev@2ion.de>  Wed, 10 Jan 2018 22:35:16 +0100
+ -- Jens John <dev@2ion.de>  Sun, 05 Aug 2018 14:01:54 +0200
 
-tint2 (16.0-1+deb8) jessie-backports; urgency=medium
+tint2 (16.4-1) helium; urgency=medium
 
-  * New upstream release 16.0
+  * New upstream release 16.4.
 
- -- Jens John <dev@2ion.de>  Fri, 10 Nov 2017 15:08:28 +0100
+ -- Jens John <dev@2ion.de>  Sun, 08 Jul 2018 14:26:03 +0200
 
 tint2 (15.2-1+deb9) stretch-backports; urgency=medium
 
