@@ -1,3 +1,9 @@
+tint2 (16.6-1) helium; urgency=medium
+
+  * New upstream release 16.6.
+
+ -- Jens John <dev@2ion.de>  Sun, 05 Aug 2018 14:01:54 +0200
+
 tint2 (16.4-1) helium; urgency=medium
 
   * New upstream release 16.4.
