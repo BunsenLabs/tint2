@@ -1,4 +1,4 @@
-# TINT2 1 "2018-05-03" 16.4
+# TINT2 1 "2018-08-04" 16.6
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -385,6 +385,7 @@ panel_size = 94% 30
   * `taskbar_sort_order = none/title/center` : Specifies the sort order of the tasks on the taskbar.  *(since 0.12)*
     * `none` : No sorting. New tasks are simply appended at the end of the taskbar when they appear.
     * `title` : Sorts the tasks by title.
+    * `application` : Sorts the tasks by application name. *(since 16.3)*
     * `center` : Sorts the tasks by their window centers.
     * `mru` : Shows the most recently used tasks first. *(since 0.12.4)*
     * `lru` : Shows the most recently used tasks last. *(since 0.12.4)*
@@ -546,7 +547,7 @@ The action semantics:
 
   * `battery_low_status = integer`: At what battery percentage the low command is executed.
 
-  * `battery_low_cmd = notify-send "battery low"` : Command to execute when the battery is low.
+  * `battery_low_cmd = xmessage 'tint2: Battery low!'` : Command to execute when the battery is low.
 
   * `battery_full_cmd = notify-send "battery full"` : Command to execute when the battery is full.
 
