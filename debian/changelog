@@ -1,4 +1,4 @@
-tint2 (16.6-1) helium; urgency=medium
+tint2 (16.6+deb8-1) jessie-backports; urgency=medium
 
   * New upstream release 16.6.
 
