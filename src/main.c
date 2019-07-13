@@ -797,6 +797,7 @@ void tint2(int argc, char **argv, gboolean *restart)
 
 int main(int argc, char **argv)
 {
+#ifdef USE_REAL_MALLOC
     if (!getenv("G_SLICE") && setenv("G_SLICE", "always-malloc", 1) == 0) {
         fprintf(stderr,
                 YELLOW "tint2: reexecuting tint2 without glib slice allocator..." RESET "\n");
@@ -804,6 +805,11 @@ int main(int argc, char **argv)
         fprintf(stderr, RED "tint2: %s %d: execvp failed! carrying on..." RESET "\n",
                 __FILE__, __LINE__);
     }
+#else
+    fprintf(stderr, "tint2: Using glib slice allocator (default). "
+                    "Run tint2 with environment variable G_SLICE=always-malloc "
+                    "in case of strange behavior or crashes\n");
+#endif
     gboolean restart;
     do {
         restart = FALSE;
