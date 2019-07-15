@@ -1,4 +1,4 @@
-2019-07-12 master
+2019-07-14 16.7
 - Fixes:
   - Fix spacing around icons in executor without text in vertical panels (issue #716)
   - Fix Bug: Clock Only Updates Every Minute With Format %s (issue #724)
@@ -1019,6 +1019,7 @@ released tint-0.2
 2008-04-22
 - fork ttm projet from p://code.google.com/p/ttm/ (by Pål Staurland staura@gmail.com)
   while the projet is no longer in developpement, have not changed the name of 'tint'.
+.
 .
 .
 .
