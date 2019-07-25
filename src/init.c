@@ -106,6 +106,9 @@ void handle_env_vars()
     debug_dnd = getenv("DEBUG_DND") != NULL;
     debug_thumbnails = getenv("DEBUG_THUMBNAILS") != NULL;
     debug_timers = getenv("DEBUG_TIMERS") != NULL;
+    debug_executors = getenv("DEBUG_EXECUTORS") != NULL;
+    debug_blink = getenv("DEBUG_BLINK") != NULL;
+    thumb_use_shm = getenv("TINT2_THUMBNAIL_SHM") != NULL;
     if (debug_fps) {
         init_fps_distribution();
         char *s = getenv("TRACING_FPS_THRESHOLD");
@@ -208,8 +211,8 @@ void init_X11_pre_config()
         exit(EXIT_FAILURE);
     }
     server.x11_fd = ConnectionNumber(server.display);
-    XSetErrorHandler((XErrorHandler)server_catch_error);
-    XSetIOErrorHandler((XIOErrorHandler)x11_io_error);
+    XSetErrorHandler(server_catch_error);
+    XSetIOErrorHandler(x11_io_error);
     server_init_atoms();
     server.screen = DefaultScreen(server.display);
     server.root_win = RootWindow(server.display, server.screen);
@@ -246,8 +249,9 @@ void init(int argc, char **argv)
     if (!config_read()) {
         fprintf(stderr, "tint2: Could not read config file.\n");
         print_usage();
+        warnings_for_timers = false;
         cleanup();
-        return;
+        exit(EXIT_FAILURE);
     }
 
     init_post_config();

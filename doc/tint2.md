@@ -1,4 +1,4 @@
-# TINT2 1 "2018-01-21" 16.2
+# TINT2 1 "2019-07-14" 16.7
 
 ## NAME
 tint2 - lightweight panel/taskbar
@@ -306,9 +306,11 @@ panel_size = 94% 30
 
   * `panel_dock = boolean (0 or 1)` : Defines if tint2 is placed into the window manager's dock. For the openbox window manager it is advised to also use a modifier for the moveButton option, otherwise the mouse click is not forwarded to tint2 (in ~/.config/openbox/rc.xml).
 
+  * `panel_pivot_struts = boolean (0 or 1)` : Defines if tint2 lies to the window manager about its orientation (horizontal vs vertical) when requesting reserved space with STRUTs (see `strut_policy` below). On some window managers, this allows placing a panel in the middle of the virtual screen, e.g. on the bottom edge of the top monitor in a vertical dual-monitor setup. 
+
   * `panel_layer = bottom/normal/top` : Places tint2 into the bottom/normal/top layer. This is helpful for specifying if the panel can be covered by other windows or not. The default is the bottom layer, but with real transparency normal or top layer may be a nice alternative.
 
-  * `strut_policy = follow_size/minimum/none` : STRUTs are used by the window manager to decide the size of maximized windows. Note: on multi-monitor (Xinerama) setups, the panel must be placed at the edge (not in the middle) of the virtual screen for this to work correctly.
+  * `strut_policy = follow_size/minimum/none` : STRUTs are used by the window manager to decide the size of maximized windows. Note: on multi-monitor (Xinerama) setups, the panel generally must be placed at the edge (not in the middle) of the virtual screen for this to work correctly (though on some window managers, setting `panel_pivot_struts` may work around this limitation). 
     * `follow_size` means that the maximized windows always resize to have a common edge with tint2.
     * `minimum` means that the maximized windows always expand to have a common edge with the hidden panel. This is useful if the `autohide` option is enabled.
     * `none` means that the maximized windows use the full screen size.
@@ -385,6 +387,7 @@ panel_size = 94% 30
   * `taskbar_sort_order = none/title/center` : Specifies the sort order of the tasks on the taskbar.  *(since 0.12)*
     * `none` : No sorting. New tasks are simply appended at the end of the taskbar when they appear.
     * `title` : Sorts the tasks by title.
+    * `application` : Sorts the tasks by application name. *(since 16.3)*
     * `center` : Sorts the tasks by their window centers.
     * `mru` : Shows the most recently used tasks first. *(since 0.12.4)*
     * `lru` : Shows the most recently used tasks last. *(since 0.12.4)*
@@ -546,7 +549,7 @@ The action semantics:
 
   * `battery_low_status = integer`: At what battery percentage the low command is executed.
 
-  * `battery_low_cmd = notify-send "battery low"` : Command to execute when the battery is low.
+  * `battery_low_cmd = xmessage 'tint2: Battery low!'` : Command to execute when the battery is low.
 
   * `battery_full_cmd = notify-send "battery full"` : Command to execute when the battery is full.
 
@@ -562,6 +565,7 @@ The action semantics:
     * %h: Hours left until completely charged/discharged (estimated).
     * %t: Time left. Shows "hrs:mins" when charging/discharging, or "Ful\" when full.
     * %p: Percentage. Includes the % sign.
+    * %P: Percentage. Without the % sign.
 
   * `bat2_format = FORMAT_STRING` : Format for battery line 2. Default: %t. *(since 1.0)*
 
@@ -764,4 +768,5 @@ and the wiki page at https://gitlab.com/o9000/tint2/wikis/home.
 
 This documentation is also provided in HTML and Markdown format in the system's default location
 for documentation files, usually `/usr/share/doc/tint2` or `/usr/local/share/doc/tint2`.
+.
 .

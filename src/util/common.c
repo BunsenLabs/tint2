@@ -48,18 +48,10 @@
 #include <librsvg/rsvg.h>
 #endif
 
-#ifdef ENABLE_LIBUNWIND
-#define UNW_LOCAL_ONLY
-#include <libunwind.h>
-#else
-#ifdef ENABLE_EXECINFO
-#include <execinfo.h>
-#endif
-#endif
-
 #include "../panel.h"
 #include "timer.h"
 #include "signals.h"
+#include "bt.h"
 
 void write_string(int fd, const char *s)
 {
@@ -83,39 +75,13 @@ void log_string(int fd, const char *s)
 
 void dump_backtrace(int log_fd)
 {
-#ifndef DISABLE_BACKTRACE
+    struct backtrace bt;
+    get_backtrace(&bt, 1);
     log_string(log_fd, "\n" YELLOW "Backtrace:" RESET "\n");
-
-#ifdef ENABLE_LIBUNWIND
-    unw_cursor_t cursor;
-    unw_context_t context;
-    unw_getcontext(&context);
-    unw_init_local(&cursor, &context);
-
-    while (unw_step(&cursor) > 0) {
-        unw_word_t offset;
-        char fname[128];
-        fname[0] = '\0';
-        (void)unw_get_proc_name(&cursor, fname, sizeof(fname), &offset);
-        log_string(log_fd, fname);
+    for (size_t i = 0; i < bt.frame_count; i++) {
+        log_string(log_fd, bt.frames[i].name);
         log_string(log_fd, "\n");
     }
-#else
-#ifdef ENABLE_EXECINFO
-#define MAX_TRACE_SIZE 128
-    void *array[MAX_TRACE_SIZE];
-    size_t size = backtrace(array, MAX_TRACE_SIZE);
-    char **strings = backtrace_symbols(array, size);
-
-    for (size_t i = 0; i < size; i++) {
-        log_string(log_fd, strings[i]);
-        log_string(log_fd, "\n");
-    }
-
-    free(strings);
-#endif // ENABLE_EXECINFO
-#endif // ENABLE_LIBUNWIND
-#endif // DISABLE_BACKTRACE
 }
 
 // sleep() returns early when signals arrive. This function does not.
@@ -396,8 +362,12 @@ pid_t tint_exec(const char *command,
         // Allow children to exist after parent destruction
         setsid();
         // Run the command
-        if (dir)
-            chdir(dir);
+        if (dir) {
+            int ret = chdir(dir);
+            if (ret != 0) {
+                fprintf(stderr, "tint2: failed to chdir to %s\n", dir);
+            }
+        }
         close_all_fds();
         reset_signals();
         if (terminal) {
@@ -758,27 +728,60 @@ void render_image(Drawable d, int x, int y)
     XFreePixmap(server.display, pixmap);
 }
 
-void draw_text(PangoLayout *layout, cairo_t *c, int posx, int posy, Color *color, int font_shadow)
+gboolean is_color_attribute(PangoAttribute *attr, gpointer user_data)
 {
-    if (font_shadow) {
-        const int shadow_size = 3;
-        const double shadow_edge_alpha = 0.0;
-        int i, j;
-        for (i = -shadow_size; i <= shadow_size; i++) {
-            for (j = -shadow_size; j <= shadow_size; j++) {
-                cairo_set_source_rgba(c,
-                                      0.0,
-                                      0.0,
-                                      0.0,
-                                      1.0 -
-                                          (1.0 - shadow_edge_alpha) *
-                                              sqrt((i * i + j * j) / (double)(shadow_size * shadow_size)));
-                pango_cairo_update_layout(c, layout);
-                cairo_move_to(c, posx + i, posy + j);
-                pango_cairo_show_layout(c, layout);
-            }
+    return attr->klass->type == PANGO_ATTR_FOREGROUND ||
+            attr->klass->type == PANGO_ATTR_BACKGROUND ||
+            attr->klass->type == PANGO_ATTR_UNDERLINE_COLOR ||
+            attr->klass->type == PANGO_ATTR_STRIKETHROUGH_COLOR ||
+            attr->klass->type == PANGO_ATTR_FOREGROUND_ALPHA ||
+            attr->klass->type == PANGO_ATTR_BACKGROUND_ALPHA;
+}
+
+gboolean layout_set_markup_strip_colors(PangoLayout *layout, const char *markup)
+{
+    PangoAttrList *attrs = NULL;
+    char *text = NULL;
+    GError *error = NULL;
+    if (!pango_parse_markup(markup, -1, 0, &attrs, &text, NULL, &error)) {
+        g_error_free(error);
+        return FALSE;
+    }
+
+    pango_layout_set_text(layout, text, -1);
+    g_free(text);
+
+    pango_attr_list_filter(attrs, is_color_attribute, NULL);
+    pango_layout_set_attributes(layout, attrs);
+    pango_attr_list_unref(attrs);
+    return TRUE;
+}
+
+void draw_shadow(cairo_t *c, int posx, int posy, PangoLayout *shadow_layout)
+{
+    const int shadow_size = 3;
+    const double shadow_edge_alpha = 0.0;
+    int i, j;
+    for (i = -shadow_size; i <= shadow_size; i++) {
+        for (j = -shadow_size; j <= shadow_size; j++) {
+            cairo_set_source_rgba(c,
+                                  0.0,
+                                  0.0,
+                                  0.0,
+                                  1.0 -
+                                      (1.0 - shadow_edge_alpha) *
+                                          sqrt((i * i + j * j) / (double)(shadow_size * shadow_size)));
+            pango_cairo_update_layout(c, shadow_layout);
+            cairo_move_to(c, posx + i, posy + j);
+            pango_cairo_show_layout(c, shadow_layout);
         }
     }
+}
+
+void draw_text(PangoLayout *layout, cairo_t *c, int posx, int posy, Color *color, PangoLayout *shadow_layout)
+{
+    if (shadow_layout)
+        draw_shadow(c, posx, posy, shadow_layout);
     cairo_set_source_rgba(c, color->rgb[0], color->rgb[1], color->rgb[2], color->alpha);
     pango_cairo_update_layout(c, layout);
     cairo_move_to(c, posx, posy);
@@ -788,15 +791,15 @@ void draw_text(PangoLayout *layout, cairo_t *c, int posx, int posy, Color *color
 Imlib_Image load_image(const char *path, int cached)
 {
     Imlib_Image image;
+    static unsigned long counter = 0;
+    if (debug_icons)
+        fprintf(stderr, "tint2: loading icon %s\n", path);
 #ifdef HAVE_RSVG
-    if (cached) {
-        image = imlib_load_image_immediately(path);
-    } else {
-        image = imlib_load_image_immediately_without_cache(path);
-    }
+    image = imlib_load_image(path);
     if (!image && g_str_has_suffix(path, ".svg")) {
         char tmp_filename[128];
-        snprintf(tmp_filename, sizeof(tmp_filename), "/tmp/tint2-%d.png", (int)getpid());
+        snprintf(tmp_filename, sizeof(tmp_filename), "/tmp/tint2-%d-%lu.png", (int)getpid(), counter);
+        counter++;
         int fd = open(tmp_filename, O_CREAT | O_EXCL, 0600);
         if (fd >= 0) {
             // We fork here because librsvg allocates memory like crazy
@@ -818,19 +821,17 @@ Imlib_Image load_image(const char *path, int cached)
                 // Parent
                 close(fd);
                 waitpid(pid, 0, 0);
-                image = imlib_load_image_immediately_without_cache(tmp_filename);
+                image = imlib_load_image_immediately(tmp_filename);
                 unlink(tmp_filename);
             }
         }
     } else
 #endif
     {
-        if (cached) {
-            image = imlib_load_image_immediately(path);
-        } else {
-            image = imlib_load_image_immediately_without_cache(path);
-        }
+        image = imlib_load_image(path);
     }
+    imlib_context_set_image(image);
+    imlib_image_set_changes_on_disk();
     return image;
 }
 

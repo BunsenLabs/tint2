@@ -20,6 +20,8 @@
 
 #define MAX_TOOLTIP_LEN 4096
 
+bool debug_executors = false;
+
 void execp_timer_callback(void *arg);
 char *execp_get_tooltip(void *obj);
 void execp_init_fonts();
@@ -332,7 +334,7 @@ void execp_compute_icon_text_geometry(Execp *execp,
     int available_w, available_h;
     if (panel_horizontal) {
         available_w = panel->area.width;
-        available_h = area->height - 2 * *horiz_padding - left_right_border_width(area);
+        available_h = area->height - 2 * *vert_padding - left_right_border_width(area);
     } else {
         available_w = !text_next_line
                           ? area->width - *icon_w - (*icon_w ? *interior_padding : 0) - 2 * *horiz_padding -
@@ -371,7 +373,11 @@ void execp_compute_icon_text_geometry(Execp *execp,
             *new_size = *txt_height + 2 * *vert_padding + top_bottom_border_width(area);
             *new_size = MAX(*new_size, *icon_h + 2 * *vert_padding + top_bottom_border_width(area));
         } else {
-            *new_size = *icon_h + *interior_padding + *txt_height + 2 * *vert_padding + top_bottom_border_width(area);
+            if (strlen(execp->backend->text)) {
+                *new_size = *icon_h + *interior_padding + *txt_height + 2 * *vert_padding + top_bottom_border_width(area);
+            } else {
+                *new_size = *icon_h + 2 * *vert_padding + top_bottom_border_width(area);
+            }
         }
         if (*new_size != area->height) {
             *resized = TRUE;
@@ -439,10 +445,17 @@ gboolean resize_execp(void *obj)
                 execp->frontend->texty = (execp->area.height - txt_height) / 2;
                 execp->frontend->textx = execp->frontend->iconx + icon_w + interior_padding;
             } else {
-                execp->frontend->icony = (execp->area.height - icon_h - interior_padding - txt_height) / 2;
-                execp->frontend->iconx = (execp->area.width - icon_w) / 2;
-                execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
-                execp->frontend->textx = (execp->area.width - txt_width) / 2;
+                if (strlen(execp->backend->text)) {
+                    execp->frontend->icony = (execp->area.height - icon_h - interior_padding - txt_height) / 2;
+                    execp->frontend->iconx = (execp->area.width - icon_w) / 2;
+                    execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
+                    execp->frontend->textx = (execp->area.width - txt_width) / 2;
+                } else {
+                    execp->frontend->icony = (execp->area.height - icon_h) / 2;
+                    execp->frontend->iconx = (execp->area.width - icon_w) / 2;
+                    execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
+                    execp->frontend->textx = (execp->area.width - txt_width) / 2;
+                }
             }
         } else {
             execp->frontend->texty = (execp->area.height - txt_height) / 2;
@@ -456,10 +469,17 @@ gboolean resize_execp(void *obj)
                 execp->frontend->texty = (execp->area.height - txt_height) / 2;
                 execp->frontend->textx = execp->frontend->iconx + icon_w + interior_padding;
             } else {
-                execp->frontend->icony = (execp->area.height - icon_h - interior_padding - txt_height) / 2;
-                execp->frontend->iconx = left_border_width(&execp->area) + horiz_padding;
-                execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
-                execp->frontend->textx = execp->frontend->iconx;
+                if (strlen(execp->backend->text)) {
+                    execp->frontend->icony = (execp->area.height - icon_h - interior_padding - txt_height) / 2;
+                    execp->frontend->iconx = left_border_width(&execp->area) + horiz_padding;
+                    execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
+                    execp->frontend->textx = execp->frontend->iconx;
+                } else {
+                    execp->frontend->icony = (execp->area.height - icon_h) / 2;
+                    execp->frontend->iconx = left_border_width(&execp->area) + horiz_padding;
+                    execp->frontend->texty = execp->frontend->icony + icon_h + interior_padding;
+                    execp->frontend->textx = execp->frontend->iconx;
+                }
             }
         } else {
             execp->frontend->texty = (execp->area.height - txt_height) / 2;
@@ -471,6 +491,18 @@ gboolean resize_execp(void *obj)
     return resized;
 }
 
+PangoLayout *create_execp_text_layout(Execp *execp, PangoContext *context)
+{
+    PangoLayout *layout = pango_layout_new(context);
+    pango_layout_set_font_description(layout, execp->backend->font_desc);
+    pango_layout_set_width(layout, (execp->frontend->textw + TINT2_PANGO_SLACK) * PANGO_SCALE);
+    pango_layout_set_height(layout, (execp->frontend->texth + TINT2_PANGO_SLACK) * PANGO_SCALE);
+    pango_layout_set_alignment(layout, execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
+    pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+    pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
+    return layout;
+}
+
 void draw_execp(void *obj, cairo_t *c)
 {
     Execp *execp = (Execp *)obj;
@@ -478,7 +510,8 @@ void draw_execp(void *obj, cairo_t *c)
 
     PangoContext *context = pango_cairo_create_context(c);
     pango_cairo_context_set_resolution(context, 96 * panel->scale);
-    PangoLayout *layout = pango_layout_new(context);
+    PangoLayout *layout = create_execp_text_layout(execp, context);
+    PangoLayout *shadow_layout = NULL;
 
     if (execp->backend->has_icon && execp->backend->icon) {
         imlib_context_set_image(execp->backend->icon);
@@ -487,16 +520,18 @@ void draw_execp(void *obj, cairo_t *c)
     }
 
     // draw layout
-    pango_layout_set_font_description(layout, execp->backend->font_desc);
-    pango_layout_set_width(layout, (execp->frontend->textw + TINT2_PANGO_SLACK) * PANGO_SCALE);
-    pango_layout_set_height(layout, (execp->frontend->texth + TINT2_PANGO_SLACK) * PANGO_SCALE);
-    pango_layout_set_alignment(layout, execp->backend->centered ? PANGO_ALIGN_CENTER : PANGO_ALIGN_LEFT);
-    pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
-    pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_NONE);
-    if (!execp->backend->has_markup)
+    if (!execp->backend->has_markup) {
         pango_layout_set_text(layout, execp->backend->text, strlen(execp->backend->text));
-    else
+    } else {
         pango_layout_set_markup(layout, execp->backend->text, strlen(execp->backend->text));
+        if (panel_config.font_shadow) {
+            shadow_layout = create_execp_text_layout(execp, context);
+            if (!layout_set_markup_strip_colors(shadow_layout, execp->backend->text)) {
+                g_object_unref(shadow_layout);
+                shadow_layout = NULL;
+            }
+        }
+    }
 
     pango_cairo_update_layout(c, layout);
     draw_text(layout,
@@ -504,7 +539,7 @@ void draw_execp(void *obj, cairo_t *c)
               execp->frontend->textx,
               execp->frontend->texty,
               &execp->backend->font_color,
-              panel_config.font_shadow);
+              shadow_layout);
 
     g_object_unref(layout);
     g_object_unref(context);
@@ -529,12 +564,13 @@ void execp_dump_geometry(void *obj, int indent)
             imlib_context_set_image(tmp);
     }
     fprintf(stderr,
-            "tint2: %*sText: x = %d, y = %d, w = %d, align = %s, text = %s\n",
+            "tint2: %*sText: x = %d, y = %d, w = %d, h = %d, align = %s, text = %s\n",
             indent,
             "",
             execp->frontend->textx,
             execp->frontend->texty,
             execp->frontend->textw,
+            execp->frontend->texth,
             execp->backend->centered ? "center" : "left",
             execp->backend->text);
 }
@@ -635,7 +671,8 @@ void execp_timer_callback(void *arg)
         close(pipe_fd_stderr[0]);
         return;
     } else if (child == 0) {
-        fprintf(stderr, "tint2: Executing: %s\n", execp->backend->command);
+        if (debug_executors)
+            fprintf(stderr, "tint2: Executing: %s\n", execp->backend->command);
         // We are in the child
         close(pipe_fd_stdout[0]);
         dup2(pipe_fd_stdout[1], 1); // 1 is stdout
@@ -854,7 +891,7 @@ gboolean read_execp(void *obj)
                 } else {
                     execp->backend->text = strdup("");
                 }
-                execp->backend->icon_path = strdup(execp->backend->buf_stdout);
+                execp->backend->icon_path = expand_tilde(execp->backend->buf_stdout);
             }
             size_t len = strlen(execp->backend->text);
             if (len > 0 && execp->backend->text[len - 1] == '\n')

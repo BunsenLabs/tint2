@@ -42,6 +42,7 @@ gboolean battery_enabled;
 gboolean battery_tooltip_enabled;
 int percentage_hide;
 static Timer battery_timer;
+static Timer battery_blink_timer;
 
 #define BATTERY_BUF_SIZE 256
 static char buf_bat_line1[BATTERY_BUF_SIZE];
@@ -60,6 +61,8 @@ char *battery_rclick_command;
 char *battery_uwheel_command;
 char *battery_dwheel_command;
 gboolean battery_found;
+gboolean battery_warn;
+gboolean battery_warn_red;
 
 char *battery_sys_prefix = (char *)"";
 
@@ -77,6 +80,9 @@ void default_battery()
     battery_low_cmd_sent = FALSE;
     battery_full_cmd_sent = FALSE;
     INIT_TIMER(battery_timer);
+    INIT_TIMER(battery_blink_timer);
+    battery_warn = FALSE;
+    battery_warn_red = FALSE;
     bat1_has_font = FALSE;
     bat1_font_desc = NULL;
     bat1_format = NULL;
@@ -128,6 +134,7 @@ void cleanup_battery()
     free(ac_disconnected_cmd);
     ac_disconnected_cmd = NULL;
     destroy_timer(&battery_timer);
+    destroy_timer(&battery_blink_timer);
     battery_found = FALSE;
 
     battery_os_free();
@@ -164,6 +171,7 @@ void battery_update_text(char *dest, char *format)
         // %h : Hours left (estimated).
         // %t :	Time left. This is equivalent to the old behaviour; i.e. "(plugged in)" or "hrs:mins" otherwise.
         // %p :	Percentage left. Includes the % sign.
+        // %P :	Percentage left without the % sign.
         if (*c == '%') {
             c++;
             o++; // Skip the format control character.
@@ -190,6 +198,10 @@ void battery_update_text(char *dest, char *format)
                 break;
             case 'p':
                 snprintf(buf, sizeof(buf), "%d%%", battery_state.percentage);
+                strnappend(dest, buf, BATTERY_BUF_SIZE);
+                break;
+            case 'P':
+                snprintf(buf, sizeof(buf), "%d", battery_state.percentage);
                 strnappend(dest, buf, BATTERY_BUF_SIZE);
                 break;
             case 't':
@@ -310,6 +322,18 @@ void battery_default_font_changed()
     schedule_panel_redraw();
 }
 
+void blink_battery(void *arg)
+{
+    if (!battery_enabled)
+        return;
+    battery_warn_red = battery_warn ? !battery_warn_red : FALSE;
+    for (int i = 0; i < num_panels; i++) {
+        if (panels[i].battery.area.on_screen) {
+            schedule_redraw(&panels[i].battery.area);
+        }
+    }
+}
+
 void update_battery_tick(void *arg)
 {
     if (!battery_enabled)
@@ -320,6 +344,7 @@ void update_battery_tick(void *arg)
     gboolean old_ac_connected = battery_state.ac_connected;
     int16_t old_hours = battery_state.time.hours;
     int8_t old_minutes = battery_state.time.minutes;
+    gboolean old_warn = battery_warn;
 
     if (!battery_found) {
         init_battery();
@@ -357,6 +382,20 @@ void update_battery_tick(void *arg)
         battery_full_cmd_sent = FALSE;
     }
 
+    if (!battery_blink_timer.enabled_) {
+        if ((battery_state.percentage < battery_low_status &&
+            battery_state.state == BATTERY_DISCHARGING) || debug_blink) {
+            change_timer(&battery_blink_timer, true, 10, 1000, blink_battery, 0);
+            battery_warn = TRUE;
+        }
+    } else {
+        if (battery_state.percentage > battery_low_status ||
+            battery_state.state != BATTERY_DISCHARGING) {
+            stop_timer(&battery_blink_timer);
+            battery_warn = FALSE;
+        }
+    }
+
     for (int i = 0; i < num_panels; i++) {
         // Show/hide if needed
         if (!battery_found) {
@@ -370,8 +409,11 @@ void update_battery_tick(void *arg)
         // Redraw if needed
         if (panels[i].battery.area.on_screen) {
             if (old_found != battery_found || old_percentage != battery_state.percentage ||
-                old_hours != battery_state.time.hours || old_minutes != battery_state.time.minutes) {
+                old_hours != battery_state.time.hours || old_minutes != battery_state.time.minutes ||
+                old_warn != battery_warn) {
                 panels[i].battery.area.resize_needed = TRUE;
+                if (!battery_warn)
+                    panels[i].battery.area.bg = panel_config.battery.area.bg;
                 schedule_panel_redraw();
             }
         }
@@ -433,6 +475,12 @@ void draw_battery(void *obj, cairo_t *c)
                    battery->bat2_posy,
                    &battery->font_color,
                    panel->scale);
+    if (battery_warn && battery_warn_red) {
+        cairo_set_source_rgba(c, 1, 0, 0, 1);
+        cairo_set_line_width(c, 0);
+        cairo_rectangle(c, 0, 0, battery->area.width, battery->area.height);
+        cairo_fill(c);
+    }
 }
 
 void battery_dump_geometry(void *obj, int indent)

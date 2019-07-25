@@ -25,8 +25,8 @@
 GtkWidget *scale_relative_to_dpi, *scale_relative_to_screen_height;
 GtkWidget *panel_width, *panel_height, *panel_margin_x, *panel_margin_y, *panel_padding_x, *panel_padding_y,
     *panel_spacing;
-GtkWidget *panel_wm_menu, *panel_dock, *panel_autohide, *panel_autohide_show_time, *panel_autohide_hide_time,
-    *panel_autohide_size;
+GtkWidget *panel_wm_menu, *panel_dock, *panel_pivot_struts, *panel_autohide, *panel_autohide_show_time,
+    *panel_autohide_hide_time, *panel_autohide_size;
 GtkWidget *panel_combo_strut_policy, *panel_combo_layer, *panel_combo_width_type, *panel_combo_height_type,
     *panel_combo_monitor;
 GtkWidget *panel_window_name, *disable_transparency;
@@ -1013,6 +1013,27 @@ void create_panel(GtkWidget *parent)
                          _("If enabled, places the panel in the dock area of the window manager. "
                            "Windows placed in the dock are usually treated differently than normal windows. "
                            "The exact behavior depends on the window manager and its configuration."),
+                         NULL);
+
+    row++;
+    col = 2;
+    label = gtk_label_new(_("Pivot reserved space"));
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+    gtk_widget_show(label);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+
+    panel_pivot_struts = gtk_check_button_new();
+    gtk_widget_show(panel_pivot_struts);
+    gtk_table_attach(GTK_TABLE(table), panel_pivot_struts, col, col + 1, row, row + 1, GTK_FILL, 0, 0, 0);
+    col++;
+    gtk_tooltips_set_tip(tooltips,
+                         panel_pivot_struts,
+                         _("If enabled, the space reserved for the panel (if \"Maximised windows\" is set to "
+                           "match the panel size or hidden panel size) will be given to the window manager as if "
+                           "the panel were the opposite orientation (horizontal vs vertical) than it actually is. "
+                           "On some window managers this allows placing a panel in the middle of the virtual screen, "
+                           "e.g. on the bottom edge of the top screen in a vertical dual-monitor setup."),
                          NULL);
 
     row++;
@@ -2718,6 +2739,7 @@ void create_taskbar(GtkWidget *parent)
     col++;
     gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("None"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("By title"));
+    gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("By application"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("By center"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("Most recently used first"));
     gtk_combo_box_append_text(GTK_COMBO_BOX(taskbar_sort_order), _("Most recently used last"));
@@ -2728,6 +2750,7 @@ void create_taskbar(GtkWidget *parent)
                            "'None' means that new tasks are added to the end, and the user can also reorder task "
                            "buttons by mouse dragging. \n"
                            "'By title' means that tasks are sorted by their window titles. \n"
+                           "'By application' means that tasks are sorted by their application names. \n"
                            "'By center' means that tasks are sorted geometrically by their window centers."),
                          NULL);
 
@@ -5822,7 +5845,8 @@ void create_battery(GtkWidget *parent)
                             " %m: Minutes left until completely charged/discharged (estimated).\n"
                             " %h: Hours left until completely charged/discharged (estimated).\n"
                             " %t: Time left. Shows \"hrs:mins\" when charging/discharging, or \"Full\".\n"
-                            " %p: Percentage. Includes the % sign.";
+                            " %p: Percentage. Includes the % sign.\n"
+                            " %p: Percentage. Without the % sign.";
     gtk_tooltips_set_tip(tooltips,
                          battery_format1,
                          _(bat_format_spec),

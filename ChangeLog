@@ -1,3 +1,36 @@
+2019-07-14 16.7
+- Fixes:
+  - Fix spacing around icons in executor without text in vertical panels (issue #716)
+  - Fix Bug: Clock Only Updates Every Minute With Format %s (issue #724)
+  - Fix markup drawing when font shadow enabled (issue #709)
+  - Struts pivoting: workaround for panel positioning between monitors in mutter (Chris Billington)
+- Enhancements:
+  - Blink battery when discharging and low (issue #723)
+  - Add support for battery percentage without % sign (issue #730)
+  - Expand leading ~ in icon paths
+
+2018-08-05 16.6.1
+- Fix packaging regression for debian (issue #715)
+
+2018-08-04 16.6
+- Fix regression in task icon brightness (issue #714)
+
+2018-08-04 16.5
+- Add new build script
+- Add option to sort taskbar by application name
+- Fix regression in image loading
+
+2018-05-03 16.4
+- Update AUTHORS
+- Fixes:
+  - Fix leak in image loading (issue #704)
+  - Executors no longer log unless env var DEBUG_EXECUTORS is set
+
+2018-04-17 16.3
+- Fixes:
+  - Layout in executor (issue #695)
+  - Other small issues
+
 2018-01-21 16.2
 - Fixes:
   - Proper fix for issue #688
@@ -986,6 +1019,11 @@ released tint-0.2
 2008-04-22
 - fork ttm projet from p://code.google.com/p/ttm/ (by Pål Staurland staura@gmail.com)
   while the projet is no longer in developpement, have not changed the name of 'tint'.
+.
+.
+.
+.
+.
 .
 .
 .
